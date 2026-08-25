@@ -24,12 +24,13 @@ paylaşılmaz). Ayrıntılı adımlar için [docs/SUPABASE_SETUP.md](docs/SUPABA
 Bu proje aşamalı olarak geliştiriliyor:
 
 - **Faz 0 — Scaffold & Config**: tamamlandı
-- **Faz 1 — Ortak UI sistemi & responsive temel bileşenler**: devam ediyor
-- **Faz 2 — Ekranların taşınması**
-- **Faz 3 — DENEYAP domain adaptasyonu**
-- **Faz 4 — Responsive test turu**
+- **Faz 1 — Ortak UI sistemi & responsive temel bileşenler**: tamamlandı
+- **Faz 2 — Ekranların taşınması**: tamamlandı (tüm ekranlar)
+- **Faz 3 — DENEYAP domain adaptasyonu**: devam ediyor
+- **Faz 4 — Responsive test turu**: başlanmadı
 
-Detaylı plan için proje geçmişindeki plan dokümanına bakınız.
+Kalan işlerin tam listesi ve canlıya alma adımları için
+[docs/ROADMAP.md](docs/ROADMAP.md) dosyasına bakınız.
 
 ## Test
 
