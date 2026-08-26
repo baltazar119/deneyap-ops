@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cronYetkili } from '@/lib/cronAuth'
 import { kanallaraGonder } from '@/lib/kanal'
+import { eylemTokenUret } from '@/lib/eylemToken'
 import { createClient } from '@supabase/supabase-js'
 import { sendEmail } from '@/lib/email'
 import { renderInstantEmail } from '@/lib/emailTemplates'
@@ -118,6 +119,25 @@ async function notify(
     const link = params.link
       ? (params.link.startsWith('http') ? params.link : `${APP_URL}${params.link}`)
       : null
+    // E-postadan tek dokunuşla işlem — yalnızca görev bildirimlerinde.
+    // Linkler ONAY EKRANINA gider; değişikliği orada basılan düğme POST ile
+    // yapar (e-posta tarayıcıları linkleri otomatik açıyor).
+    const eylemler: { etiket: string; url: string }[] = []
+    if (params.task_id && params.org_id) {
+      const [tamamla, ertele] = await Promise.all([
+        eylemTokenUret(admin, {
+          userId: params.user_id, orgId: params.org_id,
+          eylem: 'gorev_tamamla', hedefId: params.task_id,
+        }),
+        eylemTokenUret(admin, {
+          userId: params.user_id, orgId: params.org_id,
+          eylem: 'termin_ertele', hedefId: params.task_id,
+        }),
+      ])
+      if (tamamla) eylemler.push({ etiket: '✓ Tamamlandı olarak işaretle', url: `${APP_URL}/eylem/${tamamla}` })
+      if (ertele)  eylemler.push({ etiket: '⏰ 1 hafta ertele', url: `${APP_URL}/eylem/${ertele}` })
+    }
+
     const html = renderInstantEmail({
       title:       params.title,
       appUrl:      APP_URL,
@@ -125,6 +145,8 @@ async function notify(
       link,
       actorName:   null,
       eventType:   params.event_type as Parameters<typeof renderInstantEmail>[0]['eventType'],
+      orgSlug:     params.org_slug ?? null,
+      eylemler,
     })
     const sent = await sendEmail(userEmail, params.title, html)
     if (sent) {

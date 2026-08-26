@@ -98,6 +98,12 @@ export function renderInstantEmail(params: {
   appUrl: string
   /** Bildirim tercihleri linkini org'a baglar; yoksa workspace listesine duser */
   orgSlug?: string | null
+  /**
+   * E-postadan tek dokunuşla işlem düğmeleri. Linkler ONAY EKRANINA gider;
+   * değişikliği orada basılan düğme POST ile yapar — e-posta tarayıcıları
+   * linkleri otomatik açtığı için doğrudan uygulayan bir GET olamaz.
+   */
+  eylemler?: { etiket: string; url: string }[]
 }): string {
   const meta = EVENT_META[params.eventType] || { color: C.primary, bg: C.pale, label: 'Bildirim' }
   // Link ya tam http(s) adresi ya da "/" ile başlayan uygulama içi yol olmalı.
@@ -127,6 +133,16 @@ export function renderInstantEmail(params: {
 
     <!-- Divider -->
     <div style="height:1px;background:${C.border};margin:0 0 24px;"></div>
+
+    ${(params.eylemler ?? []).length ? `
+    <!-- Hızlı işlemler -->
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 18px;">
+      <tr><td align="center">
+        ${params.eylemler!.map(e =>
+          `<a href="${guvenliUrl(e.url, params.appUrl)}" style="display:inline-block;margin:0 4px 8px;padding:10px 18px;background:#fff;border:1.5px solid ${C.primary};color:${C.primary};text-decoration:none;border-radius:9px;font-size:13px;font-weight:700;">${esc(e.etiket)}</a>`,
+        ).join('')}
+      </td></tr>
+    </table>` : ''}
 
     <!-- CTA Button -->
     <table width="100%" cellpadding="0" cellspacing="0">
