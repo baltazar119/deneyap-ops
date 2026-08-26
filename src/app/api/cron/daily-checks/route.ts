@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { cronYetkili } from '@/lib/cronAuth'
 import { createClient } from '@supabase/supabase-js'
 import { sendEmail } from '@/lib/email'
 import { renderInstantEmail } from '@/lib/emailTemplates'
@@ -13,7 +14,7 @@ function getAdmin() {
   )
 }
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://tarlis-uygulama.vercel.app'
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://deneyap-ops.vercel.app'
 
 function todayKey() {
   return new Date().toISOString().slice(0, 10) // YYYY-MM-DD
@@ -140,10 +141,7 @@ async function notify(
 
 export async function GET(req: NextRequest) {
   /* ── Güvenlik ──────────────────────────────────────────────────────────── */
-  const { searchParams } = new URL(req.url)
-  const secret = searchParams.get('secret')
-
-  if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
+  if (!cronYetkili(req)) {
     return NextResponse.json({ ok: false, reason: 'unauthorized' }, { status: 401 })
   }
 

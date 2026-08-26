@@ -113,7 +113,7 @@ export async function POST(
   // Default to Jitsi unless user explicitly chose in-person (meet_type === 'none') or GCal
   if (!useGcal && !manual_meet_link && meet_type !== 'none') {
     const rand = Array.from({ length: 10 }, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 36)]).join('')
-    manual_meet_link = `https://meet.jit.si/tarlis-${rand}`
+    manual_meet_link = `https://meet.jit.si/deneyap-${rand}`
   }
 
   // Google Calendar entegrasyonu
@@ -225,7 +225,7 @@ export async function POST(
     const memberEmailMap = Object.fromEntries((memberAuthUsers?.users || []).map((u: any) => [u.id, u.email]))
 
     // E-posta gönder — doğrudan, HTTP round-trip yok
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tarlis-uygulama.vercel.app'
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://deneyap-ops.vercel.app'
     for (const row of notifRows) {
       const userEmail = memberEmailMap[row.user_id]
       if (!userEmail) continue

@@ -44,7 +44,7 @@ export async function createNotification(params: CreateNotificationParams): Prom
 
   const appUrl = typeof window !== 'undefined'
     ? window.location.origin
-    : (process.env.NEXT_PUBLIC_APP_URL || 'https://tarlis-uygulama.vercel.app')
+    : (process.env.NEXT_PUBLIC_APP_URL || 'https://deneyap-ops.vercel.app')
 
   fetch(`${appUrl}/api/send-email`, {
     method:  'POST',
@@ -108,7 +108,7 @@ export async function createNotificationForAll(
 
   const allAppUrl = typeof window !== 'undefined'
     ? window.location.origin
-    : (process.env.NEXT_PUBLIC_APP_URL || 'https://tarlis-uygulama.vercel.app')
+    : (process.env.NEXT_PUBLIC_APP_URL || 'https://deneyap-ops.vercel.app')
 
   for (const p of profiles) {
     fetch(`${allAppUrl}/api/send-email`, {

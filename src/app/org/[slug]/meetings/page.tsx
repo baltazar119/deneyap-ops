@@ -275,7 +275,7 @@ export default function MeetingsPage() {
     const notesUrl = `${window.location.origin}/org/${org.slug}/meetings?notesOnly=${activeMeeting.id}`
     window.open(
       notesUrl,
-      'tarlisNotes',
+      'deneyapNotes',
       `width=${notesW},height=${sh},left=${meetW},top=0,toolbar=0,menubar=0,scrollbars=1`
     )
 
@@ -319,7 +319,7 @@ export default function MeetingsPage() {
   function generateJitsiRoom(): string {
     const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
     const rand = Array.from({ length: 10 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
-    return `tarlis-${rand}`
+    return `deneyap-${rand}`
   }
 
   // ── Toplantı oluştur ──
@@ -412,7 +412,7 @@ export default function MeetingsPage() {
     if (!org) return
     const { data: { session } } = await supabase.auth.getSession()
     const rand = Array.from({ length: 10 }, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 36)]).join('')
-    const link = `https://meet.jit.si/tarlis-${rand}`
+    const link = `https://meet.jit.si/deneyap-${rand}`
     const res = await fetch(`/api/org/${org.slug}/meetings/${meetingId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
@@ -1179,7 +1179,7 @@ export default function MeetingsPage() {
                 {createForm.meetType === 'jitsi' && (
                   <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 8, background: '#f0fdfa', border: '1px solid #99f6e4' }}>
                     <span style={{ fontSize: 11, color: '#0f766e', fontFamily: 'monospace' }}>
-                      meet.jit.si/tarlis-••••••••••
+                      meet.jit.si/deneyap-••••••••••
                     </span>
                     <span style={{ fontSize: 10, color: '#0f766e', opacity: 0.7 }}>· Toplantı oluşturulunca hazır</span>
                   </div>

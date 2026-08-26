@@ -74,25 +74,23 @@ Her değişkeni **Production**, **Preview** ve **Development** ortamlarının
 
 ---
 
-## Adım 3 — cron secret'ını düzelt (önemli)
+## Adım 3 — cron secret'ı (elle bir şey yapmana gerek yok)
 
-`vercel.json` dosyasında cron path'leri şöyle:
+Vercel cron path'leri ortam değişkeni interpolasyonunu desteklemez, yani
+`?secret=$CRON_SECRET` yazmak işe yaramaz. Bu yüzden secret **path'te
+taşınmıyor**: Vercel, `vercel.json` içindeki cron'ları çağırırken isteğe
+otomatik olarak `Authorization: Bearer $CRON_SECRET` başlığını ekliyor ve
+endpoint'ler bunu `src/lib/cronAuth.ts` üzerinden doğruluyor.
 
-```json
-"path": "/api/cron/daily-checks?secret=CRON_SECRET_PLACEHOLDER"
+Tek yapman gereken, Adım 2'de `CRON_SECRET` env değişkenini Vercel'e
+girmiş olmak. Girilmemişse endpoint'ler **her isteği 401 ile reddeder**
+(secret yoksa "açık" değil, "kapalı" davranıyor).
+
+Elle test etmek istersen sorgu parametresi de kabul ediliyor:
+
+```bash
+curl "https://<projen>.vercel.app/api/cron/daily-checks?secret=<CRON_SECRET>"
 ```
-
-Vercel cron path'leri **ortam değişkeni interpolasyonunu desteklemez** —
-yani `$CRON_SECRET` yazmak işe yaramaz. Bu yüzden `vercel.json` içindeki
-üç yerdeki `CRON_SECRET_PLACEHOLDER` metnini, `CRON_SECRET` env değişkenine
-girdiğin **gerçek değerle** elle değiştirip commit'lemen gerekiyor.
-
-Bu değer repoda görünür olacağı için:
-- Repoyu **private** tut, **veya**
-- Cron'ları tamamen kaldır (dijest e-postalarından vazgeç), **veya**
-- Söyle, bunu `Authorization` header'ı ile doğrulayan bir yapıya çeviririm
-  (Vercel cron'ları `Authorization: Bearer $CRON_SECRET` header'ını
-  destekler — daha güvenli yol bu)
 
 Dijest e-postalarını şimdilik istemiyorsan `vercel.json`'ı silmek de
 geçerli bir seçenek; uygulamanın geri kalanı etkilenmez.

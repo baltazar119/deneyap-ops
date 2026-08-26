@@ -108,7 +108,7 @@ export async function DELETE(
       await supabase.from('notifications').insert(notifRows)
 
       // Her katılımcıya iptal e-postası gönder (fire-and-forget)
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tarlis-uygulama.vercel.app'
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://deneyap-ops.vercel.app'
       for (const row of notifRows) {
         fetch(`${appUrl}/api/send-email`, {
           method: 'POST',

@@ -41,10 +41,10 @@ Cloud OAuth kimlik bilgilerini kullanıyor.
 ### 1.5 ~~Cron / dijest e-postaları~~ ✅ tamamlandı
 
 `/api/cron/daily-checks`, `/api/digest-email` ve `vercel.json` (cron
-zamanlamaları) taşındı. **Dikkat**: `vercel.json`'daki
-`CRON_SECRET_PLACEHOLDER` değerini deploy öncesi gerçek `CRON_SECRET`
-değerinle değiştirmen gerekiyor — Vercel cron path'leri env değişkeni
-interpolasyonunu desteklemiyor.
+zamanlamaları) taşındı. Secret artık path'te taşınmıyor; Vercel'in cron
+isteklerine eklediği `Authorization: Bearer $CRON_SECRET` başlığı
+`src/lib/cronAuth.ts` ile doğrulanıyor. Tek gereksinim: Vercel'de
+`CRON_SECRET` env değişkeninin tanımlı olması.
 
 ### 1.6 Admin paneli (düşük öncelik, opsiyonel — henüz taşınmadı)
 

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { cronYetkili } from '@/lib/cronAuth'
 import { createClient } from '@supabase/supabase-js'
 import { sendEmail } from '@/lib/email'
 import { renderDigestEmail } from '@/lib/emailTemplates'
@@ -7,10 +8,9 @@ import type { AppNotification } from '@/types/database'
 export async function GET(req: NextRequest) {
   /* ── Cron secret doğrulaması ──────────────────────────────────────────── */
   const { searchParams } = new URL(req.url)
-  const secret = searchParams.get('secret')
   const type   = searchParams.get('type') as 'daily' | 'weekly' | null
 
-  if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
+  if (!cronYetkili(req)) {
     return NextResponse.json({ ok: false, reason: 'unauthorized' }, { status: 401 })
   }
 
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   )
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tarlis-uygulama.vercel.app'
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://deneyap-ops.vercel.app'
 
   /* ── Hedef frekans ────────────────────────────────────────────────────── */
   const { data: prefsList } = await admin

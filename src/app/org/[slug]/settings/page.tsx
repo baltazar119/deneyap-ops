@@ -171,7 +171,7 @@ export default function SettingsPage() {
       setLogoMsg('Logo güncellendi!')
       setTimeout(() => setLogoMsg(null), 3000)
       // Sayfayı yenilemeden cache'i temizle
-      sessionStorage.removeItem(`tarlis_org_v2_${session.user.id}_${org.slug}`)
+      sessionStorage.removeItem(`deneyap_org_v2_${session.user.id}_${org.slug}`)
     }
     setLogoUploading(false)
   }
@@ -189,7 +189,7 @@ export default function SettingsPage() {
     setLogoUrl(null)
     setLogoPreview(null)
     setLogoFile(null)
-    sessionStorage.removeItem(`tarlis_org_v2_${session.user.id}_${org.slug}`)
+    sessionStorage.removeItem(`deneyap_org_v2_${session.user.id}_${org.slug}`)
     setLogoUploading(false)
   }
 

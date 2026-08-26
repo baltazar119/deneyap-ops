@@ -508,7 +508,7 @@ export default function MemberProfilePage() {
           </div>
         )}
 
-        {/* ── Son atölye girişleri ── */}
+        {/* ── Son saha girişleri ── */}
         {checkins.length > 0 && (
           <div
             className="rounded-2xl overflow-hidden"
