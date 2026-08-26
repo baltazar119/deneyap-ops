@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/daily-checks?secret=CRON_SECRET_PLACEHOLDER",
+      "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/digest-email?type=daily&secret=CRON_SECRET_PLACEHOLDER",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/digest-email?type=weekly&secret=CRON_SECRET_PLACEHOLDER",
+      "schedule": "0 9 * * 1"
+    }
+  ]
+}
