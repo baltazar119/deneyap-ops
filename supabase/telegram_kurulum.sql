@@ -1,3 +1,10 @@
+-- DENEYAP Ops — Telegram + haftalık rapor (057 + 058)
+-- Supabase SQL Editor'a yapıştırıp bir kez çalıştırın.
+
+
+-- ============================================================
+-- 057_kanal_baglantilari.sql
+-- ============================================================
 -- 057_kanal_baglantilari.sql
 -- Bildirim kanalları (Telegram, ileride WhatsApp) ve tek kullanımlık
 -- eylem tokenları.
@@ -99,3 +106,25 @@ create policy "channel_links_own_delete" on public.channel_links for delete
 
 -- Kodlar ve loglar yalnızca sunucu tarafından okunur/yazılır: politika yok,
 -- RLS açık → anon/authenticated erişemez.
+
+-- ============================================================
+-- 058_haftalik_rapor_ayari.sql
+-- ============================================================
+-- 058_haftalik_rapor_ayari.sql
+-- Haftalık rapor e-postası org ve kullanıcı bazında açılıp kapatılabilsin.
+--
+-- Yeni tablo açmıyoruz: automation_settings zaten org başına tek satır ve
+-- diğer otomasyon anahtarlarını (task_overdue, overload_threshold…) tutuyor.
+
+alter table public.automation_settings
+  add column if not exists haftalik_rapor boolean not null default true;
+
+comment on column public.automation_settings.haftalik_rapor is
+  'Pazartesi sabahı rol bazlı PDF raporun ilgili üyelere e-postayla gönderilmesi.';
+
+-- Kullanıcı bazlı kapatma email_preferences üzerinden
+alter table public.email_preferences
+  add column if not exists weekly_report boolean not null default true;
+
+comment on column public.email_preferences.weekly_report is
+  'Kullanıcının haftalık PDF raporu almak isteyip istemediği.';

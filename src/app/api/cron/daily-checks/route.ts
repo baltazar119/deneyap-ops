@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cronYetkili } from '@/lib/cronAuth'
+import { kanallaraGonder } from '@/lib/kanal'
 import { createClient } from '@supabase/supabase-js'
 import { sendEmail } from '@/lib/email'
 import { renderInstantEmail } from '@/lib/emailTemplates'
@@ -33,6 +34,9 @@ async function notify(
     link?: string
     entity_key: string
     org_id?: string
+    /** Telegram'da inline buton üretmek için — verilirse görev aksiyonları eklenir */
+    task_id?: string
+    org_slug?: string
   },
   emailResults: Array<{ user_id: string; reason: string }>
 ): Promise<'inserted' | 'skipped' | string> {
@@ -136,6 +140,39 @@ async function notify(
     emailResults.push({ user_id: params.user_id, reason: String(e) })
   }
 
+  /* ── Bağlı kanallar (Telegram) ────────────────────────────────────────
+     E-postaya EK olarak gider; e-posta tercihlerinden bağımsızdır çünkü
+     kullanıcı kanalı ayrıca ve bilinçli olarak bağlamıştır. */
+  try {
+    if (params.org_id) {
+      const kritikMi = params.event_type === 'task_overdue'
+      await kanallaraGonder(admin, {
+        userId: params.user_id,
+        orgId: params.org_id,
+        orgSlug: params.org_slug ?? '',
+        cooldownAnahtari: params.entity_key,
+        mesaj: {
+          baslik: params.title,
+          govde: params.description ?? '',
+          url: params.link
+            ? (params.link.startsWith('http') ? params.link : `${APP_URL}${params.link}`)
+            : APP_URL,
+          aciliyet: kritikMi ? 'kritik' : 'uyari',
+          // Tek dokunuşla durum güncelleme — PRD'nin "sorumlular yaklaşan
+          // terminleri kaçırmaz" hedefinin en doğrudan karşılığı
+          eylemler: params.task_id
+            ? [
+                { etiket: '✅ Tamamlandı', eylem: 'gorev_tamamla', hedefId: params.task_id },
+                { etiket: '⏰ 1 hafta ertele', eylem: 'termin_ertele', hedefId: params.task_id },
+              ]
+            : undefined,
+        },
+      })
+    }
+  } catch (e) {
+    console.error('[daily-checks] kanal gönderimi hatası (kritik değil):', e)
+  }
+
   return 'inserted'
 }
 
@@ -223,6 +260,8 @@ export async function GET(req: NextRequest) {
             link:       `/org/${org.slug}/tasks`,
             entity_key: `task:${task.id}:overdue:${today}:${uid}`,
             org_id:     org.id,
+            org_slug:   org.slug,
+            task_id:    task.id,
           }, emailResults)
           if (r === 'inserted') taskOverdueCount++
           else if (r === 'skipped') skippedCount++
@@ -261,6 +300,8 @@ export async function GET(req: NextRequest) {
             link:       `/org/${org.slug}/tasks`,
             entity_key: `task:${task.id}:due_soon:${today}:${uid}`,
             org_id:     org.id,
+            org_slug:   org.slug,
+            task_id:    task.id,
           }, emailResults)
           if (r === 'inserted') taskDueSoonCount++
           else if (r === 'skipped') skippedCount++

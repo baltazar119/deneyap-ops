@@ -62,6 +62,8 @@ export default function ProfilePage() {
   const router = useRouter()
   const { org, orgRole, userIl, userId, userEmail, avatarUrl, loading: orgLoading } = useOrg()
 
+  const slug = org?.slug ?? ''
+
   const [adSoyad, setAdSoyad]   = useState('')
   const [unvan, setUnvan]       = useState('')
   const [tercihler, setTercihler] = useState<Tercihler>(VARSAYILAN)
@@ -69,6 +71,12 @@ export default function ProfilePage() {
   const [kaydediliyor, setKaydediliyor] = useState(false)
   const [mesaj, setMesaj]       = useState<{ tip: 'ok' | 'hata'; metin: string } | null>(null)
   const [disaAktariliyor, setDisaAktariliyor] = useState(false)
+
+  // Telegram bağlantısı
+  const [tgHazir, setTgHazir]       = useState(false)
+  const [tgBagli, setTgBagli]       = useState<{ gorunen_ad: string | null } | null>(null)
+  const [tgBaglanti, setTgBaglanti] = useState<{ derinBaglanti: string; gecerlilikDakika: number } | null>(null)
+  const [tgYukleniyor, setTgYukleniyor] = useState(false)
 
   useEffect(() => {
     if (orgLoading) return
@@ -96,11 +104,54 @@ export default function ProfilePage() {
           new_version:         d.new_version,
         })
       }
+      await kanallariYukle()
       setLoading(false)
     }
     yukle()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgLoading, org?.id, userId])
+
+  async function kanallariYukle() {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+    const res = await fetch(`/api/org/${slug}/kanal/kod`, {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    })
+    if (!res.ok) return
+    const j = await res.json()
+    setTgHazir(!!j.telegramHazir)
+    const tg = (j.baglantilar ?? []).find((b: { kanal: string }) => b.kanal === 'telegram')
+    setTgBagli(tg ?? null)
+  }
+
+  async function telegramBagla() {
+    setTgYukleniyor(true); setMesaj(null)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) return
+      const res = await fetch(`/api/org/${slug}/kanal/kod`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kanal: 'telegram' }),
+      })
+      const j = await res.json()
+      if (!res.ok) { setMesaj({ tip: 'hata', metin: j.error ?? 'Bağlantı kodu alınamadı.' }); return }
+      setTgBaglanti(j)
+      window.open(j.derinBaglanti, '_blank', 'noopener')
+    } finally {
+      setTgYukleniyor(false)
+    }
+  }
+
+  async function telegramKaldir() {
+    if (!confirm('Telegram bağlantısı kaldırılacak. Bildirimleri artık yalnızca e-posta ile alacaksınız.')) return
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+    await fetch(`/api/org/${slug}/kanal/kod?kanal=telegram`, {
+      method: 'DELETE', headers: { Authorization: `Bearer ${session.access_token}` },
+    })
+    setTgBagli(null); setTgBaglanti(null)
+  }
 
   async function kaydet() {
     if (!userId) return
@@ -326,6 +377,56 @@ export default function ProfilePage() {
             </span>
           )}
         </div>
+
+        {/* ── Telegram ── */}
+        {tgHazir && (
+          <div className="card">
+            <h2 className="font-semibold mb-1" style={{ color: '#0d1a2a' }}>Telegram Bildirimleri</h2>
+            <p className="text-xs mb-4" style={{ color: '#94a3b8' }}>
+              Gecikme ve termin uyarılarını Telegram&apos;dan alın. Gelen mesajdaki
+              düğmeyle görevi tek dokunuşla tamamlandı olarak işaretleyebilir veya
+              terminini bir hafta erteleyebilirsiniz.
+            </p>
+
+            {tgBagli ? (
+              <div className="flex items-center justify-between gap-3 rounded-xl px-4 py-3 flex-wrap"
+                style={{ background: '#f0fdfa', border: '1px solid #5eead4' }}>
+                <div>
+                  <div className="text-sm font-semibold" style={{ color: '#0f766e' }}>✓ Bağlı</div>
+                  {tgBagli.gorunen_ad && (
+                    <div className="text-xs" style={{ color: '#64748b' }}>{tgBagli.gorunen_ad}</div>
+                  )}
+                </div>
+                <button onClick={telegramKaldir}
+                  className="text-sm font-semibold px-3 py-1.5 rounded-lg"
+                  style={{ background: '#fff', color: '#dc2626', border: '1.5px solid #fca5a5' }}>
+                  Bağlantıyı Kaldır
+                </button>
+              </div>
+            ) : (
+              <>
+                <button onClick={telegramBagla} disabled={tgYukleniyor} className="btn-secondary">
+                  {tgYukleniyor ? 'Hazırlanıyor…' : "Telegram'a Bağla"}
+                </button>
+                {tgBaglanti && (
+                  <div className="mt-3 rounded-xl px-4 py-3 text-xs"
+                    style={{ background: '#fffbeb', border: '1px solid #fcd34d', color: '#92400e' }}>
+                    Telegram yeni sekmede açıldı. Açılmadıysa{' '}
+                    <a href={tgBaglanti.derinBaglanti} target="_blank" rel="noopener noreferrer"
+                      style={{ color: '#2288c9', fontWeight: 600 }}>bu bağlantıya</a>{' '}
+                    tıklayın ve <strong>Başlat</strong> düğmesine basın.
+                    Bağlantı kodu {tgBaglanti.gecerlilikDakika} dakika geçerli.
+                    <div className="mt-2">
+                      <button onClick={kanallariYukle} className="btn-secondary" style={{ fontSize: 12, padding: '5px 10px' }}>
+                        Bağlandım, kontrol et
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
 
         {/* ── Verilerim (KVKK) ── */}
         <div className="card">
