@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, CheckSquare, Columns2, Calendar, GitBranch,
   Zap, FolderOpen, Sparkles, MessageSquare, Users, User,
-  LayoutGrid, MessageCircle, ListTodo, Video, Settings,
+  LayoutGrid, MessageCircle, ListTodo, Video, Settings, ShieldAlert,
   type LucideIcon,
 } from 'lucide-react'
 import type { OrgRole } from '@/types/database'
@@ -16,6 +16,7 @@ export const NAV_ICONS: Record<string, LucideIcon> = {
   Panel: LayoutDashboard,
   Görevler: CheckSquare,
   Kanban: Columns2,
+  'Operasyon Riski': ShieldAlert,
   Takvim: Calendar,
   Timeline: GitBranch,
   Sprintler: Zap,
@@ -46,6 +47,7 @@ export function getNavLinks({ base, role, isPro }: { base: string; role: OrgRole
       withIcon(`${base}/dashboard`, 'Panel'),
       withIcon(`${base}/tasks`, 'Görevler'),
       withIcon(`${base}/kanban`, 'Kanban'),
+      withIcon(`${base}/risk`, 'Operasyon Riski'),
       withIcon(`${base}/calendar`, 'Takvim'),
       withIcon(`${base}/timeline`, 'Timeline'),
       withIcon(`${base}/sprints`, 'Sprintler'),

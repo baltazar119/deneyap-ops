@@ -206,7 +206,7 @@ export default function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarPr
       {/* ── Operasyon Risk özeti ── */}
       {!collapsed && role !== 'consultant' && (
         <div className="shrink-0" style={{ borderTop: '1px solid rgba(255,255,255,0.06)', padding: '8px 10px 0' }}>
-          <OperationRiskWidget items={[]} />
+          <OperationRiskWidget />
         </div>
       )}
 
