@@ -470,12 +470,12 @@ function AIAssistantContent() {
     if (!org?.id) return
     const { data } = await supabase
       .from('sprints')
-      .select('id, name, start_date, end_date, status')
+      .select('id, name, start_date, end_date, is_active')
       .eq('organization_id', org.id)
       .order('created_at', { ascending: false })
       .limit(20)
     setSprints(data ?? [])
-    const active = (data ?? []).find((s: any) => s.status === 'active')
+    const active = (data ?? []).find((s: any) => s.is_active)
     if (active) setSelectedSprintId(active.id)
     else if (data && data.length > 0) setSelectedSprintId(data[0].id)
   }
@@ -1108,7 +1108,7 @@ function AIAssistantContent() {
                     <label className="block text-xs font-semibold mb-1.5" style={{ color: '#64748b' }}>Sprint Seç</label>
                     <select className="input text-sm w-full" value={selectedSprintId} onChange={(e) => setSelectedSprintId(e.target.value)}>
                       <option value="">— Aktif sprint —</option>
-                      {sprints.map((s: any) => <option key={s.id} value={s.id}>{s.name}{s.status === 'active' ? ' (Aktif)' : ''}</option>)}
+                      {sprints.map((s: any) => <option key={s.id} value={s.id}>{s.name}{s.is_active ? ' (Aktif)' : ''}</option>)}
                     </select>
                   </div>
                 )}
