@@ -45,8 +45,19 @@ const nextConfig = {
     // için Vercel bunları izleyemiyor ve lambda paketine koymuyordu.
     // Sonuç: üretimde PDF üretimi 500 veriyordu (yerelde sorunsuz çalışıyor).
     outputFileTracingIncludes: {
-      '/api/org/[slug]/rapor': ['./src/lib/rapor/pdf/fontlar/**'],
-      '/api/cron/haftalik-rapor': ['./src/lib/rapor/pdf/fontlar/**'],
+      // Kendi Roboto fontlarımız + pdfkit'in standart font metrikleri.
+      // pdfkit bu .cjs dosyalarını çalışma anında dinamik require ile
+      // yüklüyor; statik import olmadığı için izleyici göremiyor ve
+      // "Cannot find module .../standard-fonts/Helvetica.cjs" alınıyordu.
+      // Roboto'ya geçsek de pdfkit belge açılışında Helvetica'yı okuyor.
+      '/api/org/[slug]/rapor': [
+        './src/lib/rapor/pdf/fontlar/**',
+        './node_modules/pdfkit/js/standard-fonts/**',
+      ],
+      '/api/cron/haftalik-rapor': [
+        './src/lib/rapor/pdf/fontlar/**',
+        './node_modules/pdfkit/js/standard-fonts/**',
+      ],
     },
   },
   images: {
