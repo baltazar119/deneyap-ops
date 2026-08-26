@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useEffect, useState } from 'react'
+import { raporGorebilirMi } from '@/lib/roller'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { AlertTriangle, Clock, Ban, UserX, PauseCircle, ShieldCheck } from 'lucide-react'
@@ -25,7 +26,8 @@ export default function OperasyonRiskPage() {
   useEffect(() => {
     if (orgLoading) return
     if (!org || !userId) return
-    if (!isAdmin) {
+    // Yetkili Yönetici (viewer) raporları görebilir — ekran zaten salt okunur
+    if (!raporGorebilirMi(orgRole)) {
       router.replace(orgRole === 'consultant' ? `/org/${org.slug}/consultant` : `/org/${org.slug}/me`)
       return
     }

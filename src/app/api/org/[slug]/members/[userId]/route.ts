@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 
 const patchRoleSchema = z.object({
-  role: z.enum(['admin', 'member', 'consultant']),
+  role: z.enum(['admin', 'member', 'viewer', 'consultant']),
 })
 
 function getAdminClient() {

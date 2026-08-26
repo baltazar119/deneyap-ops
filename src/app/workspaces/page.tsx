@@ -458,6 +458,9 @@ function daysAgo(iso: string): string {
 }
 
 function roleLabel(role: OrgRole): string {
-  const labels: Record<OrgRole, string> = { owner: 'Sahibi', admin: 'Yönetici', member: 'Üye', consultant: 'Danışman' }
+  const labels: Record<OrgRole, string> = {
+    owner: 'Merkez Operasyon', admin: 'Koordinatör', member: 'İl Sorumlusu',
+    viewer: 'Yetkili Yönetici', consultant: 'Danışman',
+  }
   return labels[role] ?? role
 }

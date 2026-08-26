@@ -14,7 +14,7 @@ import type { Schedule, Task, Sprint } from '@/types/database'
 
 export default function MePage() {
   const router = useRouter()
-  const { org, orgRole, userId: orgUserId, userEmail: orgEmail, avatarUrl: orgAvatarUrl, isPro, loading: orgLoading } = useOrg()
+  const { org, orgRole, userIl, userId: orgUserId, userEmail: orgEmail, avatarUrl: orgAvatarUrl, isPro, loading: orgLoading } = useOrg()
   const [userId, setUserId] = useState<string | null>(null)
   const [userEmail, setUserEmail] = useState('')
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null)
@@ -22,6 +22,9 @@ export default function MePage() {
   const [checkinLoading, setCheckinLoading] = useState(false)
   const [schedules, setSchedules] = useState<Schedule[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
+  // PRD madde 2: il sorumlusu, kendi iline ait ama başkasına atanmış
+  // (ya da hiç atanmamış) görevleri de görmeli
+  const [ilTasks, setIlTasks] = useState<Task[]>([])
   const [activeSprint, setActiveSprint] = useState<Sprint | null>(null)
   const [sprintTasks, setSprintTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
@@ -67,9 +70,9 @@ export default function MePage() {
     setSchedules(data || [])
   }, [])
 
-  const loadAll = useCallback(async (uid: string) => {
+  const loadAll = useCallback(async (uid: string, il: string | null) => {
     // loadSchedules diğer 3 sorguyla aynı anda başlar (waterfall yok)
-    const [checkinsRes, tasksRes, sprintRes] = await Promise.all([
+    const [checkinsRes, tasksRes, sprintRes, , ilRes] = await Promise.all([
       supabase
         .from('checkins')
         .select('*')
@@ -89,10 +92,21 @@ export default function MePage() {
         .eq('is_active', true)
         .maybeSingle(),
       loadSchedules(uid),
+      il
+        ? supabase
+            .from('tasks')
+            .select('*')
+            .eq('organization_id', org!.id)
+            .eq('il', il)
+            .neq('status', 'done')
+            .order('due_date', { ascending: true })
+        : Promise.resolve({ data: [] as Task[] }),
     ])
     setIsIn(isCurrentlyIn(checkinsRes.data || []))
     const myTasks: Task[] = tasksRes.data || []
     setTasks(myTasks)
+    // Bana zaten atanmış olanları tekrar listeleme
+    setIlTasks(((ilRes?.data as Task[]) || []).filter(t => t.assignee_id !== uid))
 
     if (sprintRes.data) {
       setActiveSprint(sprintRes.data)
@@ -119,8 +133,8 @@ export default function MePage() {
       .eq('organization_id', org.id)
       .then(() => {})
 
-    loadAll(orgUserId).then(() => setLoading(false))
-  }, [orgLoading, org, orgUserId, orgEmail, orgAvatarUrl, loadAll])
+    loadAll(orgUserId, userIl).then(() => setLoading(false))
+  }, [orgLoading, org, orgUserId, orgEmail, orgAvatarUrl, userIl, loadAll])
 
   async function handleCheckin(type: 'in' | 'out') {
     if (!userId) return
@@ -511,6 +525,83 @@ export default function MePage() {
             </div>
           )}
         </div>
+
+        {/* ── İlimin Görevleri (PRD: sorumlu olduğu il/birim) ── */}
+        {userIl && (
+          <div className="card mt-5">
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="text-base font-bold" style={{ color: '#0d1a2a' }}>
+                {userIl} — İlimin Görevleri
+              </h2>
+              {ilTasks.length > 0 && (
+                <span
+                  className="text-xs px-2.5 py-0.5 rounded-full font-semibold"
+                  style={{ background: '#f0fdfa', color: '#0f766e', border: '1px solid #5eead4' }}
+                >
+                  {ilTasks.length} açık
+                </span>
+              )}
+            </div>
+            <p className="text-xs mb-4" style={{ color: '#94a3b8' }}>
+              Sorumlu olduğunuz ile ait, size atanmamış açık görevler.
+            </p>
+
+            {ilTasks.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 gap-2">
+                <div
+                  className="w-12 h-12 rounded-2xl flex items-center justify-center text-xl"
+                  style={{ background: '#f0fdfa' }}
+                >
+                  📍
+                </div>
+                <p className="text-sm font-medium" style={{ color: '#94a3b8' }}>
+                  {userIl} için açık görev yok
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {ilTasks.map((task) => {
+                  const od = isOverdue(task.due_date)
+                  return (
+                    <Link
+                      key={task.id}
+                      href={`/org/${org?.slug}/tasks/${task.id}`}
+                      className="flex items-start justify-between gap-3 p-3.5 rounded-xl transition-all duration-150"
+                      style={{
+                        background: od ? '#fff5f5' : '#f8fafc',
+                        border: od ? '1px solid #fecaca' : '1px solid #e8f0f5',
+                        borderLeft: od ? '3px solid #ef4444' : undefined,
+                      }}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-semibold truncate" style={{ color: '#0d1a2a' }}>
+                          {task.title}
+                        </div>
+                        {task.description && (
+                          <div className="text-xs mt-0.5 truncate" style={{ color: '#94a3b8' }}>
+                            {task.description}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <StatusBadge status={task.status} />
+                        {task.due_date && (
+                          <span
+                            className="text-xs font-semibold flex items-center gap-1"
+                            style={{ color: od ? '#dc2626' : '#94a3b8' }}
+                          >
+                            {od ? '⚠ ' : ''}
+                            {new Date(task.due_date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}
+                          </span>
+                        )}
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </main>
     </div>
   )

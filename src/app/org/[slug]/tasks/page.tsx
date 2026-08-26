@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { TASK_TYPES, TASK_TYPE_FALLBACK } from '@/lib/taskTypes'
+import { IL_SECENEKLERI } from '@/lib/iller'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
@@ -47,7 +48,7 @@ type TasksPageCache = { tasks: TaskWithAssignee[]; members: Profile[]; sprints: 
 
 export default function TasksPage() {
   const router = useRouter()
-  const { org, orgRole, userId, userEmail: orgEmail, avatarUrl: orgAvatarUrl, isAdmin, loading: orgLoading } = useOrg()
+  const { org, orgRole, userIl, userId, userEmail: orgEmail, avatarUrl: orgAvatarUrl, isAdmin, loading: orgLoading } = useOrg()
   const isMobile = useIsMobile()
 
   // Senkron cache init
@@ -65,6 +66,7 @@ export default function TasksPage() {
   const [filterStatus, setFilterStatus] = useState<TaskStatus | 'all'>('all')
   const [filterPriority, setFilterPriority] = useState<TaskPriority | 'all'>('all')
   const [filterType, setFilterType] = useState<TaskType | 'all'>('all')
+  const [filterIl, setFilterIl] = useState<string>('all')
   const [filterAssignee, setFilterAssignee] = useState<string>('all')
 
   // Form state
@@ -84,6 +86,7 @@ export default function TasksPage() {
   const [formError, setFormError] = useState<string | null>(null)
   const [sprints, setSprints] = useState<Sprint[]>(_initCache?.sprints ?? [])
   const [formSprintId, setFormSprintId] = useState<string>('')
+  const [formIl, setFormIl] = useState<string>('')
   const [formFiles, setFormFiles] = useState<File[]>([])
   const [uploadingFiles, setUploadingFiles] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -169,6 +172,7 @@ export default function TasksPage() {
     setFormEstimatedHours('')
     setFormActualHours('')
     setFormSprintId('')
+    setFormIl('')
     setFormFiles([])
     setFormError(null)
     setShowForm(true)
@@ -187,6 +191,7 @@ export default function TasksPage() {
     setFormEstimatedHours(task.estimated_hours != null ? String(task.estimated_hours) : '')
     setFormActualHours(task.actual_hours != null ? String(task.actual_hours) : '')
     setFormSprintId(task.sprint_id || '')
+    setFormIl(task.il || '')
     setFormFiles([])
     setFormError(null)
     setShowForm(true)
@@ -254,6 +259,7 @@ export default function TasksPage() {
       estimated_hours: formEstimatedHours ? parseFloat(formEstimatedHours) : null,
       actual_hours: formActualHours ? parseFloat(formActualHours) : null,
       sprint_id: formSprintId || null,
+      il: formIl || null,
     }
 
     const actorName = members.find((m) => m.id === currentUserId)?.full_name ?? null
@@ -323,10 +329,23 @@ export default function TasksPage() {
     await loadTasks()
   }
 
-  const filteredTasks = tasks.filter((t) => {
+  // PRD madde 2: "yalnızca ilgili görevleri görür".
+  // İl Sorumlusu (member) kendi iline ait görevleri ve kendisine atanan
+  // görevleri görür. İl atanmamışsa yalnızca kendisine atananları görür.
+  // Koordinatör / Merkez / Yetkili Yönetici tüm görevleri görür.
+  const gorunurTasks = orgRole === 'member'
+    ? tasks.filter(t => t.assignee_id === userId || (!!userIl && t.il === userIl))
+    : tasks
+
+  const kullanilanIller = Array.from(
+    new Set(gorunurTasks.map(t => t.il).filter((il): il is string => !!il))
+  ).sort((a, b) => a.localeCompare(b, 'tr'))
+
+  const filteredTasks = gorunurTasks.filter((t) => {
     if (filterStatus !== 'all' && t.status !== filterStatus) return false
     if (filterPriority !== 'all' && t.priority !== filterPriority) return false
     if (filterType !== 'all' && t.task_type !== filterType) return false
+    if (filterIl !== 'all' && (t.il ?? '') !== filterIl) return false
     if (filterAssignee !== 'all' && t.assignee_id !== filterAssignee) return false
     return true
   })
@@ -457,6 +476,7 @@ export default function TasksPage() {
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
                     <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: pMeta.bg, color: pMeta.color }}>{pMeta.label}</span>
                     <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: '#f1f5f9', color: '#64748b' }}>{tMeta.label}</span>
+                    {task.il && <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: '#f0fdfa', color: '#0f766e' }}>📍 {task.il}</span>}
                     {task.sprint_id && (() => { const sp = sprints.find(s => s.id === task.sprint_id); return sp ? <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: '#ede9fe', color: '#7c3aed' }}>{sp.name}</span> : null })()}
                   </div>
 
@@ -564,6 +584,13 @@ export default function TasksPage() {
                   </select>
                 </div>
                 <div>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#374151', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>İl / Birim</label>
+                  <select value={formIl} onChange={e => setFormIl(e.target.value)} className="input">
+                    <option value="">-- İl atanmamış --</option>
+                    {IL_SECENEKLERI.map(il => <option key={il} value={il}>{il}</option>)}
+                  </select>
+                </div>
+                <div>
                   <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#374151', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Sprint</label>
                   <select value={formSprintId} onChange={e => setFormSprintId(e.target.value)} className="input">
                     <option value="">-- Sprint'e atama yok --</option>
@@ -648,6 +675,17 @@ export default function TasksPage() {
               options: [{ value: 'all', label: 'Tüm Türler' }, ...TASK_TYPES],
             },
             {
+              value: filterIl,
+              onChange: (v: string) => setFilterIl(v),
+              // Yalnızca görevlerde fiilen kullanılan iller listeleniyor —
+              // 82 seçenekli bir filtre kullanışsız olurdu
+              options: [
+                { value: 'all', label: 'Tüm İller' },
+                { value: '', label: 'İl atanmamış' },
+                ...kullanilanIller.map(il => ({ value: il, label: il })),
+              ],
+            },
+            {
               value: filterAssignee,
               onChange: (v: string) => setFilterAssignee(v),
               options: [{ value: 'all', label: 'Tüm Üyeler' }, { value: '', label: 'Atanmamış' }, ...members.map(m => ({ value: m.id, label: m.full_name || m.id }))],
@@ -663,9 +701,9 @@ export default function TasksPage() {
               {sel.options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           ))}
-          {(filterStatus !== 'all' || filterPriority !== 'all' || filterType !== 'all' || filterAssignee !== 'all') && (
+          {(filterStatus !== 'all' || filterPriority !== 'all' || filterType !== 'all' || filterIl !== 'all' || filterAssignee !== 'all') && (
             <button
-              onClick={() => { setFilterStatus('all'); setFilterPriority('all'); setFilterType('all'); setFilterAssignee('all') }}
+              onClick={() => { setFilterStatus('all'); setFilterPriority('all'); setFilterType('all'); setFilterIl('all'); setFilterAssignee('all') }}
               className="text-xs px-3 py-1.5 rounded-xl font-medium"
               style={{ background: '#fee2e2', color: '#dc2626', border: '1px solid #fecaca' }}
             >
@@ -710,6 +748,11 @@ export default function TasksPage() {
                     <span className="text-xs px-1.5 py-0.5 rounded font-medium" style={{ background: '#f1f5f9', color: '#64748b' }}>
                       {tMeta.label}
                     </span>
+                    {task.il && (
+                      <span className="text-xs px-1.5 py-0.5 rounded font-medium" style={{ background: '#f0fdfa', color: '#0f766e' }}>
+                        📍 {task.il}
+                      </span>
+                    )}
                     {task.assigneeName && (
                       <span className="text-xs" style={{ color: '#9ca3af' }}>{task.assigneeName}</span>
                     )}
@@ -885,6 +928,21 @@ export default function TasksPage() {
                     <option key={m.id} value={m.id}>
                       {m.full_name || m.id} ({m.role === 'admin' ? 'Admin' : 'Üye'})
                     </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* İl / Birim */}
+              <div>
+                <label className="block text-xs font-semibold mb-1.5" style={{ color: '#374151' }}>İl / Birim</label>
+                <select
+                  value={formIl}
+                  onChange={(e) => setFormIl(e.target.value)}
+                  className="input"
+                >
+                  <option value="">-- İl atanmamış --</option>
+                  {IL_SECENEKLERI.map((il) => (
+                    <option key={il} value={il}>{il}</option>
                   ))}
                 </select>
               </div>

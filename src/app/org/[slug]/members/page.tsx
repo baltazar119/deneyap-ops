@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { rolAdi } from '@/lib/roller'
+import { IL_SECENEKLERI } from '@/lib/iller'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { useOrg } from '@/lib/supabase/orgContext'
@@ -11,6 +13,7 @@ import type { OrgRole, Profile } from '@/types/database'
 interface MemberRow {
   userId: string
   role: OrgRole
+  il: string | null
   joinedAt: string
   profile: Profile | null
 }
@@ -23,11 +26,13 @@ interface InvitationRow {
   token: string
 }
 
+// Etiketler roller.ts'ten geliyor (PRD terminolojisi); burada sadece renkler var
 const ROLE_META: Record<OrgRole, { label: string; color: string; bg: string; border: string }> = {
-  owner:      { label: 'Sahip',     color: '#92400e', bg: '#fef9ee', border: '#fcd34d' },
-  admin:      { label: 'Yönetici',  color: '#1e40af', bg: '#eff6ff', border: '#93c5fd' },
-  member:     { label: 'Üye',       color: '#374151', bg: '#f8fafc', border: '#e2e8f0' },
-  consultant: { label: 'Danışman',  color: '#5b21b6', bg: '#faf5ff', border: '#c4b5fd' },
+  owner:      { label: rolAdi('owner'),      color: '#92400e', bg: '#fef9ee', border: '#fcd34d' },
+  admin:      { label: rolAdi('admin'),      color: '#1e40af', bg: '#eff6ff', border: '#93c5fd' },
+  member:     { label: rolAdi('member'),     color: '#374151', bg: '#f8fafc', border: '#e2e8f0' },
+  viewer:     { label: rolAdi('viewer'),     color: '#0f766e', bg: '#f0fdfa', border: '#5eead4' },
+  consultant: { label: rolAdi('consultant'), color: '#5b21b6', bg: '#faf5ff', border: '#c4b5fd' },
 }
 
 const AVATAR_COLORS = ['#1d4ed8','#0369a1','#0f766e','#166534','#7c2d12','#6d28d9','#be185d','#b45309']
@@ -85,7 +90,7 @@ export default function MembersPage() {
     setLoading(true)
     const { data: memberData } = await supabase
       .from('organization_members')
-      .select('user_id, role, joined_at')
+      .select('user_id, role, il, joined_at')
       .eq('organization_id', org.id)
       .order('joined_at', { ascending: true })
 
@@ -95,6 +100,7 @@ export default function MembersPage() {
       const profileMap = Object.fromEntries((profiles ?? []).map(p => [p.id, p]))
       setMembers(memberData.map(m => ({
         userId: m.user_id, role: m.role as OrgRole,
+        il: (m.il as string | null) ?? null,
         joinedAt: m.joined_at, profile: profileMap[m.user_id] ?? null,
       })))
     }
@@ -147,6 +153,20 @@ export default function MembersPage() {
     setRoleChangeMsgs(prev => ({ ...prev, [targetUserId]: res.ok ? 'ok' : 'err' }))
     setTimeout(() => setRoleChangeMsgs(prev => { const next = { ...prev }; delete next[targetUserId]; return next }), 2000)
     if (res.ok) loadData()
+  }
+
+  // PRD madde 2: üyenin sorumlu olduğu il/birim
+  async function handleIlChange(targetUserId: string, newIl: string) {
+    if (!org) return
+    const { error } = await supabase
+      .from('organization_members')
+      .update({ il: newIl || null })
+      .eq('organization_id', org.id)
+      .eq('user_id', targetUserId)
+
+    setRoleChangeMsgs(prev => ({ ...prev, [targetUserId]: error ? 'err' : 'ok' }))
+    setTimeout(() => setRoleChangeMsgs(prev => { const next = { ...prev }; delete next[targetUserId]; return next }), 2000)
+    if (!error) loadData()
   }
 
   async function handleRemove(targetUserId: string) {
@@ -358,9 +378,10 @@ export default function MembersPage() {
                   background: 'rgba(255,255,255,0.15)', color: '#fff', fontSize: 13, outline: 'none',
                 }}
               >
-                <option value="member" style={{ color: '#000' }}>Üye</option>
-                <option value="admin" style={{ color: '#000' }}>Yönetici</option>
-                {isPro && <option value="consultant" style={{ color: '#000' }}>Danışman</option>}
+                <option value="member" style={{ color: '#000' }}>{rolAdi('member')}</option>
+                <option value="admin" style={{ color: '#000' }}>{rolAdi('admin')}</option>
+                <option value="viewer" style={{ color: '#000' }}>{rolAdi('viewer')}</option>
+                {isPro && <option value="consultant" style={{ color: '#000' }}>{rolAdi('consultant')}</option>}
               </select>
               <button
                 type="submit"
@@ -451,9 +472,10 @@ export default function MembersPage() {
                             cursor: 'pointer',
                           }}
                         >
-                          <option value="member">Üye</option>
-                          <option value="admin">Yönetici</option>
-                          {isPro && <option value="consultant">Danışman</option>}
+                          <option value="member">{rolAdi('member')}</option>
+                          <option value="admin">{rolAdi('admin')}</option>
+                          <option value="viewer">{rolAdi('viewer')}</option>
+                          {isPro && <option value="consultant">{rolAdi('consultant')}</option>}
                         </select>
                       ) : (
                         <span style={{
@@ -463,6 +485,28 @@ export default function MembersPage() {
                           {rm.label}
                         </span>
                       )}
+                      {canEdit ? (
+                        <select
+                          value={m.il ?? ''}
+                          onChange={e => handleIlChange(m.userId, e.target.value)}
+                          title="Sorumlu olduğu il / birim"
+                          style={{
+                            fontSize: 12, fontWeight: 600, padding: '4px 10px', borderRadius: 8,
+                            border: '1.5px solid #cbd5e1', background: '#f8fafc', color: '#334155',
+                            outline: 'none', cursor: 'pointer', maxWidth: 170,
+                          }}
+                        >
+                          <option value="">İl atanmamış</option>
+                          {IL_SECENEKLERI.map(il => <option key={il} value={il}>{il}</option>)}
+                        </select>
+                      ) : m.il ? (
+                        <span style={{
+                          fontSize: 12, fontWeight: 600, padding: '4px 10px', borderRadius: 8,
+                          border: '1.5px solid #cbd5e1', background: '#f8fafc', color: '#334155',
+                        }}>
+                          📍 {m.il}
+                        </span>
+                      ) : null}
                       {feedback && (
                         <span style={{ fontSize: 14, fontWeight: 700, color: feedback === 'ok' ? '#16a34a' : '#dc2626' }}>
                           {feedback === 'ok' ? '✓' : '✕'}

@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
 const inviteSchema = z.object({
   organization_id: z.string().uuid('Geçersiz organizasyon ID'),
   email: z.string().email('Geçersiz e-posta adresi').max(254),
-  role: z.enum(['admin', 'member', 'consultant']),
+  role: z.enum(['admin', 'member', 'viewer', 'consultant']),
 })
 
 // POST /api/org/invite — Yeni davet oluştur (admin)

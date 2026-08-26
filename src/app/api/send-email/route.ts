@@ -29,6 +29,9 @@ const ROLE_ALLOWED: Record<OrgRole, NotificationEvent[]> = {
   owner:      ['task_assigned', 'task_status_changed', 'task_overdue', 'review_reply', 'mention', 'annotation_resolved', 'new_version', 'sprint_changed', ...SYSTEM_EVENTS],
   admin:      ['task_assigned', 'task_status_changed', 'task_overdue', 'review_reply', 'mention', 'annotation_resolved', 'new_version', 'sprint_changed', ...SYSTEM_EVENTS],
   member:     ['task_assigned', 'task_status_changed', 'task_overdue', 'mention', 'sprint_changed', 'task_due_soon', 'sprint_ending_soon', 'meeting_created', 'meeting_cancelled', 'meeting_reminder'],
+  // Yetkili Yönetici: salt okunur rol — kendisine atanan görev olmaz,
+  // yalnızca gecikme/termin takibi ve toplantı bildirimlerini alır
+  viewer:     ['task_overdue', 'task_due_soon', 'sprint_ending_soon', 'meeting_created', 'meeting_cancelled', 'meeting_reminder'],
   consultant: ['review_reply', 'annotation_resolved', 'meeting_created', 'meeting_cancelled', 'meeting_reminder'],
 }
 

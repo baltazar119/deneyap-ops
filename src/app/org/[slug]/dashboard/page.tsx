@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useEffect, useCallback } from 'react'
+import { raporGorebilirMi } from '@/lib/roller'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useState, useRef } from 'react'
@@ -82,7 +83,8 @@ export default function DashboardPage() {
   useEffect(() => {
     if (orgLoading) return
     if (!org || !userId) { router.replace('/login'); return }
-    if (!isAdmin) {
+    // Yetkili Yönetici (viewer) raporları görebilir — ekran zaten salt okunur
+    if (!raporGorebilirMi(orgRole)) {
       router.replace(orgRole === 'consultant' ? `/org/${org.slug}/consultant` : `/org/${org.slug}/me`)
       return
     }

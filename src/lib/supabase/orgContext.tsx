@@ -10,6 +10,8 @@ export type { OrgRole, PlanType, Organization }
 export interface OrgContextValue {
   org: Organization | null
   orgRole: OrgRole | null
+  /** Kullanıcının bu org'da sorumlu olduğu il/birim (İl Sorumlusu filtresi) */
+  userIl: string | null
   userId: string | null
   userEmail: string | null
   avatarUrl: string | null
@@ -24,6 +26,7 @@ export interface OrgContextValue {
 export const OrgContext = createContext<OrgContextValue>({
   org: null,
   orgRole: null,
+  userIl: null,
   userId: null,
   userEmail: null,
   avatarUrl: null,
@@ -43,6 +46,7 @@ const CACHE_PREFIX = 'deneyap_org_v2_'   // v2: org objesi de dahil
 
 interface CacheData {
   orgRole: OrgRole
+  userIl?: string | null
   userPlan: PlanType
   orgId: string
   org: Organization
@@ -79,7 +83,7 @@ export function getStoredUserId(): string | null {
 }
 
 const DEFAULT_VALUE: OrgContextValue = {
-  org: null, orgRole: null, userId: null, userEmail: null, avatarUrl: null,
+  org: null, orgRole: null, userIl: null, userId: null, userEmail: null, avatarUrl: null,
   isPro: false, hasAiAddon: false, isAdmin: false, isOwner: false, isConsultant: false,
   loading: true,
 }
@@ -95,6 +99,7 @@ function readCachedValue(slug: string): OrgContextValue | null {
     return {
       org: cached.org,
       orgRole: cached.orgRole,
+      userIl: cached.userIl ?? null,
       userId: uid,
       userEmail: null,          // session email aşağıdaki useEffect'te güncellenir
       avatarUrl: cached.avatarUrl,
@@ -164,6 +169,7 @@ export function OrgProvider({ children }: { children: ReactNode }) {
             .from('organization_members')
             .select(`
               role,
+              il,
               organizations!inner (
                 id, name, slug, plan, max_members, logo_url, primary_color, accent_color, created_by, created_at, join_code
               )
@@ -189,6 +195,7 @@ export function OrgProvider({ children }: { children: ReactNode }) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const org = (membership.organizations as any) as Organization
         const orgRole = membership.role as OrgRole
+        const userIl  = (membership.il as string | null) ?? null
 
         const profile = profileResult.data
         const userPlan = (profile?.plan ?? 'free') as PlanType
@@ -198,6 +205,7 @@ export function OrgProvider({ children }: { children: ReactNode }) {
         setValue({
           org,
           orgRole,
+          userIl,
           userId,
           userEmail: session.user.email ?? null,
           avatarUrl,
@@ -209,7 +217,7 @@ export function OrgProvider({ children }: { children: ReactNode }) {
           loading: false,
         })
 
-        if (slug) setCache(userId, slug, { orgRole, userPlan, orgId: org.id, org, avatarUrl, hasAiAddon })
+        if (slug) setCache(userId, slug, { orgRole, userIl, userPlan, orgId: org.id, org, avatarUrl, hasAiAddon })
 
       } catch (err) {
         console.error('[OrgContext] load error:', err)

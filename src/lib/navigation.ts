@@ -63,6 +63,16 @@ export function getNavLinks({ base, role, isPro }: { base: string; role: OrgRole
     ]
   }
 
+  // Yetkili Yönetici: yalnızca izleme/raporlama ekranları
+  if (role === 'viewer') {
+    return [
+      withIcon(`${base}/dashboard`, 'Panel'),
+      withIcon(`${base}/risk`, 'Operasyon Riski'),
+      withIcon(`${base}/timeline`, 'Timeline'),
+      withIcon(`${base}/profile`, 'Profilim'),
+    ]
+  }
+
   if (role === 'consultant') {
     return [
       ...(isPro ? [withIcon(`${base}/consultant`, 'Danışmanlık')] : []),
@@ -84,9 +94,11 @@ export function getNavLinks({ base, role, isPro }: { base: string; role: OrgRole
 }
 
 export const ROLE_LABEL: Record<OrgRole, string> = {
-  owner: 'Sahip', admin: 'Admin', consultant: 'Danışman', member: 'Üye',
+  owner: 'Merkez Operasyon', admin: 'Koordinatör', member: 'İl Sorumlusu',
+  viewer: 'Yetkili Yönetici', consultant: 'Danışman',
 }
 
 export const ROLE_COLOR: Record<OrgRole, string> = {
-  owner: '#f59e0b', admin: '#2abbd5', consultant: '#a78bfa', member: '#6ee7b7',
+  owner: '#f59e0b', admin: '#2abbd5', member: '#6ee7b7',
+  viewer: '#5eead4', consultant: '#a78bfa',
 }

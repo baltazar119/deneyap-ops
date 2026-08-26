@@ -122,6 +122,7 @@ export interface Database {
           estimated_hours: number | null
           actual_hours: number | null
           sprint_id: string | null
+          il: string | null
           organization_id: string
           created_by: string
           created_at: string
@@ -139,6 +140,7 @@ export interface Database {
           estimated_hours?: number | null
           actual_hours?: number | null
           sprint_id?: string | null
+          il?: string | null
           organization_id: string
           created_by: string
           created_at?: string
@@ -156,6 +158,7 @@ export interface Database {
           estimated_hours?: number | null
           actual_hours?: number | null
           sprint_id?: string | null
+          il?: string | null
           organization_id?: string
           created_by?: string
           created_at?: string
@@ -269,7 +272,7 @@ export interface Database {
 // ── Multi-Tenant Tipleri ─────────────────────────────────────────────────────
 
 export type PlanType = 'free' | 'pro'
-export type OrgRole = 'owner' | 'admin' | 'member' | 'consultant'
+export type OrgRole = 'owner' | 'admin' | 'member' | 'viewer' | 'consultant'
 
 export interface Organization {
   id: string

@@ -6,6 +6,7 @@ import { useState } from 'react'
 import Image from 'next/image'
 import { Turnstile } from '@marsidev/react-turnstile'
 import { supabase } from '@/lib/supabase/client'
+import { DEMO_HESAPLAR, DEMO_MODU_ACIK, DEMO_SIFRE } from '@/lib/demoHesaplar'
 
 type Mode = 'login' | 'signup'
 
@@ -220,6 +221,22 @@ export default function LoginPage() {
     }
   }
 
+  /** Demo hesapla tek tıkla giriş — panel yalnızca DEMO_MODU_ACIK iken görünür */
+  async function handleDemoLogin(demoEmail: string) {
+    setError(null); setMessage(null)
+    setEmail(demoEmail); setPassword(DEMO_SIFRE)
+    setLoading(true)
+    const { data, error: signInError } = await supabase.auth.signInWithPassword({
+      email: demoEmail, password: DEMO_SIFRE,
+    })
+    if (signInError || !data.session) {
+      setError('Demo hesabı bulunamadı. Kurulum için: npm run seed:demo')
+      setLoading(false)
+      return
+    }
+    window.location.href = '/workspaces'
+  }
+
   async function handleSignup() {
     if (!kvkkAccepted) {
       setError('Devam etmek için Gizlilik Politikası ve Kullanım Şartlarını kabul etmelisiniz.')
@@ -311,6 +328,58 @@ export default function LoginPage() {
               Kayıt Ol
             </button>
           </div>
+
+          {/* Demo hesapları — yalnızca NEXT_PUBLIC_DEMO_MODE=true iken */}
+          {DEMO_MODU_ACIK && mode === 'login' && (
+            <div
+              className="mb-5 rounded-2xl"
+              style={{ border: '1px solid #e2e8f0', background: '#fbfdff', padding: 14 }}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-bold uppercase tracking-wider" style={{ color: '#0f766e' }}>
+                  Demo hesapla dene
+                </span>
+                <span className="text-xs" style={{ color: '#94a3b8' }}>şifre: {DEMO_SIFRE}</span>
+              </div>
+              <p className="text-xs mb-3" style={{ color: '#64748b' }}>
+                Rolü seçin, aynı görev verisinin o role nasıl göründüğünü karşılaştırın.
+              </p>
+
+              <div className="grid gap-2" style={{ gridTemplateColumns: '1fr' }}>
+                {DEMO_HESAPLAR.map((h) => (
+                  <button
+                    key={h.email}
+                    type="button"
+                    onClick={() => handleDemoLogin(h.email)}
+                    disabled={loading || googleLoading}
+                    className="text-left rounded-xl transition-all"
+                    style={{
+                      background: h.renk.bg,
+                      border: `1px solid ${h.renk.border}`,
+                      padding: '9px 12px',
+                      cursor: loading ? 'wait' : 'pointer',
+                      opacity: loading ? 0.6 : 1,
+                    }}
+                  >
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-bold" style={{ color: h.renk.text }}>
+                        {h.rolAdi}
+                      </span>
+                      {h.role === 'member' && (
+                        <span
+                          className="text-xs font-semibold px-1.5 py-0.5 rounded"
+                          style={{ background: '#fff', color: '#0f766e', border: '1px solid #cbd5e1' }}
+                        >
+                          📍 {h.il}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs mt-0.5" style={{ color: '#64748b' }}>{h.ozet}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Google butonu */}
           <button type="button" onClick={handleGoogleLogin}
