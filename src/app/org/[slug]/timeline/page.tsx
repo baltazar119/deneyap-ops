@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useEffect, useState, useRef } from 'react'
+import { applyTaskScope } from '@/lib/taskScope'
 import { taskTypeLabel } from '@/lib/taskTypes'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -89,7 +90,7 @@ type TimelineCache = { dated: TaskWithMeta[]; undated: Task[]; sprints: Sprint[]
 
 export default function TimelinePage() {
   const router = useRouter()
-  const { org, orgRole, userId, loading: orgLoading } = useOrg()
+  const { org, orgRole, userIl, userId, loading: orgLoading } = useOrg()
 
   const _key   = org?.id && userId ? `timeline:${org.id}:${orgRole}:${userId}` : ''
   const _cache = _key ? getCachedData<TimelineCache>(_key) : null
@@ -114,7 +115,8 @@ export default function TimelinePage() {
 
     async function load(bg = false) {
       let q = supabase.from('tasks').select('*').eq('organization_id', org!.id).order('start_date', { ascending: true, nullsFirst: false })
-      if (orgRole === 'member') q = q.eq('assignee_id', userId ?? '')
+      // PRD md.2 — kapsam kuralı tek kaynaktan (bkz. lib/taskScope.ts)
+      q = applyTaskScope(q, { role: orgRole!, userId: userId ?? '', il: userIl })
       const [taskRes, sprintRes, depRes] = await Promise.all([
         q,
         supabase.from('sprints').select('*').eq('organization_id', org!.id).order('start_date'),

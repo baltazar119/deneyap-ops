@@ -3,25 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
-
-function toSlug(name: string) {
-  return name
-    // Türkçe karakterler toLowerCase()'ten ÖNCE çevrilir: "İ".toLowerCase()
-    // JavaScript'te "i" + birleşik nokta (U+0307) üretir ve bu nokta sonraki
-    // adımda tireye dönüşerek "İSTANBUL" → "i-stanbul" gibi bozuk sonuç verir.
-    .replace(/[İIı]/g, 'i')
-    .replace(/[Ğğ]/g, 'g')
-    .replace(/[Üü]/g, 'u')
-    .replace(/[Şş]/g, 's')
-    .replace(/[Öö]/g, 'o')
-    .replace(/[Çç]/g, 'c')
-    .toLowerCase()
-    // Geriye kalan birleşik aksan işaretlerini temizle
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 50)
-}
+import { toSlug } from '@/lib/turkce'
 
 export default function CreateOrgPage() {
   const router = useRouter()

@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useEffect, useRef, useState } from 'react'
+import { applyTaskScope } from '@/lib/taskScope'
 import { TASK_TYPE_LABELS } from '@/lib/taskTypes'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -1470,7 +1471,7 @@ function CalendarSkeleton() {
 
 export default function CalendarPage() {
   const router = useRouter()
-  const { org, orgRole, userId, loading: orgLoading } = useOrg()
+  const { org, orgRole, userIl, userId, loading: orgLoading } = useOrg()
 
   const _key   = org?.id && userId ? `calendar:${org.id}:${orgRole}:${userId}` : ''
   const _cache = _key ? getCachedData<TaskWithAssignee[]>(_key) : null
@@ -1504,7 +1505,8 @@ export default function CalendarPage() {
     if (!org || !userId) return
     const cacheKey = `calendar:${org.id}:${orgRole}:${userId}`
     let q = supabase.from('tasks').select('*').eq('organization_id', org.id).order('start_date', { ascending: true, nullsFirst: false })
-    if (orgRole === 'member') q = q.eq('assignee_id', userId)
+    // PRD md.2 — kapsam kuralı tek kaynaktan (bkz. lib/taskScope.ts)
+    q = applyTaskScope(q, { role: orgRole!, userId, il: userIl })
     const { data } = await q
     const ids = Array.from(new Set((data ?? []).map((t: Task) => t.assignee_id).filter(Boolean))) as string[]
     let pMap: Record<string, { name: string; avatarUrl: string | null }> = {}

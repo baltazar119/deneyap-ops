@@ -94,6 +94,11 @@ const GOREVLER = [
   { title: 'İzmir katılımcı listesi güncellemesi', il: 'İzmir', atanan: 'izmir@deneyap.demo',
     status: 'done',    priority: 'normal',   task_type: 'admin',     due: gun(-6),
     description: 'Dönem başı katılımcı kayıtları sisteme işlendi.' },
+  // İl bazlı görünürlüğü kanıtlayan satır: Ankara'nın işi ama Ankara sorumlusuna
+  // ATANMAMIŞ. İl Sorumlusu bunu yine de görmeli (PRD md.2).
+  { title: 'Ankara valilik protokol yazışması', il: 'Ankara', atanan: null,
+    status: 'backlog', priority: 'high',     task_type: 'admin',     due: gun(5),
+    description: 'Henüz kimseye atanmadı — il sorumlusu görüp üstlenebilmeli.' },
   { title: 'Bursa atölyesi kurulum takibi', il: 'Bursa', atanan: null,
     status: 'backlog', priority: 'critical', task_type: 'admin',     due: gun(9),
     description: 'İl sorumlusu henüz atanmadı — merkez tarafından atanacak.' },

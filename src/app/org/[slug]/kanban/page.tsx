@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useEffect, useState } from 'react'
+import { applyTaskScope } from '@/lib/taskScope'
 import { TASK_TYPES, TASK_TYPE_LABELS } from '@/lib/taskTypes'
 import { yazabilirMi } from '@/lib/roller'
 import { useRouter } from 'next/navigation'
@@ -60,7 +61,7 @@ interface TaskWithMeta extends Task {
 
 export default function KanbanPage() {
   const router = useRouter()
-  const { org, orgRole, userId, userEmail: orgEmail, avatarUrl: orgAvatarUrl, isAdmin, loading: orgLoading } = useOrg()
+  const { org, orgRole, userIl, userId, userEmail: orgEmail, avatarUrl: orgAvatarUrl, isAdmin, loading: orgLoading } = useOrg()
 
   // Senkron cache init: OrgContext lazy init ile tab geçişlerinde anında render
   const _initRole  = (isAdmin ? 'admin' : 'member') as 'admin' | 'member'
@@ -147,7 +148,9 @@ export default function KanbanPage() {
 
         // Adım 2: Profiller ve görevleri paralel çek
         let tasksQuery = supabase.from('tasks').select('*').eq('organization_id', org!.id).order('created_at', { ascending: false })
-        if (role === 'member') tasksQuery = tasksQuery.eq('assignee_id', userId!)
+        // PRD md.2: İl Sorumlusu kendi ilinin görevlerini de görmeli.
+        // Önceden yalnızca assignee_id'ye bakılıyordu — il görevleri kayıptı.
+        tasksQuery = applyTaskScope(tasksQuery, { role, userId: userId!, il: userIl })
 
         const [profilesRes, tasksRes] = await Promise.all([
           supabase.from('profiles').select('*').in('id', memberIds).order('created_at'),

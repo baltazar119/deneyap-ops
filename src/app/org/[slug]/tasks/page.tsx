@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
+import { kapsamaGoreSuz } from '@/lib/taskScope'
 import { TASK_TYPES, TASK_TYPE_FALLBACK } from '@/lib/taskTypes'
 import { IL_SECENEKLERI } from '@/lib/iller'
 import { raporGorebilirMi, yazabilirMi } from '@/lib/roller'
@@ -332,13 +333,8 @@ export default function TasksPage() {
     await loadTasks()
   }
 
-  // PRD madde 2: "yalnızca ilgili görevleri görür".
-  // İl Sorumlusu (member) kendi iline ait görevleri ve kendisine atanan
-  // görevleri görür. İl atanmamışsa yalnızca kendisine atananları görür.
-  // Koordinatör / Merkez / Yetkili Yönetici tüm görevleri görür.
-  const gorunurTasks = orgRole === 'member'
-    ? tasks.filter(t => t.assignee_id === userId || (!!userIl && t.il === userIl))
-    : tasks
+  // PRD madde 2: "yalnızca ilgili görevleri görür" — kural lib/taskScope.ts'te
+  const gorunurTasks = kapsamaGoreSuz(tasks, { role: orgRole!, userId: userId ?? '', il: userIl })
 
   const kullanilanIller = Array.from(
     new Set(gorunurTasks.map(t => t.il).filter((il): il is string => !!il))
