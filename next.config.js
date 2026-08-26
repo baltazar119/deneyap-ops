@@ -41,6 +41,13 @@ const nextConfig = {
     // @react-pdf/renderer yoga-layout WASM kullanıyor; bundler'a dokunmaması
     // söylenmezse sunucu tarafı PDF üretimi bozuluyor.
     serverComponentsExternalPackages: ['@react-pdf/renderer'],
+    // PDF fontları çalışma anında dosya yolundan okunuyor; import edilmedikleri
+    // için Vercel bunları izleyemiyor ve lambda paketine koymuyordu.
+    // Sonuç: üretimde PDF üretimi 500 veriyordu (yerelde sorunsuz çalışıyor).
+    outputFileTracingIncludes: {
+      '/api/org/[slug]/rapor': ['./src/lib/rapor/pdf/fontlar/**'],
+      '/api/cron/haftalik-rapor': ['./src/lib/rapor/pdf/fontlar/**'],
+    },
   },
   images: {
     formats: ['image/avif', 'image/webp'],

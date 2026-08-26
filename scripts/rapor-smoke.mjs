@@ -5,7 +5,7 @@ import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const KOK = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const TABAN = 'http://localhost:3000'
+const TABAN = process.argv[2]?.replace(/\/+$/, '') || 'http://localhost:3000'
 const SLUG = 'deneyap-demo'
 const CIKTI = resolve(KOK, '.rapor-ciktilari')
 

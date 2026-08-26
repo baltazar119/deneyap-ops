@@ -90,7 +90,11 @@ export async function GET(req: NextRequest, { params }: { params: { slug: string
       }
     }
   } catch (e) {
-    console.error('[rapor] üretim hatası:', e)
-    return NextResponse.json({ error: 'Rapor üretilemedi.' }, { status: 500 })
+    const detay = e instanceof Error ? e.message : String(e)
+    console.error('[rapor] üretim hatası:', detay, e)
+    return NextResponse.json(
+      { error: 'Rapor üretilemedi.', detay: process.env.NODE_ENV === 'production' ? detay : undefined },
+      { status: 500 },
+    )
   }
 }

@@ -2,6 +2,7 @@ import 'server-only'
 import React from 'react'
 import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer'
 import path from 'path'
+import { existsSync } from 'fs'
 import { T, gecikmeRengi, oranRengi } from './tema'
 import type { RaporVerisi, GorevSatiri, IlSatiri } from '../hesapla'
 
@@ -14,9 +15,28 @@ import type { RaporVerisi, GorevSatiri, IlSatiri } from '../hesapla'
  */
 
 let fontKayitli = false
+
+/** Fontları birkaç olası konumda arar — Vercel ve yerel çalışma dizinleri farklı */
+function fontDizini(): string {
+  const adaylar = [
+    path.join(process.cwd(), 'src', 'lib', 'rapor', 'pdf', 'fontlar'),
+    path.join(process.cwd(), '.next', 'server', 'src', 'lib', 'rapor', 'pdf', 'fontlar'),
+    path.join(__dirname, 'fontlar'),
+  ]
+  for (const d of adaylar) {
+    if (existsSync(path.join(d, 'Roboto-Regular.ttf'))) return d
+  }
+  // Sessizce Helvetica'ya düşmek YANLIŞ olur: PDF üretilir ama Türkçe
+  // karakterler bozuk çıkar ve kimse fark etmez. Açıkça patlıyoruz.
+  throw new Error(
+    `PDF fontları bulunamadı. Aranan konumlar: ${adaylar.join(' , ')}. ` +
+    'next.config.js içindeki outputFileTracingIncludes ayarını kontrol edin.',
+  )
+}
+
 function fontlariKaydet() {
   if (fontKayitli) return
-  const dizin = path.join(process.cwd(), 'src', 'lib', 'rapor', 'pdf', 'fontlar')
+  const dizin = fontDizini()
   Font.register({
     family: 'Roboto',
     fonts: [
