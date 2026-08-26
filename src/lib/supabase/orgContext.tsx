@@ -84,34 +84,50 @@ const DEFAULT_VALUE: OrgContextValue = {
   loading: true,
 }
 
+/** sessionStorage'daki org önbelleğini context değerine çevirir (yoksa null) */
+function readCachedValue(slug: string): OrgContextValue | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const uid = sessionStorage.getItem('deneyap_uid')
+    if (!uid) return null
+    const cached = getCached(uid, slug)
+    if (!cached) return null
+    return {
+      org: cached.org,
+      orgRole: cached.orgRole,
+      userId: uid,
+      userEmail: null,          // session email aşağıdaki useEffect'te güncellenir
+      avatarUrl: cached.avatarUrl,
+      isPro: cached.userPlan === 'pro',
+      hasAiAddon: cached.hasAiAddon,
+      isAdmin: cached.orgRole === 'owner' || cached.orgRole === 'admin',
+      isOwner: cached.orgRole === 'owner',
+      isConsultant: cached.orgRole === 'consultant',
+      loading: false,
+    }
+  } catch { return null }
+}
+
 export function OrgProvider({ children }: { children: ReactNode }) {
   const params = useParams()
   const router = useRouter()
   const slug = params?.slug as string | undefined
 
-  // Senkron lazy init: ilk render'da sessionStorage'dan cache oku → loading flash yok
-  const [value, setValue] = useState<OrgContextValue>(() => {
-    if (typeof window === 'undefined' || !slug) return DEFAULT_VALUE
-    try {
-      const uid = sessionStorage.getItem('deneyap_uid')
-      if (!uid) return DEFAULT_VALUE
-      const cached = getCached(uid, slug)
-      if (!cached) return DEFAULT_VALUE
-      return {
-        org: cached.org,
-        orgRole: cached.orgRole,
-        userId: uid,
-        userEmail: null,          // session email useEffect'te güncellenir
-        avatarUrl: cached.avatarUrl,
-        isPro: cached.userPlan === 'pro',
-        hasAiAddon: cached.hasAiAddon,
-        isAdmin: cached.orgRole === 'owner' || cached.orgRole === 'admin',
-        isOwner: cached.orgRole === 'owner',
-        isConsultant: cached.orgRole === 'consultant',
-        loading: false,
-      }
-    } catch { return DEFAULT_VALUE }
-  })
+  const [value, setValue] = useState<OrgContextValue>(DEFAULT_VALUE)
+
+  // Önbellek okuma render sırasında DEĞİL, mount sonrasında yapılır.
+  //
+  // Daha önce sessionStorage useState'in lazy initializer'ında okunuyordu;
+  // sunucuda window olmadığı için DEFAULT_VALUE (loading: true) dönüyor,
+  // tarayıcıda ise önbellek dolu geldiği için loading: false dönüyordu.
+  // DesktopSidebar bu iki durumda yapısal olarak farklı DOM ürettiğinden
+  // React "Hydration failed" hatası veriyordu. Şimdi ilk render her iki
+  // tarafta da aynı (loading), önbellek hemen ardından uygulanıyor.
+  useEffect(() => {
+    if (!slug) return
+    const cachedValue = readCachedValue(slug)
+    if (cachedValue) setValue(cachedValue)
+  }, [slug])
 
   useEffect(() => {
     if (!slug) return
