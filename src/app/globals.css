@@ -392,6 +392,91 @@ body.lp-mode { scrollbar-width: none; }
     padding: 0 32px;
   }
 
+  /* Kısa ekranlarda giriş sayfası kaydırılmasın: boşluklar sıkıştırılır.
+     Yüksek ekranlarda ferah düzen korunur. */
+  @media (max-height: 860px) {
+    .lp-left { padding: 24px 0; }
+    .lp-left-inner > .mb-8  { margin-bottom: 20px; }
+    .lp-left-inner > .mb-7  { margin-bottom: 18px; }
+    .lp-left-inner > .mb-6  { margin-bottom: 16px; }
+    .lp-left-inner > .mb-5  { margin-bottom: 14px; }
+    .lp-left-inner > .mb-4  { margin-bottom: 12px; }
+    .lp-left-inner > .mt-6  { margin-top: 16px; }
+  }
+  @media (max-height: 700px) {
+    .lp-left { padding: 16px 0; }
+    .lp-left-inner > .mb-8 { margin-bottom: 14px; }
+    .lp-left-inner > .mb-7 { margin-bottom: 12px; }
+    .lp-left-inner > .mb-6 { margin-bottom: 12px; }
+  }
+
+  /* Demo hesap paneli — kompakt, sayfayı uzatmayan */
+  .lp-demo {
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #fbfdff;
+    overflow: hidden;
+  }
+  .lp-demo-ac {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 9px 12px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    color: #0f766e;
+    letter-spacing: 0.02em;
+  }
+  .lp-demo-ac:hover { background: #f0fdfa; }
+  .lp-demo-govde {
+    padding: 9px 12px 10px;
+    border-top: 1px solid #e2e8f0;
+  }
+  .lp-demo-not {
+    margin: 9px 0 8px;
+    font-size: 11px;
+    line-height: 1.5;
+    color: #64748b;
+  }
+  .lp-demo-liste {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px;
+  }
+  .lp-demo-btn {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding: 5px 9px;
+    border-radius: 9px;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .lp-demo-btn:hover:not(:disabled) { border-color: #2288c9; background: #f8fbff; }
+  .lp-demo-btn:disabled { opacity: 0.55; cursor: wait; }
+  .lp-demo-btn-ad {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #0d1a2a;
+    line-height: 1.25;
+  }
+  .lp-demo-btn-alt {
+    font-size: 10px;
+    color: #94a3b8;
+    line-height: 1.2;
+  }
+  .lp-demo-genis { grid-column: 1 / -1; }
+
   /* Tab */
   .lp-tab-bar {
     display: flex;

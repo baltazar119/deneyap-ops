@@ -69,6 +69,10 @@ export default function TasksPage() {
   const [filterPriority, setFilterPriority] = useState<TaskPriority | 'all'>('all')
   const [filterType, setFilterType] = useState<TaskType | 'all'>('all')
   const [filterIl, setFilterIl] = useState<string>('all')
+  // PRD: Koordinatör akışı "geciken görevleri filtreler" ile başlıyor.
+  // "Gecikti" bir DURUM olmadığı için (termin tarihinden hesaplanır)
+  // durum filtresine eklenemez; ayrı bir hızlı süzgeç olarak duruyor.
+  const [filterTermin, setFilterTermin] = useState<'all' | 'geciken' | 'yaklasan'>('all')
   const [filterAssignee, setFilterAssignee] = useState<string>('all')
 
   // Form state
@@ -345,6 +349,12 @@ export default function TasksPage() {
     if (filterPriority !== 'all' && t.priority !== filterPriority) return false
     if (filterType !== 'all' && t.task_type !== filterType) return false
     if (filterIl !== 'all' && (t.il ?? '') !== filterIl) return false
+    if (filterTermin === 'geciken' && !(t.status !== 'done' && isOverdue(t.due_date))) return false
+    if (filterTermin === 'yaklasan') {
+      if (t.status === 'done' || !t.due_date) return false
+      const kalan = Math.round((Date.parse(t.due_date) - Date.now()) / 86400000)
+      if (kalan < 0 || kalan > 7) return false
+    }
     if (filterAssignee !== 'all' && t.assignee_id !== filterAssignee) return false
     return true
   })
@@ -411,6 +421,30 @@ export default function TasksPage() {
               )
             })}
           </div>
+        </div>
+
+        {/* Termin süzgeci — Koordinatör akışının başlangıcı (mobil) */}
+        <div style={{ display: 'flex', gap: 6, padding: '10px 16px 0', overflowX: 'auto', scrollbarWidth: 'none' }}>
+          {([
+            ['geciken',  '⚠ Gecikenler',    '#dc2626', '#fee2e2', '#fca5a5',
+             gorunurTasks.filter(t => t.status !== 'done' && isOverdue(t.due_date)).length],
+            ['yaklasan', '⏳ Bu hafta biten', '#b45309', '#fef3c7', '#fcd34d',
+             gorunurTasks.filter(t => {
+               if (t.status === 'done' || !t.due_date) return false
+               const k = Math.round((Date.parse(t.due_date) - Date.now()) / 86400000)
+               return k >= 0 && k <= 7
+             }).length],
+          ] as const).map(([deger, etiket, renk, bg, bd, adet]) => {
+            const aktif = filterTermin === deger
+            return (
+              <button key={deger} onClick={() => setFilterTermin(aktif ? 'all' : deger)} style={{
+                flexShrink: 0, padding: '5px 12px', borderRadius: 99, fontSize: 11, fontWeight: 700,
+                border: `1px solid ${aktif ? bd : '#e5e7eb'}`, cursor: 'pointer', fontFamily: 'inherit',
+                background: aktif ? bg : '#fff',
+                color: aktif ? renk : (adet > 0 ? renk : '#9ca3af'),
+              }}>{etiket} {adet}</button>
+            )
+          })}
         </div>
 
         {/* Öncelik filtre chips */}
@@ -649,6 +683,37 @@ export default function TasksPage() {
           )}
         </div>
 
+        {/* ── Termin süzgeci — Koordinatör akışının başlangıcı ── */}
+        <div className="flex items-center gap-2 flex-wrap mb-3">
+          {([
+            ['geciken',  'Gecikenler',    '#dc2626', '#fee2e2', '#fca5a5',
+             gorunurTasks.filter(t => t.status !== 'done' && isOverdue(t.due_date)).length],
+            ['yaklasan', 'Bu hafta biten', '#b45309', '#fef3c7', '#fcd34d',
+             gorunurTasks.filter(t => {
+               if (t.status === 'done' || !t.due_date) return false
+               const k = Math.round((Date.parse(t.due_date) - Date.now()) / 86400000)
+               return k >= 0 && k <= 7
+             }).length],
+          ] as const).map(([deger, etiket, renk, bg, bd, adet]) => {
+            const aktif = filterTermin === deger
+            return (
+              <button
+                key={deger}
+                onClick={() => setFilterTermin(aktif ? 'all' : deger)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
+                style={{
+                  background: aktif ? bg : '#fff',
+                  color: aktif ? renk : (adet > 0 ? renk : '#94a3b8'),
+                  border: `1px solid ${aktif ? bd : '#e5e7eb'}`,
+                }}
+              >
+                {deger === 'geciken' ? '⚠' : '⏳'} {etiket}
+                <span className="font-bold">{adet}</span>
+              </button>
+            )
+          })}
+        </div>
+
         {/* ── Öncelik filtreleri ── */}
         <div className="flex items-center gap-2 flex-wrap mb-4">
           {PRIORITY_OPTIONS.map((p) => {
@@ -713,9 +778,9 @@ export default function TasksPage() {
               {sel.options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           ))}
-          {(filterStatus !== 'all' || filterPriority !== 'all' || filterType !== 'all' || filterIl !== 'all' || filterAssignee !== 'all') && (
+          {(filterStatus !== 'all' || filterPriority !== 'all' || filterType !== 'all' || filterIl !== 'all' || filterTermin !== 'all' || filterAssignee !== 'all') && (
             <button
-              onClick={() => { setFilterStatus('all'); setFilterPriority('all'); setFilterType('all'); setFilterIl('all'); setFilterAssignee('all') }}
+              onClick={() => { setFilterStatus('all'); setFilterPriority('all'); setFilterType('all'); setFilterIl('all'); setFilterTermin('all'); setFilterAssignee('all') }}
               className="text-xs px-3 py-1.5 rounded-xl font-medium"
               style={{ background: '#fee2e2', color: '#dc2626', border: '1px solid #fecaca' }}
             >

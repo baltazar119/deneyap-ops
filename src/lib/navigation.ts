@@ -6,10 +6,14 @@ import {
 } from 'lucide-react'
 import type { OrgRole } from '@/types/database'
 
+export type NavGrup = 'ana' | 'is' | 'izleme' | 'ekip' | 'kisisel'
+
 export interface NavLink {
   href: string
   label: string
   icon: LucideIcon
+  /** Kenar çubuğunda gruplar arasına ayırıcı çizilir */
+  grup: NavGrup
 }
 
 export const NAV_ICONS: Record<string, LucideIcon> = {
@@ -38,64 +42,107 @@ export const NAV_ICONS: Record<string, LucideIcon> = {
  * MobileNavigation aynı listeyi kullanır, böylece menü iki yerde ayrı ayrı
  * bakım gerektirmez.
  */
+/**
+ * Rol → menü. Sıralama rolün İŞ AKIŞINI izler, alfabetik ya da rastgele değil.
+ *
+ * PRD'deki akışlar:
+ *   Merkez Yönetici : görev oluştur → ata → termin belirle → panelden izle
+ *   İl Sorumlusu    : kendi görevlerini gör → durumu güncelle → tamamla
+ *   Koordinatör     : gecikenleri filtrele → sorumluyu gör → önceliklendir → rapor al
+ *   Yetkili Yönetici: oranları ve gecikmeleri raporlardan izle
+ *
+ * Bu yüzden her rolün ANA EKRANI listenin başındadır. Önceden İl Sorumlusu'nun
+ * "Panelim"i listenin ortasında kalıyordu.
+ *
+ * `grup` alanı kenar çubuğunda ayırıcı çizgi çizmek için; aynı gruptaki
+ * öğeler bitişik görünür.
+ */
 export function getNavLinks({ base, role, isPro }: { base: string; role: OrgRole; isPro: boolean }): NavLink[] {
-  const withIcon = (href: string, label: string): NavLink => ({ href, label, icon: NAV_ICONS[label] ?? User })
+  const g = (grup: NavLink['grup']) =>
+    (href: string, label: string): NavLink => ({ href, label, icon: NAV_ICONS[label] ?? User, grup })
 
-  const isAdminOrOwner = role === 'admin' || role === 'owner'
+  const ana     = g('ana')
+  const is      = g('is')
+  const izleme  = g('izleme')
+  const ekip    = g('ekip')
+  const kisisel = g('kisisel')
 
-  if (isAdminOrOwner) {
+  /* ── Merkez Operasyon Ekibi / Koordinatör ── */
+  if (role === 'owner' || role === 'admin') {
     return [
-      withIcon(`${base}/dashboard`, 'Panel'),
-      withIcon(`${base}/tasks`, 'Görevler'),
-      withIcon(`${base}/kanban`, 'Kanban'),
-      withIcon(`${base}/risk`, 'Operasyon Riski'),
-      withIcon(`${base}/raporlar`, 'Raporlar'),
-      withIcon(`${base}/calendar`, 'Takvim'),
-      withIcon(`${base}/timeline`, 'Timeline'),
-      withIcon(`${base}/sprints`, 'Sprintler'),
-      withIcon(`${base}/files`, 'Dosyalar'),
-      ...(isPro ? [withIcon(`${base}/ai-assistant`, 'AI Asistan')] : []),
-      ...(isPro ? [withIcon(`${base}/consultant`, 'Danışmanlık')] : []),
-      withIcon(`${base}/members`, 'Ekip'),
-      withIcon(`${base}/chat`, 'Sohbet'),
-      withIcon(`${base}/meetings`, 'Toplantılar'),
-      withIcon(`${base}/checklists`, 'Listelerim'),
-      withIcon(`${base}/profile`, 'Profilim'),
-      withIcon(`${base}/settings`, 'Ayarlar'),
+      ana(`${base}/dashboard`, 'Panel'),
+
+      is(`${base}/tasks`, 'Görevler'),
+      is(`${base}/kanban`, 'Kanban'),
+      is(`${base}/calendar`, 'Takvim'),
+      is(`${base}/timeline`, 'Timeline'),
+      is(`${base}/sprints`, 'Sprintler'),
+
+      izleme(`${base}/risk`, 'Operasyon Riski'),
+      izleme(`${base}/raporlar`, 'Raporlar'),
+
+      ekip(`${base}/members`, 'Ekip'),
+      ekip(`${base}/chat`, 'Sohbet'),
+      ekip(`${base}/meetings`, 'Toplantılar'),
+      ekip(`${base}/files`, 'Dosyalar'),
+      ...(isPro ? [ekip(`${base}/ai-assistant`, 'AI Asistan')] : []),
+      ...(isPro ? [ekip(`${base}/consultant`, 'Danışmanlık')] : []),
+
+      kisisel(`${base}/checklists`, 'Listelerim'),
+      kisisel(`${base}/profile`, 'Profilim'),
+      kisisel(`${base}/settings`, 'Ayarlar'),
     ]
   }
 
-  // Yetkili Yönetici: yalnızca izleme/raporlama ekranları
+  /* ── Yetkili Yönetici — salt izleme ── */
   if (role === 'viewer') {
     return [
-      withIcon(`${base}/dashboard`, 'Panel'),
-      withIcon(`${base}/tasks`, 'Görevler'),
-      withIcon(`${base}/risk`, 'Operasyon Riski'),
-      withIcon(`${base}/raporlar`, 'Raporlar'),
-      withIcon(`${base}/timeline`, 'Timeline'),
-      withIcon(`${base}/profile`, 'Profilim'),
+      ana(`${base}/dashboard`, 'Panel'),
+
+      // Bu rolün asıl aracı raporlar; görev listesi salt okunur destek
+      izleme(`${base}/raporlar`, 'Raporlar'),
+      izleme(`${base}/risk`, 'Operasyon Riski'),
+
+      is(`${base}/tasks`, 'Görevler'),
+      is(`${base}/timeline`, 'Timeline'),
+
+      kisisel(`${base}/profile`, 'Profilim'),
     ]
   }
 
+  /* ── Danışman ── */
   if (role === 'consultant') {
     return [
-      ...(isPro ? [withIcon(`${base}/consultant`, 'Danışmanlık')] : []),
-      withIcon(`${base}/profile`, 'Profilim'),
+      ...(isPro ? [ana(`${base}/consultant`, 'Danışmanlık')] : []),
+      kisisel(`${base}/profile`, 'Profilim'),
     ]
   }
 
+  /* ── İl Sorumlusu ── */
   return [
-    withIcon(`${base}/kanban`, 'Kanban'),
-    withIcon(`${base}/calendar`, 'Takvim'),
-    withIcon(`${base}/timeline`, 'Timeline'),
-    withIcon(`${base}/files`, 'Dosyalar'),
-    withIcon(`${base}/me`, 'Panelim'),
-    withIcon(`${base}/raporlar`, 'Raporlar'),
-    withIcon(`${base}/chat`, 'Sohbet'),
-    withIcon(`${base}/meetings`, 'Toplantılar'),
-    withIcon(`${base}/checklists`, 'Listelerim'),
-    withIcon(`${base}/profile`, 'Profilim'),
+    // Akışın başladığı yer: "kendi görevlerini görür"
+    ana(`${base}/me`, 'Panelim'),
+
+    is(`${base}/kanban`, 'Kanban'),
+    is(`${base}/calendar`, 'Takvim'),
+    is(`${base}/timeline`, 'Timeline'),
+
+    izleme(`${base}/raporlar`, 'Raporlar'),
+
+    ekip(`${base}/chat`, 'Sohbet'),
+    ekip(`${base}/meetings`, 'Toplantılar'),
+    ekip(`${base}/files`, 'Dosyalar'),
+
+    kisisel(`${base}/checklists`, 'Listelerim'),
+    kisisel(`${base}/profile`, 'Profilim'),
   ]
+}
+
+/** Rolün giriş sonrası gideceği ana ekran */
+export function anaEkran(base: string, role: OrgRole): string {
+  if (role === 'member') return `${base}/me`
+  if (role === 'consultant') return `${base}/consultant`
+  return `${base}/dashboard`
 }
 
 export const ROLE_LABEL: Record<OrgRole, string> = {

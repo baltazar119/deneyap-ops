@@ -185,6 +185,9 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
+  // Demo paneli varsayılan olarak KAPALI — açıkken sayfa uzuyor ve
+  // gerçek kullanıcı için gürültü oluyordu
+  const [demoAcik, setDemoAcik] = useState(false)
   const TURNSTILE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
   const captchaEnabled = !!TURNSTILE_KEY
 
@@ -331,53 +334,34 @@ export default function LoginPage() {
 
           {/* Demo hesapları — yalnızca NEXT_PUBLIC_DEMO_MODE=true iken */}
           {DEMO_MODU_ACIK && mode === 'login' && (
-            <div
-              className="mb-5 rounded-2xl"
-              style={{ border: '1px solid #e2e8f0', background: '#fbfdff', padding: 14 }}
-            >
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-bold uppercase tracking-wider" style={{ color: '#0f766e' }}>
-                  Demo hesapla dene
+            <div className="lp-demo mb-4">
+              <button type="button" className="lp-demo-ac" onClick={() => setDemoAcik(v => !v)}>
+                <span>DEMO HESAPLA DENE</span>
+                <span style={{ color: '#94a3b8', fontWeight: 500, fontSize: 11 }}>
+                  {demoAcik ? `şifre: ${DEMO_SIFRE}` : 'rol seç, karşılaştır'}
                 </span>
-                <span className="text-xs" style={{ color: '#94a3b8' }}>şifre: {DEMO_SIFRE}</span>
-              </div>
-              <p className="text-xs mb-3" style={{ color: '#64748b' }}>
-                Rolü seçin, aynı görev verisinin o role nasıl göründüğünü karşılaştırın.
-              </p>
+              </button>
 
-              <div className="grid gap-2" style={{ gridTemplateColumns: '1fr' }}>
-                {DEMO_HESAPLAR.map((h) => (
-                  <button
-                    key={h.email}
-                    type="button"
-                    onClick={() => handleDemoLogin(h.email)}
-                    disabled={loading || googleLoading}
-                    className="text-left rounded-xl transition-all"
-                    style={{
-                      background: h.renk.bg,
-                      border: `1px solid ${h.renk.border}`,
-                      padding: '9px 12px',
-                      cursor: loading ? 'wait' : 'pointer',
-                      opacity: loading ? 0.6 : 1,
-                    }}
-                  >
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-bold" style={{ color: h.renk.text }}>
-                        {h.rolAdi}
-                      </span>
-                      {h.role === 'member' && (
-                        <span
-                          className="text-xs font-semibold px-1.5 py-0.5 rounded"
-                          style={{ background: '#fff', color: '#0f766e', border: '1px solid #cbd5e1' }}
-                        >
-                          📍 {h.il}
+              {demoAcik && (
+                <div className="lp-demo-govde">
+                  <div className="lp-demo-liste">
+                    {DEMO_HESAPLAR.map((h, i) => (
+                      <button
+                        key={h.email}
+                        type="button"
+                        onClick={() => handleDemoLogin(h.email)}
+                        disabled={loading || googleLoading}
+                        className={`lp-demo-btn${i === DEMO_HESAPLAR.length - 1 && DEMO_HESAPLAR.length % 2 === 1 ? ' lp-demo-genis' : ''}`}
+                      >
+                        <span className="lp-demo-btn-ad">{h.rolAdi}</span>
+                        <span className="lp-demo-btn-alt">
+                          {h.role === 'member' ? h.il : h.email.split('@')[0]}
                         </span>
-                      )}
-                    </div>
-                    <div className="text-xs mt-0.5" style={{ color: '#64748b' }}>{h.ozet}</div>
-                  </button>
-                ))}
-              </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

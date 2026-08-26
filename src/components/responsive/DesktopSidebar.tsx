@@ -198,8 +198,14 @@ export default function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarPr
 
       {/* ── NAV ── */}
       <nav className="flex-1 overflow-y-auto overflow-x-hidden" style={{ padding: '8px 10px' }}>
-        {navLinks.map(({ href, label, icon: Icon }) => (
-          <NavItem key={href} href={href} label={label} icon={Icon} active={isActive(href)} collapsed={collapsed} accentColor={ACCENT_COLOR} />
+        {navLinks.map(({ href, label, icon: Icon, grup }, i) => (
+          <div key={href}>
+            {/* Grup değiştiğinde ince ayırıcı — menüyü iş akışına göre bölüyor */}
+            {i > 0 && navLinks[i - 1].grup !== grup && (
+              <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', margin: '7px 12px' }} />
+            )}
+            <NavItem href={href} label={label} icon={Icon} active={isActive(href)} collapsed={collapsed} accentColor={ACCENT_COLOR} />
+          </div>
         ))}
       </nav>
 

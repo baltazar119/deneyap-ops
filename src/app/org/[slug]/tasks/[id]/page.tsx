@@ -10,8 +10,20 @@ import { supabase } from '@/lib/supabase/client'
 import { getSessionAndRole } from '@/lib/supabase/getSession'
 import StatusBadge from '@/components/StatusBadge'
 import { formatDateTime, isOverdue } from '@/lib/utils'
-import type { Task, TaskOutput, Profile, UserRole, TaskDependency } from '@/types/database'
+import type { Task, TaskOutput, Profile, UserRole, TaskDependency, TaskStatus } from '@/types/database'
 import TaskFiles from '@/components/TaskFiles'
+
+/** PRD md.5'teki dört durum + Test. "Gecikti" DURUM DEĞİL — termin tarihinden hesaplanır. */
+const STATUS_SECENEKLERI: { value: TaskStatus; label: string; renk: string; bg: string }[] = [
+  { value: 'backlog', label: 'Bekliyor',    renk: '#6d28d9', bg: '#ede9fe' },
+  { value: 'doing',   label: 'Devam Ediyor', renk: '#1d4ed8', bg: '#dbeafe' },
+  { value: 'testing', label: 'Test',        renk: '#b45309', bg: '#fef3c7' },
+  { value: 'blocked', label: 'Bloke',       renk: '#b91c1c', bg: '#fee2e2' },
+  { value: 'done',    label: 'Tamamlandı',  renk: '#15803d', bg: '#dcfce7' },
+]
+const STATUS_ETIKET: Record<string, string> = Object.fromEntries(
+  STATUS_SECENEKLERI.map(s => [s.value, s.label]),
+)
 
 const PRIORITY_LABELS: Record<string, { label: string; color: string; bg: string; icon: string }> = {
   critical: { label: 'Kritik',  color: '#dc2626', bg: '#fee2e2', icon: '🔴' },
@@ -42,6 +54,13 @@ export default function TaskDetailPage() {
   const [showDepForm, setShowDepForm] = useState(false)
   const [selectedDepId, setSelectedDepId] = useState('')
   const [depLoading, setDepLoading] = useState(false)
+
+  // Durum güncelleme — PRD md.5: "durumlarıyla güncellenir; açıklama eklenir"
+  const [durumFormAcik, setDurumFormAcik] = useState(false)
+  const [yeniDurum, setYeniDurum] = useState<TaskStatus>('backlog')
+  const [durumNotu, setDurumNotu] = useState('')
+  const [durumKaydediliyor, setDurumKaydediliyor] = useState(false)
+  const [durumHatasi, setDurumHatasi] = useState<string | null>(null)
 
   // Output form
   const [showOutputForm, setShowOutputForm] = useState(false)
@@ -168,6 +187,54 @@ export default function TaskDetailPage() {
     await loadDependencies(allTasks)
   }
 
+  /**
+   * Durumu günceller ve açıklamayı görev geçmişine not olarak yazar.
+   *
+   * Açıklama ZORUNLU değil ama teşvik ediliyor: PRD "durum güncellenir;
+   * açıklama eklenir" diyor. Not, task_outputs'a 'note' olarak düşüyor —
+   * böylece merkez ekip neyin neden değiştiğini görebiliyor.
+   */
+  async function durumGuncelle() {
+    if (!task || !currentUserId) return
+    setDurumKaydediliyor(true); setDurumHatasi(null)
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase as any)
+      .from('tasks').update({ status: yeniDurum }).eq('id', task.id)
+
+    if (error) {
+      setDurumHatasi('Durum güncellenemedi. Yetkiniz olmayabilir.')
+      setDurumKaydediliyor(false)
+      return
+    }
+
+    if (durumNotu.trim()) {
+      const eski = STATUS_ETIKET[task.status] ?? task.status
+      const yeni = STATUS_ETIKET[yeniDurum] ?? yeniDurum
+      // organization_id ŞART: task_outputs'ta NOT NULL ve RLS
+      // is_org_member(organization_id) istiyor. Eksikse insert sessizce düşer.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error: notHatasi } = await (supabase as any).from('task_outputs').insert({
+        task_id: task.id,
+        organization_id: task.organization_id,
+        kind: 'note',
+        value: `[${eski} → ${yeni}] ${durumNotu.trim()}`,
+        created_by: currentUserId,
+      })
+      if (notHatasi) {
+        // Durum değişti ama not yazılamadı — kullanıcıya söylemek zorundayız
+        setDurumHatasi('Durum güncellendi ancak açıklama kaydedilemedi.')
+        setDurumKaydediliyor(false)
+        setTask({ ...task, status: yeniDurum })
+        return
+      }
+    }
+
+    setTask({ ...task, status: yeniDurum })
+    setDurumNotu(''); setDurumFormAcik(false); setDurumKaydediliyor(false)
+    await loadOutputs(outputAuthors)
+  }
+
   async function handleOutputSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!currentUserId || !task) return
@@ -183,6 +250,7 @@ export default function TaskDetailPage() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await (supabase as any).from('task_outputs').insert({
       task_id: task.id,
+      organization_id: task.organization_id,   // NOT NULL + RLS koşulu
       kind: outputKind,
       value: outputValue,
       created_by: currentUserId,
@@ -208,6 +276,8 @@ export default function TaskDetailPage() {
   }
 
   const canAddOutput = userRole === 'admin' || (task?.assignee_id === currentUserId)
+  // RLS'teki tasks_update kuralıyla aynı: org yöneticisi ya da görevin sahibi
+  const canUpdateStatus = canAddOutput
   const pMeta = PRIORITY_LABELS[task?.priority || 'normal'] || PRIORITY_LABELS.normal
 
   if (loading) {
@@ -266,8 +336,78 @@ export default function TaskDetailPage() {
                 <p className="text-sm mt-1" style={{ color: '#7acfe6' }}>{task.description}</p>
               )}
             </div>
-            <StatusBadge status={task.status} />
+            <div className="shrink-0 flex flex-col items-end gap-1.5">
+              <StatusBadge status={task.status} />
+              {canUpdateStatus && !durumFormAcik && (
+                <button
+                  onClick={() => { setYeniDurum(task.status); setDurumFormAcik(true) }}
+                  className="text-xs font-semibold px-2.5 py-1 rounded-lg"
+                  style={{ background: '#fff', color: '#2288c9', border: '1px solid #bee5f0' }}
+                >
+                  Durumu Güncelle
+                </button>
+              )}
+            </div>
           </div>
+
+          {/* ── Durum güncelleme (PRD md.5) ── */}
+          {durumFormAcik && (
+            <div className="mt-4 rounded-xl p-4" style={{ background: '#f8fbff', border: '1px solid #bee5f0' }}>
+              <div className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: '#2288c9' }}>
+                Yeni durum
+              </div>
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {STATUS_SECENEKLERI.map(o => {
+                  const secili = yeniDurum === o.value
+                  return (
+                    <button
+                      key={o.value}
+                      onClick={() => setYeniDurum(o.value)}
+                      className="text-xs font-bold px-3 py-1.5 rounded-lg transition-all"
+                      style={{
+                        background: secili ? o.bg : '#fff',
+                        color: secili ? o.renk : '#94a3b8',
+                        border: `1.5px solid ${secili ? o.renk : '#e2e8f0'}`,
+                      }}
+                    >
+                      {o.label}
+                    </button>
+                  )
+                })}
+              </div>
+
+              <div className="text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: '#2288c9' }}>
+                Açıklama <span style={{ fontWeight: 500, textTransform: 'none', color: '#94a3b8' }}>(isteğe bağlı)</span>
+              </div>
+              <textarea
+                value={durumNotu}
+                onChange={e => setDurumNotu(e.target.value)}
+                placeholder="Örn. Malzeme tedariki tamamlandı, kuruluma geçildi."
+                rows={2}
+                className="input"
+                style={{ resize: 'vertical' }}
+              />
+              <p className="text-xs mt-1.5 mb-3" style={{ color: '#94a3b8' }}>
+                Yazdığınız açıklama görev geçmişine kaydedilir; merkez ekip neyin neden
+                değiştiğini buradan görür.
+              </p>
+
+              {durumHatasi && (
+                <div className="text-xs mb-2 rounded-lg px-3 py-2" style={{ background: '#fee2e2', color: '#b91c1c' }}>
+                  {durumHatasi}
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <button onClick={durumGuncelle} disabled={durumKaydediliyor || yeniDurum === task.status} className="btn-primary" style={{ fontSize: 13, padding: '8px 16px' }}>
+                  {durumKaydediliyor ? 'Kaydediliyor…' : 'Kaydet'}
+                </button>
+                <button onClick={() => { setDurumFormAcik(false); setDurumNotu(''); setDurumHatasi(null) }} className="btn-secondary" style={{ fontSize: 13, padding: '8px 16px' }}>
+                  Vazgeç
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4 pt-4" style={{ borderTop: '1px solid rgba(190,229,240,0.5)' }}>
             <div>
