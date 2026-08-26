@@ -60,7 +60,8 @@ create table if not exists public.import_rows (
   satir_no    int  not null,
 
   ham         jsonb not null,              -- hücreler, sütun adıyla
-  normalize   jsonb,                       -- doğrulamadan geçmiş hâli
+  -- 'normalize' PostgreSQL'de anahtar kelime; ayrı bir ad kullanıyoruz
+  normalize_veri jsonb,                    -- doğrulamadan geçmiş hâli
   eslesme_anahtari text,
 
   task_id     uuid references public.tasks(id) on delete set null,
