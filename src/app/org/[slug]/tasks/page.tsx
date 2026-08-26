@@ -628,6 +628,15 @@ export default function TasksPage() {
             </p>
           </div>
           {yazabilirMi(orgRole) && (
+            <Link
+              href={`/org/${org?.slug}/tasks/import`}
+              className="flex items-center gap-1.5 text-sm font-medium px-4 py-2 rounded-xl transition-colors"
+              style={{ background: '#fff', color: '#0f766e', border: '1px solid #5eead4', textDecoration: 'none' }}
+            >
+              Excel&apos;den İçe Aktar
+            </Link>
+          )}
+          {yazabilirMi(orgRole) && (
             <button
               onClick={openCreateForm}
               className="flex items-center gap-1.5 text-sm font-medium px-4 py-2 rounded-xl transition-colors"

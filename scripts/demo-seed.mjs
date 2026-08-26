@@ -176,8 +176,11 @@ async function main() {
       id: kullanicilar[h.email],
       email: h.email,
       full_name: h.ad,
-      // Demo'da tüm modüller görünsün (AI Asistan, Danışmanlık Pro'ya bağlı)
+      // Demo'da tüm modüller görünsün. AI Asistan Pro'ya EK OLARAK
+      // ai_addon bayrağı istiyor (bkz. lib/featureGate.ts AI_ADDON_ONLY) —
+      // ikisi birden verilmezse menüde çıkar ama içeri girilemez.
       plan: 'pro',
+      ai_addon: true,
     }, { onConflict: 'id' })
   }
 
