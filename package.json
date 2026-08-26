@@ -14,7 +14,8 @@
     "test:e2e:ui": "playwright test --ui",
     "seed:demo": "node scripts/demo-seed.mjs",
     "smoke:import": "node scripts/import-smoke.mjs",
-    "smoke:rapor": "node scripts/rapor-smoke.mjs"
+    "smoke:rapor": "node scripts/rapor-smoke.mjs",
+    "deploy:kontrol": "node scripts/deploy-sonrasi.mjs"
   },
   "dependencies": {
     "@google/genai": "^1.42.0",
