@@ -37,6 +37,11 @@ const securityHeaders = [
 ]
 
 const nextConfig = {
+  experimental: {
+    // @react-pdf/renderer yoga-layout WASM kullanıyor; bundler'a dokunmaması
+    // söylenmezse sunucu tarafı PDF üretimi bozuluyor.
+    serverComponentsExternalPackages: ['@react-pdf/renderer'],
+  },
   images: {
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 86400,

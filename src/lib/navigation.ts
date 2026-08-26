@@ -1,5 +1,5 @@
 import {
-  LayoutDashboard, CheckSquare, Columns2, Calendar, GitBranch,
+  LayoutDashboard, CheckSquare, Columns2, Calendar, GitBranch, FileBarChart,
   Zap, FolderOpen, Sparkles, MessageSquare, Users, User,
   LayoutGrid, MessageCircle, ListTodo, Video, Settings, ShieldAlert,
   type LucideIcon,
@@ -17,6 +17,7 @@ export const NAV_ICONS: Record<string, LucideIcon> = {
   Görevler: CheckSquare,
   Kanban: Columns2,
   'Operasyon Riski': ShieldAlert,
+  Raporlar: FileBarChart,
   Takvim: Calendar,
   Timeline: GitBranch,
   Sprintler: Zap,
@@ -48,6 +49,7 @@ export function getNavLinks({ base, role, isPro }: { base: string; role: OrgRole
       withIcon(`${base}/tasks`, 'Görevler'),
       withIcon(`${base}/kanban`, 'Kanban'),
       withIcon(`${base}/risk`, 'Operasyon Riski'),
+      withIcon(`${base}/raporlar`, 'Raporlar'),
       withIcon(`${base}/calendar`, 'Takvim'),
       withIcon(`${base}/timeline`, 'Timeline'),
       withIcon(`${base}/sprints`, 'Sprintler'),
@@ -69,6 +71,7 @@ export function getNavLinks({ base, role, isPro }: { base: string; role: OrgRole
       withIcon(`${base}/dashboard`, 'Panel'),
       withIcon(`${base}/tasks`, 'Görevler'),
       withIcon(`${base}/risk`, 'Operasyon Riski'),
+      withIcon(`${base}/raporlar`, 'Raporlar'),
       withIcon(`${base}/timeline`, 'Timeline'),
       withIcon(`${base}/profile`, 'Profilim'),
     ]
@@ -87,6 +90,7 @@ export function getNavLinks({ base, role, isPro }: { base: string; role: OrgRole
     withIcon(`${base}/timeline`, 'Timeline'),
     withIcon(`${base}/files`, 'Dosyalar'),
     withIcon(`${base}/me`, 'Panelim'),
+    withIcon(`${base}/raporlar`, 'Raporlar'),
     withIcon(`${base}/chat`, 'Sohbet'),
     withIcon(`${base}/meetings`, 'Toplantılar'),
     withIcon(`${base}/checklists`, 'Listelerim'),
