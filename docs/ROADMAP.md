@@ -5,55 +5,48 @@ geliştirme işleri, (2) projeyi gerçek kullanıcılarla canlıya almadan önce
 **senin** yapman gereken adımlar. Her ikisi de öncelik sırasına göre listelendi.
 
 Güncel durum: Faz 0-2 tamamlandı (scaffold, ortak UI sistemi, tüm ekranlar).
-Faz 3 (DENEYAP domain adaptasyonu) yeni başladı (yasal sayfa placeholder'ları).
+Faz 3 (DENEYAP domain adaptasyonu) devam ediyor — yasal sayfa placeholder'ları
+ve **tüm API route'ları tamamlandı** (aşağıdaki 1.1-1.5 ✅).
 
 ---
 
 ## 1. Benim yapacağım kalan işler
 
-### 1.1 Backend — eksik API route'ları (yüksek öncelik)
+### 1.1 ~~Backend — eksik API route'ları~~ ✅ tamamlandı
 
-Bazı ekranlar taşındı ama arkalarındaki API route'ları henüz taşınmadı — bu
-ekranlardaki ilgili aksiyonlar şu an **sessizce başarısız oluyor** (buton
-tıklanır ama sunucudan 404 döner). Taşınması gerekenler:
+Toplantılar, Üyeler, Ayarlar, Dosyalar, Profil sayfalarının arkasındaki tüm
+route'lar taşındı (`meetings*`, `members*`, `automation-settings`,
+`claim-owner`, `rotate-join-code`, `logo`, `files*`, `send-email`,
+`me/delete`, `me/export`). Gerçek bir Supabase projesi bağlanınca bu
+ekranlardaki tüm aksiyonlar çalışır hale gelecek.
 
-| Route grubu | Kaç dosya | Kullanan ekran | Etki |
-|---|---|---|---|
-| `/api/org/[slug]/meetings*` | 2 | Toplantılar | Toplantı oluşturma/düzenleme/silme çalışmıyor |
-| `/api/org/[slug]/members*` | 2 | Üyeler | Üye rol değiştirme/çıkarma çalışmıyor |
-| `/api/org/[slug]/automation-settings` | 1 | Ayarlar | Otomasyon ayarları kaydedilmiyor |
-| `/api/org/[slug]/claim-owner` | 1 | Ayarlar | Sahiplik devri çalışmıyor |
-| `/api/org/[slug]/rotate-join-code` | 1 | Ayarlar, Üyeler | Katılım kodu yenileme çalışmıyor |
-| `/api/org/[slug]/logo` | 1 | Ayarlar | Logo yükleme çalışmıyor |
-| `/api/org/[slug]/files*` | 2 | Dosyalar, Görev Detayı | Dosya listeleme/bağlama çalışmıyor |
-| `/api/send-email` | 1 | Bildirimler (genel) | Bildirim e-postaları gitmiyor |
-| `/api/me/delete`, `/api/me/export` | 2 | Profil | Hesap silme/veri dışa aktarma yok |
+### 1.2 ~~Google Drive entegrasyonu~~ ✅ route'lar tamamlandı
 
-### 1.2 Google Drive entegrasyonu (orta öncelik)
+`/api/drive/*` (auth, callback, status, files, upload-session, upload-proxy,
+upload-complete, debug) taşındı. Çalışması için hâlâ senin bir Google Cloud
+OAuth uygulaması oluşturman gerekiyor (bkz. Bölüm 2.4) — route'lar hazır,
+kimlik bilgileri eksik.
 
-`/api/drive/*` (8 route: auth, callback, status, files, upload-session,
-upload-proxy, upload-complete, debug) henüz taşınmadı. Dosyalar sayfası ve
-Görev Detayı'ndaki dosya yükleme UI'ı hazır ama bu route'lar olmadan pasif.
-Senin bir Google Cloud OAuth uygulaması oluşturman gerekecek (bkz. Bölüm 2).
+### 1.3 ~~AI Görev Asistanı — Gemini route'ları~~ ✅ tamamlandı
 
-### 1.3 AI Görev Asistanı — Gemini route'ları (orta öncelik, domain uyarlaması gerekli)
+`/api/ai-tasks/*` (11 route) taşındı. Prompt içerikleri baştan domain-nötrdü
+(Tarlis/atölye referansı yoktu), bu yüzden ek bir "atölye→saha" çevirisi
+gerekmedi. GEMINI_API_KEY girilince doğrudan çalışır.
 
-`/api/ai-tasks/*` (10 route). Bunlar hem taşınacak hem de DENEYAP bağlamına
-göre prompt'ları gözden geçirilecek (örn. "atölye" yerine "saha/operasyon"
-terminolojisi, DENEYAP'a özgü görev kategorileri).
+### 1.4 ~~Google Calendar entegrasyonu~~ ✅ tamamlandı
 
-### 1.4 Google Calendar entegrasyonu (düşük öncelik)
+`/api/gcal/*` (auth, callback, create-event) taşındı — Drive ile aynı Google
+Cloud OAuth kimlik bilgilerini kullanıyor.
 
-`/api/gcal/*` (3 route) — toplantı oluştururken Google Calendar'a event
-eklemek için. Drive ile aynı Google Cloud OAuth uygulamasını kullanabilir.
+### 1.5 ~~Cron / dijest e-postaları~~ ✅ tamamlandı
 
-### 1.5 Cron / dijest e-postaları (düşük öncelik)
+`/api/cron/daily-checks`, `/api/digest-email` ve `vercel.json` (cron
+zamanlamaları) taşındı. **Dikkat**: `vercel.json`'daki
+`CRON_SECRET_PLACEHOLDER` değerini deploy öncesi gerçek `CRON_SECRET`
+değerinle değiştirmen gerekiyor — Vercel cron path'leri env değişkeni
+interpolasyonunu desteklemiyor.
 
-`/api/cron/daily-checks` ve `/api/digest-email` — günlük/haftalık özet
-e-postaları. `vercel.json` içindeki cron tanımları henüz DENEYAP-Ops'a
-kopyalanmadı; bu route'lar taşınınca birlikte eklenecek.
-
-### 1.6 Admin paneli (düşük öncelik, opsiyonel)
+### 1.6 Admin paneli (düşük öncelik, opsiyonel — henüz taşınmadı)
 
 `/api/admin/*` (4 route) + süper admin arayüzü — tüm workspace'leri tek
 yerden yöneten bir panel. DENEYAP için gerekliyse (örn. merkezi bir
@@ -169,21 +162,21 @@ hem de genel doğrulamanın en gerçekçi yolu.
 
 ---
 
-## Önerilen sıralama
+## Önerilen sıralama (güncel)
 
-1. **Sen**: Supabase projesi + migration (2.1) — bu olmadan hiçbir şeyi
-   gerçek veriyle test edemeyiz.
-2. **Ben**: Eksik org-scoped API route'larını taşırım (1.1) — Ayarlar,
-   Üyeler, Toplantılar tam fonksiyonel hale gelir.
+1. ~~Ben: Tüm API route'larını taşırım~~ ✅ tamamlandı.
+2. **Sen**: Supabase projesi + migration (2.1) — **şu anki tek blokaj bu**.
+   Bundan sonraki her şey (giriş, görev oluşturma, bildirimler, AI Asistan)
+   gerçek verilerle test edilebilir hale gelir.
 3. **Sen**: SMTP + Gemini anahtarı (2.2, 2.3) — bildirimler ve AI Asistan
-   çalışır hale gelir.
-4. **Ben**: AI route'larını taşırım + DENEYAP'a göre prompt uyarlaması (1.3).
-5. **Sen**: Google Cloud OAuth kurulumu (2.4) — istersen bu adımı sona
-   bırakabiliriz, Drive/Takvim entegrasyonu olmadan da uygulama kullanılabilir.
-6. **Ben**: Drive + Calendar route'ları (1.2, 1.4).
-7. **Ben**: Faz 3 domain adaptasyonu (il/birim, Operasyon Risk gerçek veri).
-8. **Ben**: Faz 4 responsive test turu.
-9. **Sen**: Vercel deploy + domain (2.5).
+   fiilen çalışır hale gelir.
+4. **Ben**: Faz 3 domain adaptasyonu (il/birim, Operasyon Risk gerçek veri
+   modeli) — Supabase kurulduktan sonra yeni migration'ları ekleyebilirim.
+5. **Ben**: Faz 4 responsive test turu (gerçek Supabase verisiyle).
+6. **Sen** (opsiyonel): Google Cloud OAuth kurulumu (2.4) — Drive/Takvim/
+   "Google ile Giriş" istemiyorsan tamamen atlanabilir.
+7. **Sen**: Vercel deploy + domain (2.5) — GitHub'a push zaten yapıldı
+   (https://github.com/baltazar119/deneyap-ops), Vercel'de import etmen
+   yeterli.
 
-Bu sıralama zorunlu değil — istediğin adımı öne alabiliriz. Örneğin Drive
-entegrasyonunu hiç istemiyorsan 1.2/2.4'ü tamamen atlayabiliriz.
+Admin paneli (1.6) kapsamda değil — istersen ayrıca ele alırız.
