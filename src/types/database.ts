@@ -115,7 +115,7 @@ export interface Database {
           description: string | null
           status: 'backlog' | 'doing' | 'testing' | 'blocked' | 'done'
           priority: 'critical' | 'high' | 'normal' | 'low'
-          task_type: 'mechanical' | 'electrical' | 'software' | 'research' | 'documentation' | 'test' | 'other'
+          task_type: 'mechanical' | 'electrical' | 'software' | 'training' | 'event' | 'supply' | 'admin' | 'reporting' | 'other'
           assignee_id: string | null
           start_date: string | null
           due_date: string | null
@@ -132,7 +132,7 @@ export interface Database {
           description?: string | null
           status?: 'backlog' | 'doing' | 'blocked' | 'done'
           priority?: 'critical' | 'high' | 'normal' | 'low'
-          task_type?: 'mechanical' | 'electrical' | 'software' | 'research' | 'documentation' | 'test' | 'other'
+          task_type?: 'mechanical' | 'electrical' | 'software' | 'training' | 'event' | 'supply' | 'admin' | 'reporting' | 'other'
           assignee_id?: string | null
           start_date?: string | null
           due_date?: string | null
@@ -149,7 +149,7 @@ export interface Database {
           description?: string | null
           status?: 'backlog' | 'doing' | 'blocked' | 'done'
           priority?: 'critical' | 'high' | 'normal' | 'low'
-          task_type?: 'mechanical' | 'electrical' | 'software' | 'research' | 'documentation' | 'test' | 'other'
+          task_type?: 'mechanical' | 'electrical' | 'software' | 'training' | 'event' | 'supply' | 'admin' | 'reporting' | 'other'
           assignee_id?: string | null
           start_date?: string | null
           due_date?: string | null
@@ -317,7 +317,7 @@ export type TaskDependency = { id: string; task_id: string; depends_on: string; 
 
 export type TaskStatus = 'backlog' | 'doing' | 'testing' | 'blocked' | 'done'
 export type TaskPriority = 'critical' | 'high' | 'normal' | 'low'
-export type TaskType = 'mechanical' | 'electrical' | 'software' | 'research' | 'documentation' | 'test' | 'other'
+export type TaskType = 'mechanical' | 'electrical' | 'software' | 'training' | 'event' | 'supply' | 'admin' | 'reporting' | 'other'
 export type CheckinType = 'in' | 'out'
 /** @deprecated Org-scoped OrgRole kullan */
 export type UserRole = 'admin' | 'member' | 'consultant'

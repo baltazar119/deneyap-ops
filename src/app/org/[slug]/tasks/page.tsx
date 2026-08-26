@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
+import { TASK_TYPES, TASK_TYPE_FALLBACK } from '@/lib/taskTypes'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
@@ -29,22 +30,13 @@ const PRIORITY_OPTIONS: { value: TaskPriority; label: string; color: string; bg:
   { value: 'low',      label: 'Düşük',   color: '#6b7280', bg: '#f3f4f6', icon: '⚪' },
 ]
 
-const TYPE_OPTIONS: { value: TaskType; label: string }[] = [
-  { value: 'mechanical',     label: 'Mekanik' },
-  { value: 'electrical',     label: 'Elektrik' },
-  { value: 'software',       label: 'Yazılım' },
-  { value: 'research',       label: 'Araştırma' },
-  { value: 'documentation',  label: 'Dokümantasyon' },
-  { value: 'test',           label: 'Test' },
-  { value: 'other',          label: 'Diğer' },
-]
 
 function getPriorityMeta(priority: TaskPriority) {
   return PRIORITY_OPTIONS.find(p => p.value === priority) || PRIORITY_OPTIONS[2]
 }
 
 function getTypeMeta(type: TaskType) {
-  return TYPE_OPTIONS.find(t => t.value === type) || TYPE_OPTIONS[6]
+  return TASK_TYPES.find(t => t.value === type) || TASK_TYPE_FALLBACK
 }
 
 interface TaskWithAssignee extends Task {
@@ -551,7 +543,7 @@ export default function TasksPage() {
                 <div>
                   <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#374151', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Tür</label>
                   <select value={formType} onChange={e => setFormType(e.target.value as TaskType)} className="input">
-                    {TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    {TASK_TYPES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -653,7 +645,7 @@ export default function TasksPage() {
             {
               value: filterType,
               onChange: (v: string) => setFilterType(v as TaskType | 'all'),
-              options: [{ value: 'all', label: 'Tüm Türler' }, ...TYPE_OPTIONS],
+              options: [{ value: 'all', label: 'Tüm Türler' }, ...TASK_TYPES],
             },
             {
               value: filterAssignee,
@@ -837,7 +829,7 @@ export default function TasksPage() {
                     onChange={(e) => setFormType(e.target.value as TaskType)}
                     className="input"
                   >
-                    {TYPE_OPTIONS.map((opt) => (
+                    {TASK_TYPES.map((opt) => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
                   </select>

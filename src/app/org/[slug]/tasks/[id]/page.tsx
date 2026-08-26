@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useEffect, useState, useCallback } from 'react'
+import { TASK_TYPE_LABELS } from '@/lib/taskTypes'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
@@ -19,10 +20,6 @@ const PRIORITY_LABELS: Record<string, { label: string; color: string; bg: string
   low:      { label: 'Düşük',   color: '#6b7280', bg: '#f3f4f6', icon: '⚪' },
 }
 
-const TYPE_LABELS: Record<string, string> = {
-  mechanical: 'Mekanik', electrical: 'Elektrik', software: 'Yazılım',
-  research: 'Araştırma', documentation: 'Dokümantasyon', test: 'Test', other: 'Diğer',
-}
 
 export default function TaskDetailPage() {
   const router = useRouter()
@@ -260,7 +257,7 @@ export default function TaskDetailPage() {
                 </span>
                 {task.task_type && (
                   <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: '#f0fbff', color: '#2288c9', border: '1px solid #bee5f0' }}>
-                    {TYPE_LABELS[task.task_type] || task.task_type}
+                    {TASK_TYPE_LABELS[task.task_type] || task.task_type}
                   </span>
                 )}
               </div>

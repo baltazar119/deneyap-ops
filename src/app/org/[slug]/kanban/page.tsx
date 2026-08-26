@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useEffect, useState } from 'react'
+import { TASK_TYPES, TASK_TYPE_LABELS } from '@/lib/taskTypes'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
@@ -31,15 +32,6 @@ const PRIORITY_META: Record<TaskPriority, { icon: string; color: string; bg: str
   low:      { icon: '⚪', color: '#94a3b8', bg: '#f1f5f9', label: 'Düşük',  border: '#e2e8f0' },
 }
 
-const TYPE_LABELS: Record<TaskType, string> = {
-  mechanical:    'Mekanik',
-  electrical:    'Elektrik',
-  software:      'Yazılım',
-  research:      'Araştırma',
-  documentation: 'Dokümantasyon',
-  test:          'Test',
-  other:         'Diğer',
-}
 
 const STATUS_OPTIONS: { value: TaskStatus; label: string }[] = [
   { value: 'backlog',  label: 'Beklemede' },
@@ -56,15 +48,6 @@ const PRIORITY_OPTIONS: { value: TaskPriority; label: string }[] = [
   { value: 'low',      label: 'Düşük' },
 ]
 
-const TYPE_OPTIONS: { value: TaskType; label: string }[] = [
-  { value: 'mechanical',    label: 'Mekanik' },
-  { value: 'electrical',    label: 'Elektrik' },
-  { value: 'software',      label: 'Yazılım' },
-  { value: 'research',      label: 'Araştırma' },
-  { value: 'documentation', label: 'Dokümantasyon' },
-  { value: 'test',          label: 'Test' },
-  { value: 'other',         label: 'Diğer' },
-]
 
 /* ── Types ───────────────────────────────────────────────────── */
 
@@ -667,7 +650,7 @@ export default function KanbanPage() {
                 <div>
                   <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#374151', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Tür</label>
                   <select value={formType} onChange={e => setFormType(e.target.value as TaskType)} className="input">
-                    {TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    {TASK_TYPES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div>
@@ -1011,7 +994,7 @@ export default function KanbanPage() {
                   <div>
                     <p className="section-title mb-1">Tür</p>
                     <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: '#e0f2fe', color: '#0369a1', border: '1px solid #bae6fd' }}>
-                      {TYPE_LABELS[selectedTask.task_type]}
+                      {TASK_TYPE_LABELS[selectedTask.task_type]}
                     </span>
                   </div>
                 )}
@@ -1160,7 +1143,7 @@ export default function KanbanPage() {
                 <div>
                   <label className="block text-xs font-semibold mb-1.5" style={{ color: '#374151' }}>Tür</label>
                   <select value={formType} onChange={(e) => setFormType(e.target.value as TaskType)} className="input">
-                    {TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    {TASK_TYPES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
               </div>
@@ -1316,7 +1299,7 @@ function TaskCard({ task, index, onOpen, onStatusChange }: TaskCardProps) {
                     border: '1px solid #bae6fd',
                   }}
                 >
-                  {TYPE_LABELS[task.task_type]}
+                  {TASK_TYPE_LABELS[task.task_type]}
                 </span>
               </div>
             )}

@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
+import { TASK_TYPES, TASK_TYPE_FALLBACK } from '@/lib/taskTypes'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { useOrg } from '@/lib/supabase/orgContext'
@@ -12,15 +13,6 @@ import type { DraftSet, DraftTask, TaskType, TaskPriority } from '@/types/databa
 
 // ── Sabitler ───────────────────────────────────────────────────────────────────
 
-const CATEGORY_OPTIONS: { value: TaskType; label: string }[] = [
-  { value: 'mechanical',    label: 'Mekanik' },
-  { value: 'electrical',   label: 'Elektrik' },
-  { value: 'software',     label: 'Yazılım' },
-  { value: 'research',     label: 'Araştırma' },
-  { value: 'documentation',label: 'Dokümantasyon' },
-  { value: 'test',         label: 'Test' },
-  { value: 'other',        label: 'Diğer' },
-]
 
 const PRIORITY_OPTIONS: { value: TaskPriority; label: string; color: string; bg: string }[] = [
   { value: 'critical', label: 'Kritik',  color: '#991b1b', bg: '#fee2e2' },
@@ -960,7 +952,7 @@ function AIAssistantContent() {
                   </div>
                 ) : editedTasks.map((task, taskIdx) => {
                   const prio = PRIORITY_OPTIONS.find((p) => p.value === task.priority) ?? PRIORITY_OPTIONS[2]
-                  const cat  = CATEGORY_OPTIONS.find((c) => c.value === task.category) ?? CATEGORY_OPTIONS[6]
+                  const cat  = TASK_TYPES.find((c) => c.value === task.category) ?? TASK_TYPE_FALLBACK
                   const isOpen = expandedCriteria.has(task.id)
                   const isReadOnly = selectedSet.status !== 'draft'
                   const isRevisingThis = revisingTaskIds.has(task.id)
@@ -996,7 +988,7 @@ function AIAssistantContent() {
                             <label className="block text-xs font-semibold mb-1" style={{ color: '#64748b' }}>Kategori</label>
                             {isReadOnly
                               ? <span className="text-xs font-medium" style={{ color: '#374151' }}>{cat.label}</span>
-                              : <select className="input text-xs py-1.5" value={task.category} onChange={(e) => updateTask(task.id, 'category', e.target.value as TaskType)}>{CATEGORY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select>
+                              : <select className="input text-xs py-1.5" value={task.category} onChange={(e) => updateTask(task.id, 'category', e.target.value as TaskType)}>{TASK_TYPES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select>
                             }
                           </div>
                           <div>

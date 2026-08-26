@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { TASK_TYPE_VALUES } from '@/lib/taskTypes'
 import { createClient } from '@supabase/supabase-js'
 import { GoogleGenAI } from '@google/genai'
 import { AI_DAILY_LIMITS } from '@/lib/featureGate'
@@ -92,7 +93,7 @@ Format:
   {
     "title": "string",
     "description": "string (2-3 cümle, ne yapılacağını açıklar)",
-    "category": "mechanical|electrical|software|research|documentation|test|other",
+    "category": "mechanical|electrical|software|training|event|supply|admin|reporting|other",
     "priority": "critical|high|normal|low",
     "estimated_hours": number veya null,
     "acceptance_criteria": ["string", ...],
@@ -256,7 +257,7 @@ export async function POST(req: NextRequest) {
 
 // ── Yardımcılar ───────────────────────────────────────────────────────────────
 
-const VALID_CATEGORIES = ['mechanical', 'electrical', 'software', 'research', 'documentation', 'test', 'other']
+const VALID_CATEGORIES: string[] = TASK_TYPE_VALUES
 const VALID_PRIORITIES  = ['critical', 'high', 'normal', 'low']
 
 function isValidCategory(v: unknown): boolean { return typeof v === 'string' && VALID_CATEGORIES.includes(v) }

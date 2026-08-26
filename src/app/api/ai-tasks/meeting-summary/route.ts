@@ -75,7 +75,7 @@ YALNIZCA bu JSON formatını döndür:
     {
       "title": "<görev başlığı>",
       "description": "<görevin ne olduğunu açıkla, 2-3 cümle>",
-      "category": "<mechanical|electrical|software|research|documentation|test|other>",
+      "category": "<mechanical|electrical|software|training|event|supply|admin|reporting|other>",
       "priority": "<critical|high|normal|low>",
       "estimated_hours": <sayı veya null>
     }

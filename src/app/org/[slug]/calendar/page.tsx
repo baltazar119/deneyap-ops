@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useEffect, useRef, useState } from 'react'
+import { TASK_TYPE_LABELS } from '@/lib/taskTypes'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
@@ -43,10 +44,6 @@ const PRIORITY_META: Record<string, { label: string; color: string }> = {
   low:      { label: 'Düşük',  color: '#9ca3af' },
 }
 
-const TASK_TYPE_LABELS: Record<string, string> = {
-  mechanical: 'Mekanik', electrical: 'Elektrik', software: 'Yazılım',
-  research: 'Araştırma', documentation: 'Dokümantasyon', test: 'Test', other: 'Diğer',
-}
 
 // ── Yardımcı ─────────────────────────────────────────────────────────────────
 

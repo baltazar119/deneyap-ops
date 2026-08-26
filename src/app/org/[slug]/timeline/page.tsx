@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useEffect, useState, useRef } from 'react'
+import { taskTypeLabel } from '@/lib/taskTypes'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
@@ -33,10 +34,6 @@ const PRIORITY_LABEL: Record<string, string> = {
 }
 void PRIORITY_LABEL
 
-const TYPE_LABELS: Record<string, string> = {
-  mechanical:'Mekanik', electrical:'Elektrik', software:'Yazılım',
-  research:'Araştırma', documentation:'Dokümantasyon', test:'Test', other:'Diğer',
-}
 
 const ROW_H    = 56
 const HEADER_H = 68   // 2-row: month (34px) + week/day (34px)
@@ -166,7 +163,7 @@ export default function TimelinePage() {
   } else if (groupBy === 'type') {
     const gm: Record<string, TaskWithMeta[]> = {}
     for (const t of datedTasks) { const k = t.task_type ?? 'other'; if (!gm[k]) gm[k] = []; gm[k].push(t) }
-    groups = Object.entries(gm).map(([k, ts]) => ({ label: TYPE_LABELS[k] ?? k, tasks: ts }))
+    groups = Object.entries(gm).map(([k, ts]) => ({ label: taskTypeLabel(k), tasks: ts }))
   } else {
     groups = [{ label: '', tasks: datedTasks }]
   }
