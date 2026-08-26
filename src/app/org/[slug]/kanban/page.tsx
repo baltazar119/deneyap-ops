@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import { useEffect, useState } from 'react'
 import { TASK_TYPES, TASK_TYPE_LABELS } from '@/lib/taskTypes'
+import { yazabilirMi } from '@/lib/roller'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
@@ -707,15 +708,20 @@ export default function KanbanPage() {
                 Sprint Yönetimi
               </Link>
             )}
-            <button
-              onClick={openCreateForm}
-              className="text-sm font-medium px-4 py-2 rounded-xl transition-colors"
-              style={{ background: '#2288c9', color: '#fff' }}
-              onMouseEnter={e => { e.currentTarget.style.background = '#1d78b8' }}
-              onMouseLeave={e => { e.currentTarget.style.background = '#2288c9' }}
-            >
-              + Görev Oluştur
-            </button>
+            {/* PRD: görev oluşturma merkezi bir yetki. RLS de (is_org_admin)
+                aynı kuralı uyguluyor — buton yalnızca gerçekten yetkisi
+                olanlara gösteriliyor. */}
+            {yazabilirMi(orgRole) && (
+              <button
+                onClick={openCreateForm}
+                className="text-sm font-medium px-4 py-2 rounded-xl transition-colors"
+                style={{ background: '#2288c9', color: '#fff' }}
+                onMouseEnter={e => { e.currentTarget.style.background = '#1d78b8' }}
+                onMouseLeave={e => { e.currentTarget.style.background = '#2288c9' }}
+              >
+                + Görev Oluştur
+              </button>
+            )}
           </div>
         </div>
 

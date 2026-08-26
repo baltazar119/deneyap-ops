@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { TASK_TYPES, TASK_TYPE_FALLBACK } from '@/lib/taskTypes'
 import { IL_SECENEKLERI } from '@/lib/iller'
+import { raporGorebilirMi, yazabilirMi } from '@/lib/roller'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
@@ -111,7 +112,9 @@ export default function TasksPage() {
     if (orgLoading) return
     if (!org || !userId) return
 
-    if (!isAdmin) {
+    // Yetkili Yönetici (viewer) listeyi salt okunur görebilir; yazma
+    // aksiyonları aşağıda yazabilirMi() ile gizleniyor, RLS de engelliyor.
+    if (!raporGorebilirMi(orgRole)) {
       router.replace(orgRole === 'consultant' ? `/org/${org.slug}/consultant` : `/org/${org.slug}/me`)
       return
     }
@@ -157,7 +160,7 @@ export default function TasksPage() {
     }
     init(alreadyLoaded)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orgLoading, org?.id, userId, isAdmin, orgRole])
+  }, [orgLoading, org?.id, userId, orgRole])
 
   function openCreateForm() {
     setEditingTask(null)
@@ -466,10 +469,12 @@ export default function TasksPage() {
                     <Link href={`/org/${org?.slug}/tasks/${task.id}`} style={{ fontSize: 14, fontWeight: 700, color: '#111827', textDecoration: 'none', flex: 1, lineHeight: 1.4 }}>
                       {task.title}
                     </Link>
-                    <button onClick={() => openEditForm(task)} style={{
-                      flexShrink: 0, background: '#f1f5f9', border: 'none', borderRadius: 7,
-                      padding: '4px 8px', fontSize: 11, fontWeight: 600, color: '#2288c9', cursor: 'pointer',
-                    }}>Düzenle</button>
+                    {yazabilirMi(orgRole) && (
+                      <button onClick={() => openEditForm(task)} style={{
+                        flexShrink: 0, background: '#f1f5f9', border: 'none', borderRadius: 7,
+                        padding: '4px 8px', fontSize: 11, fontWeight: 600, color: '#2288c9', cursor: 'pointer',
+                      }}>Düzenle</button>
+                    )}
                   </div>
 
                   {/* Badges */}
@@ -626,15 +631,17 @@ export default function TasksPage() {
               {filteredTasks.length !== tasks.length && <span> · <span style={{ color: '#2288c9' }}>{filteredTasks.length} gösteriliyor</span></span>}
             </p>
           </div>
-          <button
-            onClick={openCreateForm}
-            className="flex items-center gap-1.5 text-sm font-medium px-4 py-2 rounded-xl transition-colors"
-            style={{ background: '#2288c9', color: '#fff' }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#1d78b8' }}
-            onMouseLeave={e => { e.currentTarget.style.background = '#2288c9' }}
-          >
-            + Görev Oluştur
-          </button>
+          {yazabilirMi(orgRole) && (
+            <button
+              onClick={openCreateForm}
+              className="flex items-center gap-1.5 text-sm font-medium px-4 py-2 rounded-xl transition-colors"
+              style={{ background: '#2288c9', color: '#fff' }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#1d78b8' }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#2288c9' }}
+            >
+              + Görev Oluştur
+            </button>
+          )}
         </div>
 
         {/* ── Öncelik filtreleri ── */}
@@ -779,7 +786,7 @@ export default function TasksPage() {
                   <button
                     onClick={() => openEditForm(task)}
                     className="text-xs px-2.5 py-1 rounded-lg font-medium"
-                    style={{ color: '#2288c9', background: '#eff6ff', border: '1px solid #dbeafe' }}
+                    style={{ color: '#2288c9', background: '#eff6ff', border: '1px solid #dbeafe', display: yazabilirMi(orgRole) ? undefined : 'none' }}
                     onMouseEnter={e => { e.currentTarget.style.background = '#dbeafe' }}
                     onMouseLeave={e => { e.currentTarget.style.background = '#eff6ff' }}
                   >
@@ -788,7 +795,7 @@ export default function TasksPage() {
                   <button
                     onClick={() => handleDelete(task.id)}
                     className="text-xs px-2.5 py-1 rounded-lg font-medium"
-                    style={{ color: '#dc2626', background: '#fff1f1', border: '1px solid #fecaca' }}
+                    style={{ color: '#dc2626', background: '#fff1f1', border: '1px solid #fecaca', display: yazabilirMi(orgRole) ? undefined : 'none' }}
                     onMouseEnter={e => { e.currentTarget.style.background = '#fee2e2' }}
                     onMouseLeave={e => { e.currentTarget.style.background = '#fff1f1' }}
                   >

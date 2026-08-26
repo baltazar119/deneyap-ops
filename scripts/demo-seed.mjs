@@ -171,6 +171,8 @@ async function main() {
       id: kullanicilar[h.email],
       email: h.email,
       full_name: h.ad,
+      // Demo'da tüm modüller görünsün (AI Asistan, Danışmanlık Pro'ya bağlı)
+      plan: 'pro',
     }, { onConflict: 'id' })
   }
 

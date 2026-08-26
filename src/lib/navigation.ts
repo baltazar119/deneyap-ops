@@ -67,6 +67,7 @@ export function getNavLinks({ base, role, isPro }: { base: string; role: OrgRole
   if (role === 'viewer') {
     return [
       withIcon(`${base}/dashboard`, 'Panel'),
+      withIcon(`${base}/tasks`, 'Görevler'),
       withIcon(`${base}/risk`, 'Operasyon Riski'),
       withIcon(`${base}/timeline`, 'Timeline'),
       withIcon(`${base}/profile`, 'Profilim'),

@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useEffect, useCallback } from 'react'
-import { raporGorebilirMi } from '@/lib/roller'
+import { raporGorebilirMi, rolAdi, yazabilirMi } from '@/lib/roller'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useState, useRef } from 'react'
@@ -13,10 +13,17 @@ import { useIsMobile } from '@/lib/useIsMobile'
 import { isCurrentlyIn, isOverdue } from '@/lib/utils'
 import { getCachedData, setCachedData } from '@/lib/pageDataCache'
 import { Users, CheckCircle2, Clock, Building2, ArrowRight, Columns2, ListTodo, CheckSquare, ChevronRight, X, AlertCircle } from 'lucide-react'
-import type { Profile, Task, Checkin, Schedule, Sprint } from '@/types/database'
+import type { Profile, Task, Checkin, Schedule, Sprint, OrgRole } from '@/types/database'
+
+interface OrgUyelik {
+  user_id: string
+  role: OrgRole
+  il: string | null
+}
 
 type DashCache = {
   profiles: Profile[]
+  uyelikler?: OrgUyelik[]
   checkins: Checkin[]
   schedules: Schedule[]
   tasks: Task[]
@@ -33,6 +40,15 @@ export default function DashboardPage() {
   const _initCache = _initKey ? getCachedData<DashCache>(_initKey) : null
 
   const [profiles, setProfiles]         = useState<Profile[]>(_initCache?.profiles ?? [])
+  const [uyelikler, setUyelikler]       = useState<OrgUyelik[]>(_initCache?.uyelikler ?? [])
+
+  /** userId → { org rolü, il } */
+  const uyelikHaritasi = Object.fromEntries(uyelikler.map(u => [u.user_id, u]))
+  function uyeAltBilgi(userId: string): string {
+    const u = uyelikHaritasi[userId]
+    if (!u) return 'Üye'
+    return u.il ? `${rolAdi(u.role)} · ${u.il}` : rolAdi(u.role)
+  }
   const [checkins, setCheckins]         = useState<Checkin[]>(_initCache?.checkins ?? [])
   const [tasks, setTasks]               = useState<Task[]>(_initCache?.tasks ?? [])
   const [, setSchedules]                = useState<Schedule[]>(_initCache?.schedules ?? [])
@@ -47,7 +63,7 @@ export default function DashboardPage() {
       const rangeStart = new Date(now); rangeStart.setDate(now.getDate() - 28); rangeStart.setHours(0, 0, 0, 0)
       const rangeEnd   = new Date(now); rangeEnd.setDate(now.getDate() + 28);   rangeEnd.setHours(23, 59, 59, 999)
 
-      const membershipsRes = await supabase.from('organization_members').select('user_id').eq('organization_id', org.id)
+      const membershipsRes = await supabase.from('organization_members').select('user_id, role, il').eq('organization_id', org.id)
       const memberIds = membershipsRes.data?.map(m => m.user_id) ?? []
 
       const [profilesRes, checkinsRes, schedulesRes, tasksRes, sprintRes] = await Promise.all([
@@ -61,6 +77,12 @@ export default function DashboardPage() {
       ])
 
       const allProfiles = profilesRes.data ?? []
+      // Panelde gösterilen rol, global profil rolü değil bu workspace'teki
+      // org rolü olmalı (PRD terminolojisi: Koordinatör, İl Sorumlusu…)
+      const uyelikler: OrgUyelik[] = (membershipsRes.data ?? []).map(m => ({
+        user_id: m.user_id, role: m.role as OrgRole, il: (m.il as string | null) ?? null,
+      }))
+      setUyelikler(uyelikler)
       const newTasks    = tasksRes.data ?? []
       const newCheckins = checkinsRes.data ?? []
       const newSchedules= schedulesRes.data ?? []
@@ -72,7 +94,7 @@ export default function DashboardPage() {
       setTasks(newTasks)
       setActiveSprint(newSprint)
 
-      setCachedData<DashCache>(cacheKey, { profiles: allProfiles, checkins: newCheckins, schedules: newSchedules, tasks: newTasks, activeSprint: newSprint })
+      setCachedData<DashCache>(cacheKey, { profiles: allProfiles, uyelikler, checkins: newCheckins, schedules: newSchedules, tasks: newTasks, activeSprint: newSprint })
     } catch (err) {
       console.error('[Dashboard] loadData error:', err)
     } finally {
@@ -139,7 +161,7 @@ export default function DashboardPage() {
   /* ── KPI Modal verisi ── */
   const profileMap = Object.fromEntries(profiles.map(p => [p.id, p]))
   const modalData = {
-    members:  { title: 'Tüm Üyeler', items: profiles.map(p => ({ id: p.id, name: p.full_name || 'İsimsiz', sub: p.role === 'admin' ? 'Yönetici' : p.role === 'consultant' ? 'Danışman' : 'Üye', avatar: p.avatar_url, warn: false })) },
+    members:  { title: 'Tüm Üyeler', items: profiles.map(p => ({ id: p.id, name: p.full_name || 'İsimsiz', sub: uyeAltBilgi(p.id), avatar: p.avatar_url, warn: false })) },
     inoffice: { title: 'Şu An Sahada', items: profiles.filter(p => isCurrentlyIn(checkins.filter(c => c.user_id === p.id))).map(p => ({ id: p.id, name: p.full_name || 'İsimsiz', sub: 'Sahada', avatar: p.avatar_url, warn: false })) },
     done:     { title: 'Tamamlanan Görevler', items: tasks.filter(t => t.status === 'done').map(t => ({ id: t.id, name: t.title || 'Görev', sub: profileMap[t.assignee_id ?? '']?.full_name || 'Atanmamış', avatar: null, warn: false })) },
     overdue:  { title: 'Gecikmiş Görevler',  items: tasks.filter(t => t.status !== 'done' && isOverdue(t.due_date)).map(t => ({ id: t.id, name: t.title || 'Görev', sub: `${profileMap[t.assignee_id ?? '']?.full_name || 'Atanmamış'}${t.due_date ? ' · ' + new Date(t.due_date).toLocaleDateString('tr-TR', { day:'numeric', month:'short' }) : ''}`, avatar: null, warn: true })) },
@@ -292,7 +314,7 @@ export default function DashboardPage() {
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile.full_name || 'İsimsiz Üye'}</div>
-                  <div style={{ fontSize: 11, color: '#9ca3af' }}>{profile.role === 'admin' ? 'Admin' : 'Üye'}</div>
+                  <div style={{ fontSize: 11, color: '#9ca3af' }}>{uyeAltBilgi(profile.id)}</div>
                 </div>
                 <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
                   {taskCount > 0 && <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 6, background: '#f1f5f9', color: '#64748b', fontWeight: 600 }}>{taskCount}</span>}
@@ -302,7 +324,7 @@ export default function DashboardPage() {
             )
           })}
           <div style={{ padding: '11px 16px' }}>
-            <Link href={`/org/${org?.slug}/members`} style={{ fontSize: 13, fontWeight: 600, color: '#2288c9', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <Link href={`/org/${org?.slug}/members`} style={{ fontSize: 13, fontWeight: 600, color: '#2288c9', textDecoration: 'none', display: yazabilirMi(orgRole) ? 'flex' : 'none', alignItems: 'center', gap: 4 }}>
               Tüm üyeleri gör <ArrowRight style={{ width: 14, height: 14 }} />
             </Link>
           </div>
@@ -450,7 +472,7 @@ export default function DashboardPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-[13px] font-medium truncate" style={{ color: '#111827' }}>{profile.full_name || 'İsimsiz Üye'}</div>
-                      <div className="text-xs" style={{ color: '#9ca3af' }}>{profile.role === 'admin' ? 'Admin' : 'Üye'}</div>
+                      <div className="text-xs" style={{ color: '#9ca3af' }}>{uyeAltBilgi(profile.id)}</div>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
                       {taskCount > 0 && <span className="text-xs px-1.5 py-0.5 rounded font-medium" style={{ background: '#f1f5f9', color: '#64748b' }}>{taskCount}</span>}
@@ -463,7 +485,7 @@ export default function DashboardPage() {
           )}
 
           <div className="shrink-0 px-5 py-2.5" style={{ borderTop: '1px solid #f3f4f6' }}>
-            <Link href={`/org/${org?.slug}/members`} className="text-xs font-medium" style={{ color: '#2288c9' }}>
+            <Link href={`/org/${org?.slug}/members`} className="text-xs font-medium" style={{ color: '#2288c9', display: yazabilirMi(orgRole) ? undefined : 'none' }}>
               Tüm üyeleri gör →
             </Link>
           </div>
