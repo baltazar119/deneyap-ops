@@ -78,17 +78,32 @@ curl -X POST "https://<adresin>/api/kanal/telegram/kurulum" \
 Bu, Telegram'a webhook adresini ve gizli anahtarı bildirir. **Yerelde
 yapılamaz** çünkü Telegram herkese açık bir HTTPS adresi ister.
 
-**c) Cron kotasını kontrol et.** `vercel.json`'da 4 cron var:
+**c) Cron.** `vercel.json`'da **tek** cron var:
 
 | Zaman | İş |
 |---|---|
-| Her gün 07:00 | Gecikme/termin kontrolleri (e-posta + Telegram) |
-| Her gün 08:00 | Günlük özet |
-| Pazartesi 08:30 | Haftalık PDF raporu |
-| Pazartesi 09:00 | Haftalık özet |
+| Her gün 07:00 | `/api/cron/gunluk` |
 
-Hobby planında cron sayısı ve sıklığı sınırlıdır; ayrıca `maxDuration = 60`
-kullanan uçlar (rapor, içe aktarma, cron'lar) **Pro plan gerektirir**.
+Bu uç, günün hangi işleri gerektirdiğine kendisi karar verir:
+
+- **Her gün:** gecikme/termin kontrolleri (e-posta + Telegram), günlük özet
+- **Pazartesi ayrıca:** haftalık özet, haftalık PDF raporu
+
+Dört ayrı cron yerine tek uç kullanılmasının sebebi Vercel **Hobby**
+planının az sayıda cron ve günde bir çalıştırma vermesi. Pro planda da
+aynı şekilde çalışır.
+
+Elle çalıştırma / test:
+```bash
+# e-posta göndermeden dene
+curl -H "Authorization: Bearer <CRON_SECRET>"   "https://<adresin>/api/cron/gunluk?deneme=1"
+
+# Pazartesi'ymiş gibi davran (haftalık işleri de tetikler)
+curl -H "Authorization: Bearer <CRON_SECRET>"   "https://<adresin>/api/cron/gunluk?deneme=1&gun=1"
+```
+
+Ölçülen süreler (Hobby, üretim): günlük kontroller ~20 sn, haftalık rapor
+(5 PDF) ~7 sn. Süre sınırı sorun çıkarmıyor.
 
 **d) Upstash Redis (önerilir).** `UPSTASH_REDIS_REST_URL` ve
 `UPSTASH_REDIS_REST_TOKEN` tanımlı değilse rate limit bellek içinde çalışır;
