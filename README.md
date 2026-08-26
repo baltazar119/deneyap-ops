@@ -14,10 +14,19 @@ cp .env.local.example .env.local
 npm run dev
 ```
 
-## Supabase kurulumu
+## Kurulum ve canlıya alma
 
-Bu proje kendi bağımsız Supabase projesini kullanır (Tarlis'in Supabase projesiyle
-paylaşılmaz). Ayrıntılı adımlar için [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md).
+Bu proje kendi bağımsız Supabase projesini kullanır (Tarlis'in Supabase
+projesiyle paylaşılmaz).
+
+- **[docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md)** — veritabanı, şema
+  kurulumu, auth ayarları
+- **[docs/VERCEL_SETUP.md](docs/VERCEL_SETUP.md)** — deploy, ortam
+  değişkenleri, cron, domain
+- **[docs/ROADMAP.md](docs/ROADMAP.md)** — kalan işler ve öncelik sırası
+
+Şema kurulumu için `supabase/full_schema.sql` dosyası (49 migration'ın
+sırayla birleştirilmiş hali) SQL Editor'e tek seferde yapıştırılabilir.
 
 ## Geliştirme durumu
 
