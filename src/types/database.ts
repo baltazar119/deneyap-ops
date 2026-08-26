@@ -126,12 +126,13 @@ export interface Database {
           organization_id: string
           created_by: string
           created_at: string
+          updated_at: string
         }
         Insert: {
           id?: string
           title: string
           description?: string | null
-          status?: 'backlog' | 'doing' | 'blocked' | 'done'
+          status?: 'backlog' | 'doing' | 'testing' | 'blocked' | 'done'
           priority?: 'critical' | 'high' | 'normal' | 'low'
           task_type?: 'mechanical' | 'electrical' | 'software' | 'training' | 'event' | 'supply' | 'admin' | 'reporting' | 'other'
           assignee_id?: string | null
@@ -149,7 +150,7 @@ export interface Database {
           id?: string
           title?: string
           description?: string | null
-          status?: 'backlog' | 'doing' | 'blocked' | 'done'
+          status?: 'backlog' | 'doing' | 'testing' | 'blocked' | 'done'
           priority?: 'critical' | 'high' | 'normal' | 'low'
           task_type?: 'mechanical' | 'electrical' | 'software' | 'training' | 'event' | 'supply' | 'admin' | 'reporting' | 'other'
           assignee_id?: string | null

@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cronYetkili } from '@/lib/cronAuth'
 import { createClient } from '@supabase/supabase-js'
-import { sendEmail } from '@/lib/email'
+import { sendEmailBatch, type TopluMesaj } from '@/lib/email'
 import { renderDigestEmail } from '@/lib/emailTemplates'
 import type { AppNotification } from '@/types/database'
+
+// Seri gönderim Hobby'de 10 sn'ye takılıyordu; havuzlu gönderim + bütçe ile
+// kaldığı yerden devam edebilir hâle getirildi.
+export const maxDuration = 60
 
 export async function GET(req: NextRequest) {
   /* ── Cron secret doğrulaması ──────────────────────────────────────────── */
@@ -41,7 +45,8 @@ export async function GET(req: NextRequest) {
     Date.now() - (type === 'daily' ? 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000)
   ).toISOString()
 
-  let sent = 0
+  const mesajlar: TopluMesaj[] = []
+  const kullaniciIdleri: string[] = []
 
   for (const pref of prefsList) {
     const { user_id } = pref
@@ -79,16 +84,30 @@ export async function GET(req: NextRequest) {
       ? `DENEYAP Ops — Günlük Özet (${notifications.length} bildirim)`
       : `DENEYAP Ops — Haftalık Özet (${notifications.length} bildirim)`
 
-    const ok = await sendEmail(userEmail, subject, html)
-    if (ok) {
-      await admin.from('email_log').insert({
+    mesajlar.push({ to: userEmail, subject, html })
+    kullaniciIdleri.push(user_id)
+  }
+
+  if (!mesajlar.length) return NextResponse.json({ ok: true, sent: 0 })
+
+  const sonuc = await sendEmailBatch(mesajlar)
+
+  // Yalnızca gerçekten gönderilenler loglanır — bütçe dolup kalanlar
+  // bir sonraki cron turunda tekrar denenecek
+  if (sonuc.gonderilen > 0) {
+    await admin.from('email_log').insert(
+      kullaniciIdleri.slice(0, sonuc.gonderilen).map(user_id => ({
         user_id,
         event_type: `${type}_digest`,
         entity_key: 'digest',
-      })
-      sent++
-    }
+      })),
+    )
   }
 
-  return NextResponse.json({ ok: true, sent })
+  return NextResponse.json({
+    ok: true,
+    sent: sonuc.gonderilen,
+    basarisiz: sonuc.basarisiz,
+    kalan: sonuc.kalan,
+  })
 }

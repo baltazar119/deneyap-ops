@@ -1,4 +1,5 @@
 import type { AppNotification } from '@/types/database'
+import { esc, guvenliUrl } from '@/lib/html'
 
 /* ── DENEYAP renk paleti ──────────────────────────────────────────────────── */
 const C = {
@@ -16,7 +17,11 @@ const C = {
 }
 
 /* ── Shell HTML ───────────────────────────────────────────────────────────── */
-function shell(body: string): string {
+/**
+ * @param profilYolu Bildirim tercihleri sayfasinin yolu. Org bazli olmali
+ *   (`/org/<slug>/profile`) — kok `/profile` diye bir sayfa yok.
+ */
+function shell(body: string, profilYolu: string): string {
   return `<!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -55,7 +60,7 @@ function shell(body: string): string {
       <tr>
         <td style="background:#f8fafc;padding:16px 28px;border:1px solid ${C.border};border-top:none;border-radius:0 0 16px 16px;text-align:center;">
           <p style="margin:0;font-size:11px;color:${C.muted};">Bu bildirim DENEYAP Ops Operasyon Sistemi tarafından gönderilmiştir.</p>
-          <p style="margin:4px 0 0;font-size:11px;color:${C.muted};">E-posta bildirimlerini <a href="{{APP_URL}}/profile" style="color:${C.primary};text-decoration:none;">profil ayarlarınızdan</a> yönetebilirsiniz.</p>
+          <p style="margin:4px 0 0;font-size:11px;color:${C.muted};">E-posta bildirimlerini <a href="{{APP_URL}}${profilYolu}" style="color:${C.primary};text-decoration:none;">profil ayarlarınızdan</a> yönetebilirsiniz.</p>
         </td>
       </tr>
 
@@ -64,6 +69,11 @@ function shell(body: string): string {
 </table>
 </body>
 </html>`
+}
+
+/** Bildirim tercihleri sayfasinin yolu — org bilinmiyorsa workspace listesi */
+function profilYolu(slug: string | null | undefined): string {
+  return slug ? `/org/${slug}/profile` : '/workspaces'
 }
 
 /* ── Olay renk + ikon eşlemesi ────────────────────────────────────────────── */
@@ -86,9 +96,19 @@ export function renderInstantEmail(params: {
   actorName: string | null
   eventType: string
   appUrl: string
+  /** Bildirim tercihleri linkini org'a baglar; yoksa workspace listesine duser */
+  orgSlug?: string | null
 }): string {
   const meta = EVENT_META[params.eventType] || { color: C.primary, bg: C.pale, label: 'Bildirim' }
-  const actionUrl = params.link ? `${params.appUrl}${params.link}` : params.appUrl
+  // Link ya tam http(s) adresi ya da "/" ile başlayan uygulama içi yol olmalı.
+  // Aksi halde appUrl'e yapıştırmak "…vercel.appjavascript:alert(1)" gibi
+  // şekilsiz adresler üretir — doğrudan yedeğe düşüyoruz.
+  const hamLink = params.link?.trim() ?? ''
+  const hamUrl =
+    /^https?:[/][/]/i.test(hamLink) ? hamLink
+    : hamLink.startsWith('/')       ? `${params.appUrl}${hamLink}`
+    : params.appUrl
+  const actionUrl = guvenliUrl(hamUrl, params.appUrl)
 
   const body = `
     <!-- Event badge -->
@@ -97,13 +117,13 @@ export function renderInstantEmail(params: {
     </div>
 
     <!-- Title -->
-    <h2 style="margin:0 0 10px;font-size:20px;font-weight:800;color:${C.text};line-height:1.3;">${params.title}</h2>
+    <h2 style="margin:0 0 10px;font-size:20px;font-weight:800;color:${C.text};line-height:1.3;">${esc(params.title)}</h2>
 
     <!-- Description -->
-    ${params.description ? `<p style="margin:0 0 20px;font-size:15px;color:${C.muted};line-height:1.6;">${params.description}</p>` : ''}
+    ${params.description ? `<p style="margin:0 0 20px;font-size:15px;color:${C.muted};line-height:1.6;">${esc(params.description)}</p>` : ''}
 
     <!-- Actor -->
-    ${params.actorName ? `<p style="margin:0 0 24px;font-size:13px;color:${C.muted};">İşlemi yapan: <strong style="color:${C.text};">${params.actorName}</strong></p>` : ''}
+    ${params.actorName ? `<p style="margin:0 0 24px;font-size:13px;color:${C.muted};">İşlemi yapan: <strong style="color:${C.text};">${esc(params.actorName)}</strong></p>` : ''}
 
     <!-- Divider -->
     <div style="height:1px;background:${C.border};margin:0 0 24px;"></div>
@@ -121,7 +141,7 @@ export function renderInstantEmail(params: {
     </table>
   `
 
-  return shell(body).replace(/\{\{APP_URL\}\}/g, params.appUrl)
+  return shell(body, profilYolu(params.orgSlug)).replace(/\{\{APP_URL\}\}/g, params.appUrl)
 }
 
 /* ── Özet maili (günlük / haftalık) ──────────────────────────────────────── */
@@ -130,6 +150,7 @@ export function renderDigestEmail(params: {
   notifications: AppNotification[]
   period: 'daily' | 'weekly'
   appUrl: string
+  orgSlug?: string | null
 }): string {
   const periodLabel = params.period === 'daily' ? 'Günlük Özet' : 'Haftalık Özet'
 
@@ -143,9 +164,9 @@ export function renderDigestEmail(params: {
     const rows = items.map((n) => `
       <tr>
         <td style="padding:10px 0;border-bottom:1px solid ${C.border};">
-          <p style="margin:0;font-size:14px;font-weight:700;color:${C.text};">${n.title}</p>
-          ${n.description ? `<p style="margin:2px 0 0;font-size:13px;color:${C.muted};">${n.description}</p>` : ''}
-          ${n.actor_name ? `<p style="margin:4px 0 0;font-size:12px;color:${C.muted};">— ${n.actor_name}</p>` : ''}
+          <p style="margin:0;font-size:14px;font-weight:700;color:${C.text};">${esc(n.title)}</p>
+          ${n.description ? `<p style="margin:2px 0 0;font-size:13px;color:${C.muted};">${esc(n.description)}</p>` : ''}
+          ${n.actor_name ? `<p style="margin:4px 0 0;font-size:12px;color:${C.muted};">— ${esc(n.actor_name)}</p>` : ''}
         </td>
       </tr>
     `).join('')
@@ -160,7 +181,7 @@ export function renderDigestEmail(params: {
   const body = `
     <!-- Greeting -->
     <p style="margin:0 0 6px;font-size:14px;color:${C.muted};">${periodLabel}</p>
-    <h2 style="margin:0 0 24px;font-size:22px;font-weight:800;color:${C.text};">Merhaba${params.userName ? ', ' + params.userName : ''}!</h2>
+    <h2 style="margin:0 0 24px;font-size:22px;font-weight:800;color:${C.text};">Merhaba${params.userName ? ', ' + esc(params.userName) : ''}!</h2>
     <p style="margin:0 0 28px;font-size:15px;color:${C.muted};line-height:1.6;">
       ${params.period === 'daily' ? 'Son 24 saatteki' : 'Bu haftaki'}
       <strong style="color:${C.text};">${params.notifications.length} bildiriminiz</strong> var.
@@ -186,5 +207,5 @@ export function renderDigestEmail(params: {
     </table>
   `
 
-  return shell(body).replace(/\{\{APP_URL\}\}/g, params.appUrl)
+  return shell(body, profilYolu(params.orgSlug)).replace(/\{\{APP_URL\}\}/g, params.appUrl)
 }
