@@ -12,7 +12,9 @@ import { csvCoz, ayiriciTahmin } from './decode'
  */
 
 export const LIMITLER = {
-  dosyaBoyutu: 10 * 1024 * 1024,   // 10 MB
+  // Vercel serverless istek gövdesi ~4.5 MB ile sınırlı. 4 MB'lık bir .xlsx
+  // pratikte on binlerce satır demek — gerçek kullanımda dar gelmez.
+  dosyaBoyutu: 4 * 1024 * 1024,
   satir: 20_000,
   sutun: 60,
   sayfa: 20,                       // zip-bomb koruması
