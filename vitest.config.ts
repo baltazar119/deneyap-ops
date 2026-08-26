@@ -19,6 +19,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      // Sunucu modüllerinin test edilebilmesi için — bkz. src/test/serverOnlyStub.ts
+      'server-only': path.resolve(__dirname, './src/test/serverOnlyStub.ts'),
     },
   },
 })
