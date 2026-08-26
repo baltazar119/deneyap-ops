@@ -143,17 +143,19 @@ export function OrgProvider({ children }: { children: ReactNode }) {
         const userId = session.user.id
         storeUserId(userId)   // sonraki render'lar için kaydet
 
-        // 2. Cache hit — sayfa geçişlerinde DB sorgusu atla (anlık geçiş)
+        // 2. Önbellek varsa hemen göster (sayfa geçişlerinde anlık açılış),
+        //    ama DB sorgusunu ATLAMA — arka planda taze veriyle güncelle.
+        //    Daha önce önbellek varsa erken return ediliyordu; bu yüzden
+        //    plan (free→pro) veya rol değişiklikleri sekme kapanana kadar
+        //    arayüze yansımıyordu.
         const cached = getCached(userId, slug as string)
         if (cached) {
-          // Sadece userEmail güncelle (cache'de saklanmıyor), geri kalan zaten lazy init'ten geldi
           setValue(prev => ({
             ...prev,
             userId,
             userEmail: session.user.email ?? null,
             loading: false,
           }))
-          return
         }
 
         // 3. Org + üyelik ve profil sorgularını paralel çalıştır
