@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { X, Trash2 } from 'lucide-react'
 import { SupabaseClient } from '@supabase/supabase-js'
+import { openChannel } from '@/lib/realtime'
 import { ChatMessage, ChatReaction, OrgMember, Profile } from './types'
 import { formatTime, avatarBg, getInitials, renderMentions, parseMentionIds } from './helpers'
 import MessageInput from './MessageInput'
@@ -37,8 +38,7 @@ export default function ThreadPanel({
 
   useEffect(() => {
     loadReplies()
-    const sub = supabase
-      .channel(`thread-${parentMessage.id}-${userId}`)
+    const sub = openChannel(`thread-${parentMessage.id}-${userId}`, supabase)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `parent_message_id=eq.${parentMessage.id}` }, payload => {
         const msg = payload.new as ChatMessage
         setReplies(prev => {

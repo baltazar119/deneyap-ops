@@ -6,9 +6,18 @@ import { supabase } from '@/lib/supabase/client'
 
 function toSlug(name: string) {
   return name
+    // Türkçe karakterler toLowerCase()'ten ÖNCE çevrilir: "İ".toLowerCase()
+    // JavaScript'te "i" + birleşik nokta (U+0307) üretir ve bu nokta sonraki
+    // adımda tireye dönüşerek "İSTANBUL" → "i-stanbul" gibi bozuk sonuç verir.
+    .replace(/[İIı]/g, 'i')
+    .replace(/[Ğğ]/g, 'g')
+    .replace(/[Üü]/g, 'u')
+    .replace(/[Şş]/g, 's')
+    .replace(/[Öö]/g, 'o')
+    .replace(/[Çç]/g, 'c')
     .toLowerCase()
-    .replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ş/g, 's')
-    .replace(/ı/g, 'i').replace(/ö/g, 'o').replace(/ç/g, 'c')
+    // Geriye kalan birleşik aksan işaretlerini temizle
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 50)

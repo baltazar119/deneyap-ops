@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '@/lib/supabase/client'
+import { openChannel } from '@/lib/realtime'
 import type { AppNotification, NotificationType } from '@/types/database'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -90,8 +91,7 @@ export default function NotificationCenter({ role, orgId }: Props) {
 
     loadNotifications(userId)
 
-    const channel = supabase
-      .channel(`notif-center-${userId}`)
+    const channel = openChannel(`notif-center-${userId}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
