@@ -140,12 +140,24 @@ export async function POST(req: NextRequest) {
         contents: userPrompt,
         config: {
           systemInstruction,
-          maxOutputTokens: 2048,
+          // 2048 sabitken 10+ görev + acceptance_criteria istendiğinde yanıt
+          // ortasında kesiliyor, JSON.parse "Expected ',' or '}'" ile
+          // patlıyordu — kesilme, hata değil, deterministikti (aynı görev
+          // sayısıyla her seferinde tekrar ederdi). Görev başına pay bırakıyoruz.
+          maxOutputTokens: Math.min(8192, 800 + taskCount * 450),
           temperature: 0.7,
+          responseMimeType: 'application/json',
         },
       })
+      const finishReason = result.candidates?.[0]?.finishReason
       rawText = (result.text ?? '').trim()
-      console.log('[ai-tasks/generate] Gemini yanıtı (ilk 300 karakter):', rawText.slice(0, 300))
+      console.log('[ai-tasks/generate] Gemini yanıtı (ilk 300 karakter):', rawText.slice(0, 300), 'finishReason:', finishReason)
+      if (finishReason === 'MAX_TOKENS') {
+        return NextResponse.json(
+          { error: 'Yanıt çok uzun oldu ve kesildi. Daha az görev sayısı ile tekrar deneyin.' },
+          { status: 422 },
+        )
+      }
     } catch (geminiErr: any) {
       console.error('[ai-tasks/generate] Gemini API hatası:', geminiErr)
       const msg = geminiErr?.message ?? ''

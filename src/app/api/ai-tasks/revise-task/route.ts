@@ -128,10 +128,17 @@ Kurallar:
         contents: userPrompt,
         config: {
           systemInstruction,
-          maxOutputTokens: 1024,
+          maxOutputTokens: 2048,
           temperature: 0.7,
+          responseMimeType: 'application/json',
         },
       })
+      if (result.candidates?.[0]?.finishReason === 'MAX_TOKENS') {
+        return NextResponse.json(
+          { error: 'Yanıt çok uzun oldu ve kesildi. Revize notunu kısaltıp tekrar deneyin.' },
+          { status: 422 },
+        )
+      }
       rawText = (result.text ?? '').trim()
     } catch (geminiErr: any) {
       console.error('[ai-tasks/revise-task] Gemini API hatası:', geminiErr)

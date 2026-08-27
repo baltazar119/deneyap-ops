@@ -134,15 +134,25 @@ export async function POST(req: NextRequest) {
 
     let rawText: string
     try {
+      const taskCount = Math.max((currentTasks ?? []).length, 1)
       const result = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: userPrompt,
         config: {
           systemInstruction,
-          maxOutputTokens: 2048,
+          // bkz. ai-tasks/generate — sabit 2048 çok görevde yanıtı ortasında kesip
+          // JSON.parse'ı deterministik olarak patlatıyordu
+          maxOutputTokens: Math.min(8192, 800 + taskCount * 450),
           temperature: 0.7,
+          responseMimeType: 'application/json',
         },
       })
+      if (result.candidates?.[0]?.finishReason === 'MAX_TOKENS') {
+        return NextResponse.json(
+          { error: 'Yanıt çok uzun oldu ve kesildi. Revize notunu kısaltıp tekrar deneyin.' },
+          { status: 422 },
+        )
+      }
       rawText = (result.text ?? '').trim()
     } catch (geminiErr: any) {
       console.error('[ai-tasks/revise] Gemini API hatası:', geminiErr)
