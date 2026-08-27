@@ -164,3 +164,40 @@ export async function orgYetkiCoz(
     },
   }
 }
+
+/**
+ * AI Asistan (Gemini) uçları için yetkilendirme.
+ *
+ * Önceki sürüm her `ai-tasks/*` route'unda kopyalanmış, `profiles.role`
+ * adlı GLOBAL bir sütunu kontrol ediyordu. O sütun org-bazlı rol sistemiyle
+ * (organization_members.role: owner/admin/member/viewer) hiç bağlantılı
+ * değildi, hiçbir seed/akış onu 'admin' yapmıyordu — sonuç olarak demo dahil
+ * hiçbir kullanıcı AI Asistan'ı hiçbir zaman kullanamıyordu. Doğrusu:
+ * kullanıcının O ÇALIŞMA ALANINDAKİ rolüne bakmak (`orgYetkiCoz`), Pro planı
+ * organizasyondan okumak, ve yalnızca eklenti bayrağını (`profiles.ai_addon`
+ * — kullanıcı bazlı, migration 030) ayrıca sorgulamak.
+ */
+export async function aiYetkiCoz(
+  req: NextRequest,
+  orgId: string | null | undefined,
+): Promise<{ ok: true; userId: string; orgId: string; admin: SupabaseClient } | { ok: false; res: NextResponse }> {
+  if (!orgId) return reddet('orgId gerekli.', 400)
+
+  const sonuc = await orgYetkiCoz(req, { orgId, gerekli: 'yazma', proGerekli: true })
+  if (!sonuc.ok) return sonuc
+
+  const { data: profile } = await sonuc.yetki.admin
+    .from('profiles')
+    .select('ai_addon')
+    .eq('id', sonuc.yetki.user.id)
+    .single()
+
+  if (!profile?.ai_addon) {
+    return reddet(
+      'AI Asistan eklentisi gerekli. Workspace yöneticinizden AI paketini etkinleştirmesini isteyin.',
+      403,
+    )
+  }
+
+  return { ok: true, userId: sonuc.yetki.user.id, orgId: sonuc.yetki.org.id, admin: sonuc.yetki.admin }
+}

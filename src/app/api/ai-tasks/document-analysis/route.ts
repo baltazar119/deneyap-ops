@@ -2,23 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { GoogleGenAI } from '@google/genai'
 import { AI_DAILY_LIMITS } from '@/lib/featureGate'
+import { aiYetkiCoz } from '@/lib/server/apiAuth'
 
 export const dynamic = 'force-dynamic'
 
 function getServiceClient() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
-}
-
-async function getVerifiedAdminUserId(req: NextRequest) {
-  const token = req.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) return { error: 'Yetkisiz erişim.', status: 401 }
-  const sc = getServiceClient()
-  const { data: { user } } = await sc.auth.getUser(token)
-  if (!user) return { error: 'Yetkisiz erişim.', status: 401 }
-  const { data: profile } = await sc.from('profiles').select('role, plan, ai_addon').eq('id', user.id).single()
-  if (profile?.role !== 'admin') return { error: 'Yetkisiz erişim.', status: 401 }
-  if (profile?.plan !== 'pro' || !profile?.ai_addon) return { error: 'AI Asistan eklentisi gerekli.', status: 403 }
-  return { userId: user.id }
 }
 
 async function checkAnalyzeLimit(userId: string) {
@@ -31,20 +20,19 @@ async function checkAnalyzeLimit(userId: string) {
 
 export async function POST(req: NextRequest) {
   try {
-    const authResult = await getVerifiedAdminUserId(req)
-    if ('error' in authResult) return NextResponse.json({ error: authResult.error }, { status: authResult.status })
-    const { userId } = authResult
+    const formData = await req.formData()
+    const file = formData.get('file') as File | null
+    const orgId = formData.get('orgId') as string | null
+
+    const yetki = await aiYetkiCoz(req, orgId)
+    if (!yetki.ok) return yetki.res
+    const { userId } = yetki
 
     if (!await checkAnalyzeLimit(userId)) {
       return NextResponse.json({ error: `Günlük analiz limitine ulaşıldı (${AI_DAILY_LIMITS.analyze}/gün).` }, { status: 429 })
     }
 
-    const formData = await req.formData()
-    const file = formData.get('file') as File | null
-    const orgId = formData.get('orgId') as string | null
-
     if (!file) return NextResponse.json({ error: 'Dosya gerekli.' }, { status: 400 })
-    if (!orgId) return NextResponse.json({ error: 'orgId gerekli.' }, { status: 400 })
 
     const fileName = file.name.toLowerCase()
     const isPdf = fileName.endsWith('.pdf')

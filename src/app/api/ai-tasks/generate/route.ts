@@ -3,6 +3,7 @@ import { TASK_TYPE_VALUES } from '@/lib/taskTypes'
 import { createClient } from '@supabase/supabase-js'
 import { GoogleGenAI } from '@google/genai'
 import { AI_DAILY_LIMITS } from '@/lib/featureGate'
+import { aiYetkiCoz } from '@/lib/server/apiAuth'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,30 +14,6 @@ function getServiceClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   )
-}
-
-// ── Admin + AI Addon Doğrulama ────────────────────────────────────────────────
-
-async function getVerifiedAdminUserId(req: NextRequest): Promise<{ userId: string } | { error: string; status: number }> {
-  const token = req.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) return { error: 'Yetkisiz erişim.', status: 401 }
-
-  const serviceClient = getServiceClient()
-  const { data: { user } } = await serviceClient.auth.getUser(token)
-  if (!user) return { error: 'Yetkisiz erişim.', status: 401 }
-
-  const { data: profile } = await serviceClient
-    .from('profiles')
-    .select('role, plan, ai_addon')
-    .eq('id', user.id)
-    .single()
-
-  if (profile?.role !== 'admin') return { error: 'Yetkisiz erişim.', status: 401 }
-  if (profile?.plan !== 'pro' || !profile?.ai_addon) {
-    return { error: 'AI Asistan eklentisi gerekli. Pro plan + AI paketi edinmelisiniz.', status: 403 }
-  }
-
-  return { userId: user.id }
 }
 
 // ── Prompt Injection Koruma ───────────────────────────────────────────────────
@@ -112,11 +89,17 @@ Kurallar:
 
 export async function POST(req: NextRequest) {
   try {
-    const authResult = await getVerifiedAdminUserId(req)
-    if ('error' in authResult) {
-      return NextResponse.json({ error: authResult.error }, { status: authResult.status })
+    const body = await req.json() as {
+      goal?: string
+      context?: string
+      taskCount?: number
+      projectContext?: string
+      org_id?: string
     }
-    const { userId } = authResult
+
+    const yetki = await aiYetkiCoz(req, body.org_id)
+    if (!yetki.ok) return yetki.res
+    const { userId, orgId } = yetki
 
     // Günlük limit kontrolü
     const withinLimit = await checkGenerateReviseLimit(userId)
@@ -127,20 +110,11 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const body = await req.json() as {
-      goal?: string
-      context?: string
-      taskCount?: number
-      projectContext?: string
-      org_id?: string
-    }
-
     // Input kısaltma + prompt injection koruma
     const goal = sanitizePromptInput((body.goal ?? '').trim().slice(0, 500))
     const context = sanitizePromptInput((body.context ?? '').trim().slice(0, 500))
     const safeProjectContext = sanitizePromptInput((body.projectContext ?? '').slice(0, 3000))
     const taskCount = Math.min(15, Math.max(1, body.taskCount ?? 5))
-    const orgId = body.org_id ?? null
 
     if (!goal) {
       return NextResponse.json({ error: 'Hedef boş olamaz.' }, { status: 400 })
@@ -213,6 +187,7 @@ export async function POST(req: NextRequest) {
         status: 'draft',
         version: 1,
         created_by: userId,
+        organization_id: orgId,
       })
       .select('*')
       .single()

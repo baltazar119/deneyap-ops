@@ -17,13 +17,18 @@ async function getAdminUserId(req: NextRequest): Promise<string | null> {
   const { data: { user } } = await adminClient.auth.getUser(token)
   if (!user) return null
 
-  const { data: profile } = await adminClient
-    .from('profiles')
+  // profiles.role global bir alan, org rolüyle bağlantısı yok — 9 ai-tasks
+  // route'unda olduğu gibi kullanıcının HERHANGİ bir çalışma alanında
+  // owner/admin olup olmadığına bakıyoruz (bkz. src/lib/server/apiAuth.ts).
+  const { data: uyelik } = await adminClient
+    .from('organization_members')
     .select('role')
-    .eq('id', user.id)
-    .single()
+    .eq('user_id', user.id)
+    .in('role', ['owner', 'admin'])
+    .limit(1)
+    .maybeSingle()
 
-  return profile?.role === 'admin' ? user.id : null
+  return uyelik ? user.id : null
 }
 
 // ── GET: Proje bağlamını getir ────────────────────────────────────────────────

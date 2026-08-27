@@ -3,6 +3,7 @@ import { TASK_TYPE_VALUES } from '@/lib/taskTypes'
 import { createClient } from '@supabase/supabase-js'
 import { GoogleGenAI } from '@google/genai'
 import { AI_DAILY_LIMITS } from '@/lib/featureGate'
+import { aiYetkiCoz } from '@/lib/server/apiAuth'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,28 +12,6 @@ function getServiceClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   )
-}
-
-async function getVerifiedAdminUserId(req: NextRequest): Promise<{ userId: string } | { error: string; status: number }> {
-  const token = req.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) return { error: 'Yetkisiz erişim.', status: 401 }
-
-  const serviceClient = getServiceClient()
-  const { data: { user } } = await serviceClient.auth.getUser(token)
-  if (!user) return { error: 'Yetkisiz erişim.', status: 401 }
-
-  const { data: profile } = await serviceClient
-    .from('profiles')
-    .select('role, plan, ai_addon')
-    .eq('id', user.id)
-    .single()
-
-  if (profile?.role !== 'admin') return { error: 'Yetkisiz erişim.', status: 401 }
-  if (profile?.plan !== 'pro' || !profile?.ai_addon) {
-    return { error: 'AI Asistan eklentisi gerekli. Pro plan + AI paketi edinmelisiniz.', status: 403 }
-  }
-
-  return { userId: user.id }
 }
 
 async function checkReviseTaskLimit(userId: string): Promise<boolean> {
@@ -61,11 +40,15 @@ function isValidPriority(v: unknown): boolean  { return typeof v === 'string' &&
 
 export async function POST(req: NextRequest) {
   try {
-    const authResult = await getVerifiedAdminUserId(req)
-    if ('error' in authResult) {
-      return NextResponse.json({ error: authResult.error }, { status: authResult.status })
+    const body = await req.json() as {
+      draft_task_id?: string
+      revision_note?: string
+      org_id?: string
     }
-    const { userId } = authResult
+
+    const yetki = await aiYetkiCoz(req, body.org_id)
+    if (!yetki.ok) return yetki.res
+    const { userId, orgId } = yetki
 
     const withinLimit = await checkReviseTaskLimit(userId)
     if (!withinLimit) {
@@ -75,15 +58,8 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const body = await req.json() as {
-      draft_task_id?: string
-      revision_note?: string
-      org_id?: string
-    }
-
     const { draft_task_id } = body
     const revision_note = (body.revision_note ?? '').trim().slice(0, 500)
-    const orgId = body.org_id ?? null
 
     if (!draft_task_id || !revision_note) {
       return NextResponse.json({ error: 'draft_task_id ve revision_note gerekli.' }, { status: 400 })
@@ -99,12 +75,19 @@ export async function POST(req: NextRequest) {
     // ── Mevcut görevi getir ───────────────────────────────────────────────────
     const { data: currentTask } = await supabaseAdmin
       .from('draft_tasks')
-      .select('id, title, description, category, priority, estimated_hours, acceptance_criteria, order_index')
+      .select('id, title, description, category, priority, estimated_hours, acceptance_criteria, order_index, draft_sets!inner(organization_id)')
       .eq('id', draft_task_id)
       .single()
 
     if (!currentTask) {
       return NextResponse.json({ error: 'Görev bulunamadı.' }, { status: 404 })
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const parentOrgId = (Array.isArray((currentTask as any).draft_sets)
+      ? (currentTask as any).draft_sets[0]
+      : (currentTask as any).draft_sets)?.organization_id
+    if (parentOrgId !== orgId) {
+      return NextResponse.json({ error: 'Bu görev sizin çalışma alanınıza ait değil.' }, { status: 403 })
     }
 
     // ── Gemini çağrısı ────────────────────────────────────────────────────────

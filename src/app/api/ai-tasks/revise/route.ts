@@ -3,6 +3,7 @@ import { TASK_TYPE_VALUES } from '@/lib/taskTypes'
 import { createClient } from '@supabase/supabase-js'
 import { GoogleGenAI } from '@google/genai'
 import { AI_DAILY_LIMITS } from '@/lib/featureGate'
+import { aiYetkiCoz } from '@/lib/server/apiAuth'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,28 +12,6 @@ function getServiceClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   )
-}
-
-async function getVerifiedAdminUserId(req: NextRequest): Promise<{ userId: string } | { error: string; status: number }> {
-  const token = req.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) return { error: 'Yetkisiz erişim.', status: 401 }
-
-  const serviceClient = getServiceClient()
-  const { data: { user } } = await serviceClient.auth.getUser(token)
-  if (!user) return { error: 'Yetkisiz erişim.', status: 401 }
-
-  const { data: profile } = await serviceClient
-    .from('profiles')
-    .select('role, plan, ai_addon')
-    .eq('id', user.id)
-    .single()
-
-  if (profile?.role !== 'admin') return { error: 'Yetkisiz erişim.', status: 401 }
-  if (profile?.plan !== 'pro' || !profile?.ai_addon) {
-    return { error: 'AI Asistan eklentisi gerekli. Pro plan + AI paketi edinmelisiniz.', status: 403 }
-  }
-
-  return { userId: user.id }
 }
 
 function sanitizePromptInput(s: string): string {
@@ -95,11 +74,16 @@ Kurallar:
 
 export async function POST(req: NextRequest) {
   try {
-    const authResult = await getVerifiedAdminUserId(req)
-    if ('error' in authResult) {
-      return NextResponse.json({ error: authResult.error }, { status: authResult.status })
+    const body = await req.json() as {
+      draft_set_id?: string
+      revision_note?: string
+      projectContext?: string
+      org_id?: string
     }
-    const { userId } = authResult
+
+    const yetki = await aiYetkiCoz(req, body.org_id)
+    if (!yetki.ok) return yetki.res
+    const { userId, orgId } = yetki
 
     const withinLimit = await checkGenerateReviseLimit(userId)
     if (!withinLimit) {
@@ -109,17 +93,9 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const body = await req.json() as {
-      draft_set_id?: string
-      revision_note?: string
-      projectContext?: string
-      org_id?: string
-    }
-
     const draft_set_id = body.draft_set_id
     const revision_note = sanitizePromptInput((body.revision_note ?? '').trim().slice(0, 500))
     const safeProjectContext = sanitizePromptInput((body.projectContext ?? '').slice(0, 3000))
-    const orgId = body.org_id ?? null
 
     if (!draft_set_id || !revision_note) {
       return NextResponse.json({ error: 'draft_set_id ve revision_note gerekli.' }, { status: 400 })
@@ -140,6 +116,9 @@ export async function POST(req: NextRequest) {
 
     if (!currentSet) {
       return NextResponse.json({ error: 'Taslak bulunamadı.' }, { status: 404 })
+    }
+    if (currentSet.organization_id !== orgId) {
+      return NextResponse.json({ error: 'Bu taslak sizin çalışma alanınıza ait değil.' }, { status: 403 })
     }
 
     const { data: currentTasks } = await supabaseAdmin
@@ -193,12 +172,13 @@ export async function POST(req: NextRequest) {
     const { data: newSet, error: setError } = await supabaseAdmin
       .from('draft_sets')
       .insert({
-        title:        currentSet.title,
-        goal_summary: currentSet.goal_summary,
-        status:       'draft',
-        version:      (currentSet.version ?? 1) + 1,
-        created_by:   userId,
-        sprint_id:    currentSet.sprint_id ?? null,
+        title:            currentSet.title,
+        goal_summary:     currentSet.goal_summary,
+        status:           'draft',
+        version:          (currentSet.version ?? 1) + 1,
+        created_by:       userId,
+        sprint_id:        currentSet.sprint_id ?? null,
+        organization_id:  currentSet.organization_id,
       })
       .select('*')
       .single()
