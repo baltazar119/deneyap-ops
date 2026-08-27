@@ -191,7 +191,7 @@ export const BOLUM_1 = {
    ══════════════════════════════════════════════════════════════════════ */
 
 export const BOLUM_2 = {
-  numara: 'Bölüm 2',
+  numara: 'Bölüm 3',
   baslik: 'Teknik Doküman',
   ozet:
     'Bu bölüm sistemin nasıl kurulduğunu anlatır: mimari, veri modeli, ' +

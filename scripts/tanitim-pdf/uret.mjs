@@ -13,6 +13,8 @@ import { fileURLToPath } from 'node:url'
 import { existsSync, readFileSync } from 'node:fs'
 
 import { KAPAK, BOLUM_1, BOLUM_2 } from './icerik.mjs'
+import { ROLLER, ROLLER_NOT } from './menuler.mjs'
+import { SAYFALAR } from './sayfalar.mjs'
 
 const KOK = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const cikti = resolve(process.argv[2] ?? `${KOK}/DENEYAP-OYS-Dokuman.pdf`)
@@ -82,13 +84,51 @@ const s = StyleSheet.create({
 
   /* kutu */
   kutu: { backgroundColor: R.acikMavi, borderWidth: 1, borderColor: R.kenarMavi, borderRadius: 6, padding: 11, marginBottom: 10, marginTop: 2 },
-  kutuBaslik: { fontSize: 9, fontWeight: 700, color: R.mavi, marginBottom: 3, textTransform: 'uppercase', letterSpacing: 0.6 },
+  kutuBaslik: { fontSize: 9, fontWeight: 700, color: R.mavi, marginBottom: 3, letterSpacing: 0.6 },
   kutuMetin: { fontSize: 9.5, color: R.lacivert, lineHeight: 1.65 },
 
   /* alt/üst bilgi */
   ustBilgi: { position: 'absolute', top: 24, left: 52, right: 52, flexDirection: 'row', justifyContent: 'space-between', fontSize: 8, color: '#a8b4c4' },
   altBilgi: { position: 'absolute', bottom: 26, left: 52, right: 52, flexDirection: 'row', justifyContent: 'space-between', fontSize: 8, color: '#a8b4c4', borderTopWidth: 1, borderTopColor: R.cizgi, paddingTop: 6 },
+
+  /* rol menü şeması */
+  rolBlok: { flexDirection: 'row', marginBottom: 18, marginTop: 4 },
+  menuKutu: { width: 172, backgroundColor: R.lacivert, borderRadius: 8, padding: 12 },
+  menuBaslik: { fontSize: 10, fontWeight: 700, color: '#fff', marginBottom: 2 },
+  menuAnaEkran: { fontSize: 7.5, color: '#93c5e8', marginBottom: 10 },
+  menuGrupBaslik: { fontSize: 6.5, fontWeight: 700, color: '#7b93ac', letterSpacing: 0.6, marginTop: 7, marginBottom: 3 },
+  menuOge: { flexDirection: 'row', alignItems: 'center', marginBottom: 3 },
+  menuNokta: { width: 4, height: 4, borderRadius: 2, marginRight: 6 },
+  menuOgeMetin: { fontSize: 8.3, color: '#e2e8f0' },
+  rolSag: { flex: 1, marginLeft: 18, justifyContent: 'center' },
+  rolAd: { fontSize: 12.5, fontWeight: 700, color: R.lacivert, marginBottom: 5 },
+  rolAciklama: { fontSize: 9.5, color: R.metin, lineHeight: 1.65, marginBottom: 6 },
+
+  /* sayfa rehberi kartı */
+  kart: { borderWidth: 1, borderColor: R.cizgi, borderRadius: 7, marginBottom: 11, overflow: 'hidden' },
+  kartUst: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8fafc', paddingVertical: 7, paddingHorizontal: 10, borderBottomWidth: 1, borderBottomColor: R.cizgi },
+  kartBaslik: { fontSize: 11, fontWeight: 700, color: R.lacivert },
+  kartYol: { fontSize: 7.5, color: '#94a3b8', marginLeft: 6 },
+  kartRozetSira: { flexDirection: 'row', marginLeft: 'auto' },
+  kartGovde: { padding: 10 },
+  kartOzet: { fontSize: 9, color: R.soluk, marginBottom: 7, lineHeight: 1.5 },
+  kartSutunlar: { flexDirection: 'row' },
+  kartSutun: { flex: 1 },
+  kartSutunBaslik: { fontSize: 7.5, fontWeight: 700, color: R.mavi, letterSpacing: 0.5, marginBottom: 4 },
+  kartSatir: { flexDirection: 'row', marginBottom: 3 },
+  kartIm: { width: 9, fontSize: 8.5, color: R.mavi },
+  kartImMetin: { flex: 1, fontSize: 8.5, color: R.metin, lineHeight: 1.45 },
+  rozetlerSatir: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 6 },
+  rozet: { fontSize: 6.8, fontWeight: 700, color: '#fff', borderRadius: 3, paddingVertical: 2, paddingHorizontal: 5, marginRight: 4, marginBottom: 4 },
+  kartNot: { fontSize: 8, color: R.mavi, backgroundColor: R.acikMavi, borderRadius: 4, padding: 6, marginTop: 6, lineHeight: 1.5 },
 })
+
+/* Rol kısa adı → renk eşlemesi (kimGorur rozetleri için) */
+const ROL_RENK = Object.fromEntries(ROLLER.map(r => [r.kisaAd, r.renk]))
+
+/* CSS textTransform:uppercase Türkçe yerelini bilmez, küçük "i" harfini
+   "I" yapar ("Kişisel" → "KIŞISEL"). Büyütmeyi burada elle yapıyoruz. */
+const trUpper = (s) => s.replace(/i/g, 'İ').toUpperCase()
 
 /* ── blok çizimi ────────────────────────────────────────────────────── */
 
@@ -122,7 +162,7 @@ function blok(b, k) {
       return tablo(b, k)
     case 'kutu':
       return h(View, { key: k, style: s.kutu, wrap: false },
-        b.baslik ? h(Text, { style: s.kutuBaslik }, b.baslik) : null,
+        b.baslik ? h(Text, { style: s.kutuBaslik }, trUpper(b.baslik)) : null,
         h(Text, { style: s.kutuMetin }, b.metin))
     default:
       return null
@@ -162,6 +202,106 @@ function bolumSayfalari(bolum) {
   ]
 }
 
+/* ── rol menü şeması ────────────────────────────────────────────────── */
+
+function menuMockup(rol) {
+  return h(View, { style: s.menuKutu },
+    h(Text, { style: s.menuBaslik }, rol.kisaAd),
+    h(Text, { style: s.menuAnaEkran }, `Açılış ekranı: ${rol.anaEkran}`),
+    rol.menu.map((g, i) =>
+      h(View, { key: i },
+        h(Text, { style: s.menuGrupBaslik }, g.grup),
+        g.ogeler.map((o, j) =>
+          h(View, { key: j, style: s.menuOge },
+            h(View, { style: [s.menuNokta, { backgroundColor: rol.renk }] }),
+            h(Text, { style: s.menuOgeMetin }, o))))))
+}
+
+function rolSatiri(rol, k) {
+  return h(View, { key: k, style: s.rolBlok, wrap: false },
+    menuMockup(rol),
+    h(View, { style: s.rolSag },
+      h(Text, { style: s.rolAd }, rol.ad),
+      h(Text, { style: s.rolAciklama }, rol.aciklama)))
+}
+
+/* ── sayfa rehberi kartı ────────────────────────────────────────────── */
+
+function rozetler(sayfa) {
+  return h(View, { style: s.rozetlerSatir },
+    sayfa.kimGorur.map((r, i) =>
+      h(Text, { key: i, style: [s.rozet, { backgroundColor: ROL_RENK[r] ?? R.soluk }] }, r)),
+    (sayfa.durumlar ?? []).map((d, i) =>
+      h(Text, { key: `d${i}`, style: [s.rozet, { backgroundColor: d.renk }] }, d.ad)))
+}
+
+function sayfaKarti(sayfa, k) {
+  return h(View, { key: k, style: s.kart, wrap: false },
+    h(View, { style: s.kartUst },
+      h(Text, { style: s.kartBaslik }, sayfa.baslik),
+      h(Text, { style: s.kartYol }, sayfa.yol)),
+    h(View, { style: s.kartGovde },
+      h(Text, { style: s.kartOzet }, sayfa.ozet),
+      h(View, { style: s.kartSutunlar },
+        h(View, { style: [s.kartSutun, { marginRight: 14 }] },
+          h(Text, { style: s.kartSutunBaslik }, trUpper('Ekranda görünen')),
+          sayfa.bolumler.map((m, i) =>
+            h(View, { key: i, style: s.kartSatir },
+              h(Text, { style: s.kartIm }, '›'),
+              h(Text, { style: s.kartImMetin }, m)))),
+        h(View, { style: s.kartSutun },
+          h(Text, { style: s.kartSutunBaslik }, trUpper('Ana eylemler')),
+          sayfa.eylemler.map((m, i) =>
+            h(View, { key: i, style: s.kartSatir },
+              h(Text, { style: s.kartIm }, '•'),
+              h(Text, { style: s.kartImMetin }, m))))),
+      rozetler(sayfa),
+      sayfa.not ? h(Text, { style: s.kartNot }, sayfa.not) : null))
+}
+
+/* ── Bölüm 2 — Roller, Menüler ve Sayfa Rehberi ────────────────────── */
+
+const BOLUM_ROLLER_BASLIK = 'Roller, Menüler ve Sayfa Rehberi'
+const BOLUM_ROLLER_OZET =
+  'Bu bölüm, PRD’nin dört rolünün uygulamada nasıl karşılık bulduğunu gösterir: her rol ' +
+  'giriş yaptığında hangi menüyü görür, ve sistemdeki her ekranda tam olarak ne var. ' +
+  'Metinler kodun kendisinden çıkarılmıştır — tahmini veya süslenmiş açıklama değildir.'
+
+function bolum2Sayfalari() {
+  return [
+    h(Page, { key: 'b2-kapak', size: 'A4', style: s.sayfa },
+      h(View, { style: { justifyContent: 'center', height: '100%' } },
+        h(View, { style: s.kapakSerit }),
+        h(Text, { style: s.bolumNo }, 'Bölüm 2'),
+        h(Text, { style: s.bolumBaslik }, BOLUM_ROLLER_BASLIK),
+        h(Text, { style: s.bolumOzet }, BOLUM_ROLLER_OZET),
+        h(View, { style: { marginTop: 26 } },
+          [['2.1', 'Rol Menüleri'], ['2.2', `Sayfa Rehberi (${SAYFALAR.length} ekran)`]].map(([no, ad], i) =>
+            h(View, { key: i, style: s.satir },
+              h(Text, { style: [s.im, { width: 30 }] }, no),
+              h(Text, { style: [s.imMetin, { color: R.lacivert }] }, ad)))))),
+
+    h(Page, { key: 'b2-menu', size: 'A4', style: s.sayfa },
+      ustBilgi(), altBilgi(),
+      h(Text, { style: s.h2 }, '2.1 Rol Menüleri'),
+      h(Text, { style: [s.p, { marginBottom: 14 }] },
+        'Menü, kullanıcının uygulamaya girdiğinde soldaki gezinme çubuğunda gördüğü ' +
+        'gerçek sıralamadır. Sıra rastgele değildir; her rolün en sık kullanacağı ekran ' +
+        'listenin başındadır.'),
+      ROLLER.map((r, i) => rolSatiri(r, i)),
+      h(Text, { style: [s.kutuMetin, { fontSize: 8.5, color: R.soluk, marginTop: 4 }] }, ROLLER_NOT)),
+
+    h(Page, { key: 'b2-sayfalar', size: 'A4', style: s.sayfa },
+      ustBilgi(), altBilgi(),
+      h(Text, { style: s.h2 }, `2.2 Sayfa Rehberi`),
+      h(Text, { style: [s.p, { marginBottom: 10 }] },
+        'Sistemdeki her ekran için: sayfaya girince yukarıdan aşağı ne görüldüğü, hangi ' +
+        'düğmelerin çalıştığı ve o ekrana hangi rollerin erişebildiği. Renkli rozetler ' +
+        'erişebilen rolleri gösterir.'),
+      SAYFALAR.map((sf, i) => sayfaKarti(sf, i))),
+  ]
+}
+
 /* Mutlak Windows yolu URL sanılıp getirilmeye çalışıldığı için buffer veriyoruz */
 const logoYolu = `${KOK}/public/logo.png`
 const logo = existsSync(logoYolu) ? { data: readFileSync(logoYolu), format: 'png' } : null
@@ -184,6 +324,7 @@ const belge = h(Document, {
       h(Text, { style: [s.kapakEtiket, { marginTop: 10, color: R.mavi, fontWeight: 700 }] }, KAPAK.tarih))),
 
   ...bolumSayfalari(BOLUM_1),
+  ...bolum2Sayfalari(),
   ...bolumSayfalari(BOLUM_2),
 )
 
