@@ -1,6 +1,6 @@
-# DENEYAP Ops
+# DENEYAP OYS
 
-DENEYAP operasyon yönetim sistemi. Tarlis Atölye arayüz sisteminden (renk paleti,
+DENEYAP Operasyon Yönetim Sistemi. Tarlis Atölye arayüz sisteminden (renk paleti,
 spacing, kart/sidebar/kanban/modal tasarımı) türetilmiş, bağımsız bir Next.js
 uygulamasıdır. Bu proje Tarlis Atölye kaynak kodundan **kopyalanarak** oluşturulmuştur;
 Tarlis reposuyla hiçbir git/kod bağlantısı yoktur.

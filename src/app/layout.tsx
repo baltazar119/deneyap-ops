@@ -14,7 +14,7 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: 'DENEYAP OYS',
-  description: 'DENEYAP operasyon yönetim sistemi',
+  description: 'DENEYAP Operasyon Yönetim Sistemi',
 }
 
 export default function RootLayout({

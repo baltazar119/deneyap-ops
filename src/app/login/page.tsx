@@ -33,7 +33,7 @@ function ShowcasePanel() {
       <div className="lp-showcase-content">
 
         {/* Eyebrow */}
-        <div className="lp-showcase-eyebrow">✦ DENEYAP Operasyon Platformu</div>
+        <div className="lp-showcase-eyebrow">✦ DENEYAP OYS — Operasyon Yönetim Sistemi</div>
 
         {/* Başlık */}
         <h2 className="lp-showcase-title">
