@@ -1,4 +1,4 @@
-# Supabase Kurulum Rehberi — DENEYAP Ops
+# Supabase Kurulum Rehberi — DENEYAP OYS
 
 Supabase, bu uygulamanın **veritabanı + kullanıcı girişi + dosya deposu +
 gerçek zamanlı güncellemeler** katmanıdır. Uygulama Supabase olmadan

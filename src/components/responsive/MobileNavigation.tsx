@@ -58,11 +58,11 @@ export default function MobileNavigation() {
               border: '1px solid rgba(122,207,230,0.28)',
               boxShadow: '0 2px 10px rgba(34,136,201,0.25)',
             }}>
-            <Image src="/logo.svg" alt="DENEYAP" width={24} height={24} />
+            <Image src="/logo.png" alt="DENEYAP" width={24} height={24} />
           </div>
           <div>
             <div style={{ fontSize: 15, fontWeight: 800, color: '#fff', letterSpacing: '-0.03em', lineHeight: 1 }}>DENEYAP</div>
-            <div style={{ fontSize: 10, color: 'rgba(122,207,230,0.5)', fontWeight: 500, marginTop: 2, letterSpacing: '0.04em' }}>OPS</div>
+            <div style={{ fontSize: 10, color: 'rgba(122,207,230,0.5)', fontWeight: 500, marginTop: 2, letterSpacing: '0.04em' }}>OYS</div>
           </div>
         </Link>
 

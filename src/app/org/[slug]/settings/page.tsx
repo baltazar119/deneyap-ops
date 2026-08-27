@@ -272,7 +272,7 @@ export default function SettingsPage() {
                     unoptimized={!!logoPreview}
                   />
                 ) : (
-                  <Image src="/logo.svg" alt="DENEYAP" width={44} height={44} />
+                  <Image src="/logo.png" alt="DENEYAP" width={44} height={44} />
                 )}
               </div>
 

@@ -199,7 +199,7 @@ function raporEpostasi(
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;padding:32px 16px;"><tr><td align="center">
 <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
   <tr><td style="background:linear-gradient(135deg,#0d1a2a,#182c3f);padding:24px 28px;border-radius:16px 16px 0 0;">
-    <span style="font-size:20px;font-weight:800;color:#fff;">DENEYAP Ops</span><br/>
+    <span style="font-size:20px;font-weight:800;color:#fff;">DENEYAP OYS</span><br/>
     <span style="font-size:11px;color:rgba(122,207,230,0.7);">${esc(v.meta.raporAdi)}</span>
   </td></tr>
   <tr><td style="background:#fff;padding:28px;border-left:1px solid #d2e4ee;border-right:1px solid #d2e4ee;">

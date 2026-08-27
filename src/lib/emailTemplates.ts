@@ -27,7 +27,7 @@ function shell(body: string, profilYolu: string): string {
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>DENEYAP Ops Bildirimi</title>
+<title>DENEYAP OYS Bildirimi</title>
 </head>
 <body style="margin:0;padding:0;background:${C.bg};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:${C.bg};padding:32px 16px;">
@@ -39,7 +39,7 @@ function shell(body: string, profilYolu: string): string {
         <td style="background:linear-gradient(135deg,${C.header} 0%,${C.header2} 100%);padding:24px 28px;border-radius:16px 16px 0 0;">
           <table width="100%"><tr>
             <td>
-              <span style="font-size:20px;font-weight:800;color:#fff;letter-spacing:-0.5px;">DENEYAP Ops</span><br/>
+              <span style="font-size:20px;font-weight:800;color:#fff;letter-spacing:-0.5px;">DENEYAP OYS</span><br/>
               <span style="font-size:11px;color:rgba(122,207,230,0.7);font-weight:500;letter-spacing:0.5px;">Operasyon Sistemi</span>
             </td>
             <td align="right">
@@ -59,7 +59,7 @@ function shell(body: string, profilYolu: string): string {
       <!-- Footer -->
       <tr>
         <td style="background:#f8fafc;padding:16px 28px;border:1px solid ${C.border};border-top:none;border-radius:0 0 16px 16px;text-align:center;">
-          <p style="margin:0;font-size:11px;color:${C.muted};">Bu bildirim DENEYAP Ops Operasyon Sistemi tarafından gönderilmiştir.</p>
+          <p style="margin:0;font-size:11px;color:${C.muted};">Bu bildirim DENEYAP OYS Operasyon Sistemi tarafından gönderilmiştir.</p>
           <p style="margin:4px 0 0;font-size:11px;color:${C.muted};">E-posta bildirimlerini <a href="{{APP_URL}}${profilYolu}" style="color:${C.primary};text-decoration:none;">profil ayarlarınızdan</a> yönetebilirsiniz.</p>
         </td>
       </tr>

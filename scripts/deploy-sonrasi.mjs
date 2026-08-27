@@ -38,7 +38,7 @@ function sonuc(basarili, metin) {
   if (!basarili) hataVar = true
 }
 
-console.log(`\nDENEYAP Ops — deploy sonrası kontrol\n${adres}\n`)
+console.log(`\nDENEYAP OYS — deploy sonrası kontrol\n${adres}\n`)
 
 /* ── 1. Site ayakta mı ──────────────────────────────────────────────────── */
 console.log('1) Site')

@@ -1,4 +1,4 @@
-# Vercel Deploy Rehberi — DENEYAP Ops
+# Vercel Deploy Rehberi — DENEYAP OYS
 
 Vercel, Next.js uygulamasını **çalıştıran** platform. Supabase veriyi tutar,
 Vercel uygulamayı sunar. İkisi birlikte çalışır.

@@ -1,5 +1,5 @@
 /**
- * DENEYAP Ops — demo hesap ve örnek veri kurulumu.
+ * DENEYAP OYS — demo hesap ve örnek veri kurulumu.
  *
  *   npm run seed:demo
  *
@@ -155,7 +155,7 @@ async function onKontrol() {
 }
 
 async function main() {
-  console.log('\nDENEYAP Ops — demo veri kurulumu')
+  console.log('\nDENEYAP OYS — demo veri kurulumu')
   console.log('Supabase: ' + URL.replace(/https:\/\/([^.]{4}).*/, 'https://$1***.supabase.co'))
 
   await onKontrol()

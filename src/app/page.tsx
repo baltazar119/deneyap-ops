@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 
 /**
- * Kök sayfa — DENEYAP Ops bir iç operasyon aracı olduğu için tanıtım/pazarlama
+ * Kök sayfa — DENEYAP OYS bir iç operasyon aracı olduğu için tanıtım/pazarlama
  * sayfası yok. Oturum varsa workspace seçimine, yoksa girişe yönlendirilir.
  */
 export default function Home() {

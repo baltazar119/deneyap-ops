@@ -92,7 +92,7 @@ export default function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarPr
           className="flex flex-col items-center shrink-0"
           style={{ padding: '16px 0 12px', gap: 10, borderBottom: '1px solid rgba(255,255,255,0.06)' }}
         >
-          <Link href="/" className="group" title="DENEYAP Ops">
+          <Link href="/" className="group" title="DENEYAP OYS">
             <div
               className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center transition-transform duration-200 group-hover:scale-105"
               style={{
@@ -101,7 +101,7 @@ export default function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarPr
                 boxShadow: '0 2px 12px rgba(34,136,201,0.18)',
               }}
             >
-              <Image src="/logo.svg" alt="DENEYAP" width={28} height={28} className="w-full h-full object-contain" />
+              <Image src="/logo.png" alt="DENEYAP" width={28} height={28} className="w-full h-full object-contain" />
             </div>
           </Link>
           <button
@@ -118,7 +118,7 @@ export default function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarPr
                 style={{ background: 'linear-gradient(135deg,rgba(34,136,201,0.25),rgba(42,187,213,0.15))', border: '1px solid rgba(122,207,230,0.25)' }}
               >
                 <Image
-                  src={org.logo_url ?? '/logo.svg'}
+                  src={org.logo_url ?? '/logo.png'}
                   alt={org.name}
                   width={22} height={22}
                   className="w-full h-full object-contain"
@@ -143,11 +143,11 @@ export default function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarPr
                   boxShadow: '0 2px 12px rgba(34,136,201,0.18)',
                 }}
               >
-                <Image src="/logo.svg" alt="DENEYAP" width={26} height={26} className="w-full h-full object-contain" />
+                <Image src="/logo.png" alt="DENEYAP" width={26} height={26} className="w-full h-full object-contain" />
               </div>
               <div className="min-w-0">
                 <div style={{ fontSize: 15, fontWeight: 800, color: '#fff', letterSpacing: '-0.03em', lineHeight: 1 }}>DENEYAP</div>
-                <div style={{ fontSize: 10, color: 'rgba(122,207,230,0.45)', fontWeight: 500, marginTop: 2, letterSpacing: '0.04em' }}>OPS</div>
+                <div style={{ fontSize: 10, color: 'rgba(122,207,230,0.45)', fontWeight: 500, marginTop: 2, letterSpacing: '0.04em' }}>OYS</div>
               </div>
             </Link>
             <button
@@ -176,7 +176,7 @@ export default function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarPr
                 style={{ width: 28, height: 28, background: 'linear-gradient(135deg,rgba(34,136,201,0.25),rgba(42,187,213,0.15))', border: '1px solid rgba(122,207,230,0.25)' }}
               >
                 <Image
-                  src={org.logo_url ?? '/logo.svg'}
+                  src={org.logo_url ?? '/logo.png'}
                   alt={org.name}
                   width={20} height={20}
                   className="w-full h-full object-contain"

@@ -61,7 +61,7 @@ export function generateMultiICS(tasks: ICSTask[]): string {
   return [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//DENEYAP//DENEYAP Ops//TR',
+    'PRODID:-//DENEYAP//DENEYAP OYS//TR',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     events,

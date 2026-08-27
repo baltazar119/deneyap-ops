@@ -67,7 +67,7 @@ export async function sendEmail(
 
   try {
     await transport.sendMail({
-      from:    process.env.FROM_EMAIL || `"DENEYAP Ops" <${process.env.SMTP_USER}>`,
+      from:    process.env.FROM_EMAIL || `"DENEYAP OYS" <${process.env.SMTP_USER}>`,
       to,
       subject,
       html,

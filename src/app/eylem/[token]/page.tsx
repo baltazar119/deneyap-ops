@@ -54,7 +54,7 @@ export default function EylemOnayPage() {
               style={{ background: 'rgba(34,136,201,0.1)', border: '1px solid rgba(34,136,201,0.22)' }}>
               <span style={{ fontSize: 16 }}>⚡</span>
             </div>
-            <span className="font-bold text-lg tracking-tight" style={{ color: '#0d1a2a' }}>DENEYAP Ops</span>
+            <span className="font-bold text-lg tracking-tight" style={{ color: '#0d1a2a' }}>DENEYAP OYS</span>
           </div>
 
           {!sonuc ? (

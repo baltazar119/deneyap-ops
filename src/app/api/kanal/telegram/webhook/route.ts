@@ -83,7 +83,7 @@ async function mesajIsle(db: SupabaseClient, g: TgUpdate) {
 
   if (!metin.startsWith('/start')) {
     await yanit(
-      'DENEYAP Ops bildirim botu.\n\n' +
+      'DENEYAP OYS bildirim botu.\n\n' +
       'Hesabınızı bağlamak için uygulamada <b>Profilim → Telegram\'a Bağla</b> ' +
       'adımını izleyin; size verilen bağlantıya tıklamanız yeterli.',
     )

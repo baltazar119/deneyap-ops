@@ -81,8 +81,8 @@ export async function GET(req: NextRequest) {
     })
 
     const subject = type === 'daily'
-      ? `DENEYAP Ops — Günlük Özet (${notifications.length} bildirim)`
-      : `DENEYAP Ops — Haftalık Özet (${notifications.length} bildirim)`
+      ? `DENEYAP OYS — Günlük Özet (${notifications.length} bildirim)`
+      : `DENEYAP OYS — Haftalık Özet (${notifications.length} bildirim)`
 
     mesajlar.push({ to: userEmail, subject, html })
     kullaniciIdleri.push(user_id)

@@ -13,7 +13,7 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
-  title: 'DENEYAP Ops',
+  title: 'DENEYAP OYS',
   description: 'DENEYAP operasyon yönetim sistemi',
 }
 

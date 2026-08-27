@@ -27,7 +27,7 @@ const DURUM_ZEMIN: Record<string, string> = {
 export async function raporExcelUret(v: RaporVerisi): Promise<Uint8Array> {
   const ExcelJS = (await import('exceljs')).default
   const wb = new ExcelJS.Workbook()
-  wb.creator = 'DENEYAP Ops'
+  wb.creator = 'DENEYAP OYS'
   wb.created = new Date()
 
   // ExcelJS'in tip tanımları Worksheet'i namespace altında dışa vermiyor;

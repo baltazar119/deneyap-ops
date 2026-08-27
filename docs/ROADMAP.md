@@ -1,4 +1,4 @@
-# DENEYAP Ops — Kalan İşler ve Canlıya Alma Rehberi
+# DENEYAP OYS — Kalan İşler ve Canlıya Alma Rehberi
 
 Bu doküman iki kısımdan oluşuyor: (1) benim (Claude) tamamlamam gereken kalan
 geliştirme işleri, (2) projeyi gerçek kullanıcılarla canlıya almadan önce

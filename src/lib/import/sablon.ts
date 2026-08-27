@@ -38,7 +38,7 @@ function argb(hex: string | undefined, yedek = 'FF0D1A2A'): string {
 export async function sablonUret(opts: SablonSecenekleri): Promise<Uint8Array> {
   const ExcelJS = (await import('exceljs')).default
   const wb = new ExcelJS.Workbook()
-  wb.creator = 'DENEYAP Ops'
+  wb.creator = 'DENEYAP OYS'
 
   const sutunlar = [
     { baslik: 'Görev Başlığı*',       genislik: 42 },

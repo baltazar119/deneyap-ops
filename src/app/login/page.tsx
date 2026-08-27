@@ -55,13 +55,13 @@ function ShowcasePanel() {
                 <span style={{ background: '#febc2e' }} />
                 <span style={{ background: '#28c840' }} />
               </div>
-              <div className="lp-window-appname">DENEYAP Ops — Dashboard</div>
+              <div className="lp-window-appname">DENEYAP OYS — Dashboard</div>
             </div>
 
             {/* App top-bar */}
             <div className="lp-dash-topbar">
               <div style={{ width: 18, height: 18, borderRadius: 5, background: 'rgba(42,187,213,0.3)', border: '1px solid rgba(42,187,213,0.45)', flexShrink: 0 }} />
-              <span style={{ fontSize: 12, fontWeight: 800, color: 'rgba(255,255,255,0.88)', letterSpacing: '-0.01em' }}>DENEYAP Ops</span>
+              <span style={{ fontSize: 12, fontWeight: 800, color: 'rgba(255,255,255,0.88)', letterSpacing: '-0.01em' }}>DENEYAP OYS</span>
               <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
                 {NAV_ITEMS.map(t => (
                   <span key={t} style={{
@@ -303,9 +303,9 @@ export default function LoginPage() {
           <div className="flex items-center gap-2.5 mb-8">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center"
               style={{ background: 'rgba(34,136,201,0.1)', border: '1px solid rgba(34,136,201,0.22)' }}>
-              <Image src="/logo.svg" alt="DENEYAP" width={22} height={22} />
+              <Image src="/logo.png" alt="DENEYAP" width={22} height={22} />
             </div>
-            <span className="font-bold text-lg tracking-tight" style={{ color: '#0d1a2a' }}>DENEYAP Ops</span>
+            <span className="font-bold text-lg tracking-tight" style={{ color: '#0d1a2a' }}>DENEYAP OYS</span>
           </div>
 
           {/* Başlık */}
@@ -460,7 +460,7 @@ export default function LoginPage() {
 
           {/* Footer */}
           <p className="text-xs text-center mt-6" style={{ color: '#94a3b8' }}>
-            © {new Date().getFullYear()} DENEYAP Ops · Tüm hakları saklıdır.
+            © {new Date().getFullYear()} DENEYAP OYS · Tüm hakları saklıdır.
           </p>
         </div>
       </div>

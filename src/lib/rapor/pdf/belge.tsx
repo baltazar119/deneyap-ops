@@ -189,7 +189,7 @@ export function RaporBelgesi({ v }: { v: RaporVerisi }) {
   return (
     <Document
       title={`${v.meta.raporAdi} — ${v.meta.orgAd}`}
-      author="DENEYAP Ops"
+      author="DENEYAP OYS"
       language="tr"
     >
       <Page size="A4" style={s.sayfa}>
@@ -198,7 +198,7 @@ export function RaporBelgesi({ v }: { v: RaporVerisi }) {
         <View style={s.bant}>
           <View style={s.bantUst}>
             <View>
-              <Text style={s.marka}>DENEYAP Ops</Text>
+              <Text style={s.marka}>DENEYAP OYS</Text>
               <Text style={s.markaAlt}>Operasyon Yönetim Sistemi</Text>
             </View>
             <Text style={s.rolRozet}>{v.meta.uretenRolAdi}</Text>
@@ -329,7 +329,7 @@ export function RaporBelgesi({ v }: { v: RaporVerisi }) {
         {/* Alt bilgi — her sayfada */}
         <View style={s.altBilgi} fixed>
           <Text style={s.altMetin}>
-            DENEYAP Ops · {v.meta.orgAd} · {v.meta.uretenAd} ({v.meta.uretenRolAdi}) için {trTarih(v.meta.uretimTarihi)} tarihinde üretildi
+            DENEYAP OYS · {v.meta.orgAd} · {v.meta.uretenAd} ({v.meta.uretenRolAdi}) için {trTarih(v.meta.uretimTarihi)} tarihinde üretildi
           </Text>
           <Text style={s.altMetin} render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} />
         </View>

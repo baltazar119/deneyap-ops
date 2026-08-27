@@ -1,4 +1,4 @@
-# DENEYAP Ops — Canlıya Alma
+# DENEYAP OYS — Canlıya Alma
 
 Kod tarafı tamamlandı. Bu belge, canlıya almak için **senin yapman gerekenleri**
 ve **bilinçli olarak sonraya bırakılanları** listeliyor.

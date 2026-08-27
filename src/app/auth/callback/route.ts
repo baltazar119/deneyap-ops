@@ -5,7 +5,7 @@ import { cookies } from 'next/headers'
 /**
  * Google OAuth callback — Supabase code exchange
  * Supabase Dashboard > Authentication > URL Configuration'da
- * "Site URL" ve "Redirect URLs" alanına deploy edilen DENEYAP Ops
+ * "Site URL" ve "Redirect URLs" alanına deploy edilen DENEYAP OYS
  * URL'i + /auth/callback eklenmelidir.
  */
 export async function GET(request: NextRequest) {
