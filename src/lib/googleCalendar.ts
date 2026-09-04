@@ -20,14 +20,32 @@ export async function getGcalToken(userId: string, orgId: string): Promise<strin
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = getSupabaseAdmin() as any
 
-  const { data: token } = await supabase
+  let { data: token } = await supabase
     .from('gcal_tokens')
-    .select('access_token, refresh_token, expiry')
+    .select('user_id, access_token, refresh_token, expiry')
     .eq('user_id', userId)
     .eq('organization_id', orgId)
     .maybeSingle()
 
+  // Bu kullanıcı kendi hesabını hiç bağlamamışsa, aynı çalışma alanında
+  // başka birinin bağladığı Google hesabını kullan — Drive token'ları için
+  // zaten uygulanan "workspace'in paylaşılan bağlantısı" mimarisiyle
+  // tutarlı (bkz. src/lib/driveAdmin.ts). Böylece bir yetkili bir kez
+  // bağlanınca workspace'teki diğer tüm üyeler (demo hesaplar dahil)
+  // ayrıca bağlanmadan Google Meet oluşturabilir.
+  if (!token) {
+    const { data: paylasilan } = await supabase
+      .from('gcal_tokens')
+      .select('user_id, access_token, refresh_token, expiry')
+      .eq('organization_id', orgId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    token = paylasilan
+  }
+
   if (!token) return null
+  const sahipUserId = token.user_id as string
 
   // Token hâlâ geçerliyse (60s buffer) direkt dön
   const expiry = token.expiry ? new Date(token.expiry).getTime() : 0
@@ -58,7 +76,7 @@ export async function getGcalToken(userId: string, orgId: string): Promise<strin
   await supabase
     .from('gcal_tokens')
     .update({ access_token: data.access_token, expiry: newExpiry })
-    .eq('user_id', userId)
+    .eq('user_id', sahipUserId)
     .eq('organization_id', orgId)
 
   return data.access_token
