@@ -8,7 +8,7 @@ Ayrıntılı 14 fazlık plan: **[docs/YOL-HARITASI.md](YOL-HARITASI.md)**
 ## Yeni oturumda ilk mesaj olarak şunu yaz
 
 > Proje: `C:\Users\Abdulgazi\Desktop\DENEYAP-Ops`
-> `docs/DEVAM.md` ve `docs/YOL-HARITASI.md` dosyalarını oku, Faz 1'den devam et.
+> `docs/DEVAM.md` ve `docs/YOL-HARITASI.md` dosyalarını oku, Faz 2'den devam et.
 >
 > ÖNEMLİ KURAL: `C:\Users\Abdulgazi\Desktop\Tarlis-uygulama-main` klasörüne
 > HİÇBİR değişiklik yapma — o ayrı bir proje, sadece bu klasörle çalış.
@@ -37,8 +37,8 @@ Workspace slug: `deneyap-demo`
 
 ## Şu anki durum
 
-Son commit: `b166318`. Çalışma ağacı temiz, GitHub ile senkron.
-`npx tsc --noEmit` temiz · **208 test yeşil** · `npx next build` başarılı.
+Son commit: `27f41c5`. Çalışma ağacı temiz.
+`npx tsc --noEmit` temiz · **217 test yeşil** · `npx next build` başarılı.
 
 ### Faz 0 — TAMAMLANDI (3 commit)
 
@@ -56,22 +56,52 @@ Son commit: `b166318`. Çalışma ağacı temiz, GitHub ile senkron.
 Gerçek API ile doğrulanan dönem sonuçları (demo veri):
 `tumu 11 · ceyrek 11 · Ağustos 7 · Eylül 4 · bu hafta 3`, `yaklasan` her dönemde 1.
 
-### Sırada: Faz 1 — Görevler sayfası yapısal bölme
+### Faz 1 — TAMAMLANDI (commit `27f41c5`)
 
-`src/app/org/[slug]/tasks/page.tsx` **1145 satır** ve içinde **iki ayrı JSX ağacı**
-var: mobil (379-651) ve masaüstü (654-1144). Form, filtreler ve liste satırı iki kez
-ayrı ayrı yazılmış.
+`tasks/page.tsx` **1157 → 366 satır**. İki ayrı JSX ağacı (mobil 379-651,
+masaüstü 654-1144) tek ağaca indi. Davranış değişmedi.
 
-**Bu faz davranışı DEĞİŞTİRMEZ** — sadece böler. Ayrı commit olmalı ki sonraki UX
-commit'iyle karışmasın (bisect edilebilirlik).
+| Ne | Nerede |
+|---|---|
+| Durum/öncelik sabitleri, rozet meta | `tasks/_components/gorevMeta.ts` |
+| Görev öğesi — `variant: satir \| kart`, **rozet mantığı tek yerde** | `_components/GorevSatiri.tsx` |
+| Liste kabuğu (`useIsMobile` ile kart↔satır) | `_components/GorevListesi.tsx` |
+| Filtre kontrolleri | `_components/GorevFiltrePaneli.tsx` |
+| Form — **tek alan sırası**, `ResponsiveModal` üstünde | `_components/GorevFormModal.tsx` |
+| Filtre durumu + saf `gorevleriSuz()` | `lib/useGorevFiltreleri.ts` |
+| `gecikmisMi` / `yaklasanMi` tek tanım | `lib/gorevTermin.ts` |
+| **`gorevFiltre.test.ts`** — `?il=` üç anlamı + termin sınırları (9 test) | `lib/` |
 
-Hedef bölünme (YOL-HARITASI.md Faz 1'de ayrıntılı):
-`page.tsx` (~280) · `_components/GorevAramaVeGorunumler` · `GorevFiltrePaneli` ·
-`GorevListesi` · `GorevSatiri` (`variant: satir|kart`) · `GorevFormModal` ·
-`gorevMeta.ts` · `lib/useGorevFiltreleri.ts`
+Yan kazanımlar (form birleşmesinin doğal sonucu): mobil formda artık tahmini
+ve gerçekleşen süre + dosya ekleme var (**8 → 13 alan**), Escape ile kapanma ve
+arka plan kaydırma kilidi mobilde de çalışıyor.
 
-**Neden DENEYAP seçicisinden önce:** seçiciyi ikiz ağaca eklemek onu iki kez
-eklemek olurdu.
+**Refactor sırasında yakalanan gerçek hata:** satır içi `style={{display:'flex'}}`
+Tailwind'in `md:hidden`'ını eziyordu → mobil öncelik chip'leri masaüstünde de
+görünüyordu. `className="flex md:hidden"`e çevrildi. *Bunu tip kontrolü de
+testler de kaçırdı, yalnızca ekran görüntüsüyle görüldü.*
+
+`useIsMobile` yalnızca iki yerde kaldı: kart↔satır ve FAB↔düğme.
+
+### Sırada: Faz 2 — Görevler UX
+
+YOL-HARITASI.md Faz 2. Hazır görünümler, arama, tek "Filtrele" düğmesi
+(`Filtrele · 3` rozetiyle), mobil durum sekmelerinin filtre paneline taşınması,
+URL'e `?gorunum=` / `?q=` eklenmesi.
+
+Faz 1'den devralınan iki iskele:
+- `GorevFiltrePaneli`'nin **`sadeceDurumSekmeleri`** bayrağı — mobilde durum
+  sekmeleri beyaz başlık kutusunun içinde kaldığı için panel iki parça halinde
+  yerleştiriliyor. Sekmeler filtre paneline taşınınca bu bayrak kalkacak.
+- Yol haritasındaki **`GorevAramaVeGorunumler`** bileşeni Faz 1'de
+  oluşturulmadı: arama ve hazır görünümler henüz yok, boş bir bileşen eklemek
+  davranış eklemek olurdu. Faz 2'de yazılacak.
+
+**Bilinen, Faz 1 öncesinden gelen davranış** (kasten korundu, düzeltilmedi):
+masaüstü "Atanan Üye" filtresindeki **"Atanmamış"** seçeneği `''` değeri
+gönderiyor, `assignee_id` ise `null` → hiçbir şey eşleşmiyor, liste boşalıyor.
+Faz 1 davranışı değiştirmeme kuralı gereği aynen bırakıldı; **Faz 2'de
+düzeltilmeli** (`?il=`'in boş-değer semantiği gibi ayrı bir "atanmamış" sabiti).
 
 ---
 
