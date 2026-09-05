@@ -33,6 +33,11 @@ export default function VoiceRoom({ orgId, userId, profileMap, supabase }: Props
   const channelRef = useRef<any>(null)
   const audioElemsRef = useRef<Map<string, HTMLAudioElement>>(new Map())
   const analyserTimersRef = useRef<Map<string, number>>(new Map())
+  const audioCtxRef = useRef<Map<string, AudioContext>>(new Map())
+  /** Karşı tarafın remote description'ı set edilmeden önce gelen ICE adayları
+   *  buraya kuyruklanır — yoksa addIceCandidate sessizce başarısız olur ve
+   *  bağlantı hiç kurulamaz (ses gitmez/gelmez). */
+  const pendingIceRef = useRef<Map<string, RTCIceCandidateInit[]>>(new Map())
 
   const channelName = `voice-${orgId}`
 
@@ -43,6 +48,10 @@ export default function VoiceRoom({ orgId, userId, profileMap, supabase }: Props
   function setupSpeakingDetector(streamUserId: string, stream: MediaStream) {
     try {
       const ctx = new AudioContext()
+      audioCtxRef.current.set(streamUserId, ctx)
+      // Chrome bazı durumlarda AudioContext'i 'suspended' başlatır; resume
+      // edilmezse analyser hep sıfır veri döner ve konuşma hiç algılanmaz.
+      ctx.resume().catch(() => {})
       const source = ctx.createMediaStreamSource(stream)
       const analyser = ctx.createAnalyser()
       analyser.fftSize = 512
@@ -81,6 +90,9 @@ export default function VoiceRoom({ orgId, userId, profileMap, supabase }: Props
     if (audio) { audio.srcObject = null; audioElemsRef.current.delete(remoteUserId) }
     const timer = analyserTimersRef.current.get(remoteUserId)
     if (timer) { clearInterval(timer); analyserTimersRef.current.delete(remoteUserId) }
+    const ctx = audioCtxRef.current.get(remoteUserId)
+    if (ctx) { ctx.close().catch(() => {}); audioCtxRef.current.delete(remoteUserId) }
+    pendingIceRef.current.delete(remoteUserId)
     setParticipants(prev => prev.filter(id => id !== remoteUserId))
     setSpeaking(prev => prev.filter(id => id !== remoteUserId))
   }, [])
@@ -123,6 +135,16 @@ export default function VoiceRoom({ orgId, userId, profileMap, supabase }: Props
     }
 
     return pc
+  }
+
+  /** setRemoteDescription tamamlanana kadar biriken ICE adaylarını sırayla ekler. */
+  async function flushPendingIce(remoteUserId: string, pc: RTCPeerConnection) {
+    const queued = pendingIceRef.current.get(remoteUserId)
+    if (!queued?.length) return
+    pendingIceRef.current.delete(remoteUserId)
+    for (const candidate of queued) {
+      try { await pc.addIceCandidate(new RTCIceCandidate(candidate)) } catch { /* ignore */ }
+    }
   }
 
   async function joinRoom() {
@@ -170,6 +192,7 @@ export default function VoiceRoom({ orgId, userId, profileMap, supabase }: Props
         if (!pc) return
         try {
           await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp))
+          await flushPendingIce(payload.from, pc)
           const answer = await pc.createAnswer()
           await pc.setLocalDescription(answer)
           broadcast({ type: 'answer', from: userId, to: payload.from, sdp: pc.localDescription })
@@ -179,14 +202,23 @@ export default function VoiceRoom({ orgId, userId, profileMap, supabase }: Props
       if (payload.type === 'answer') {
         const pc = peersRef.current.get(payload.from)
         if (pc && pc.signalingState !== 'stable') {
-          try { await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp)) } catch {}
+          try {
+            await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp))
+            await flushPendingIce(payload.from, pc)
+          } catch {}
         }
       }
 
       if (payload.type === 'ice') {
         const pc = peersRef.current.get(payload.from)
-        if (pc) {
+        if (!pc) return
+        if (pc.remoteDescription) {
           try { await pc.addIceCandidate(new RTCIceCandidate(payload.candidate)) } catch {}
+        } else {
+          // remote description henüz gelmedi — kuyruğa al, flushPendingIce ile eklenecek
+          const q = pendingIceRef.current.get(payload.from) ?? []
+          q.push(payload.candidate)
+          pendingIceRef.current.set(payload.from, q)
         }
       }
     })
@@ -254,6 +286,9 @@ export default function VoiceRoom({ orgId, userId, profileMap, supabase }: Props
     // Stop all speaking detectors
     analyserTimersRef.current.forEach(t => clearInterval(t))
     analyserTimersRef.current.clear()
+    audioCtxRef.current.forEach(ctx => ctx.close().catch(() => {}))
+    audioCtxRef.current.clear()
+    pendingIceRef.current.clear()
 
     // Unsubscribe from Supabase channel
     channelRef.current?.untrack()
