@@ -402,7 +402,10 @@ export default function TasksPage() {
           {/* Status sekmeleri */}
           <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 0, scrollbarWidth: 'none' }}>
             {statusTabs.map(tab => {
-              const count = tab.value === 'all' ? tasks.length : tasks.filter(t => t.status === tab.value).length
+              // Kapsam süzülmüş taban — bkz. başlıktaki sayaç notu
+              const count = tab.value === 'all'
+                ? gorunurTasks.length
+                : gorunurTasks.filter(t => t.status === tab.value).length
               const active = filterStatus === tab.value
               return (
                 <button key={tab.value} onClick={() => setFilterStatus(tab.value as TaskStatus | 'all')} style={{
@@ -660,8 +663,16 @@ export default function TasksPage() {
           <div>
             <h1 className="text-xl font-bold" style={{ color: '#111827', letterSpacing: '-0.02em' }}>Görevler</h1>
             <p className="text-sm mt-0.5" style={{ color: '#9ca3af' }}>
-              {tasks.length} görev
-              {filteredTasks.length !== tasks.length && <span> · <span style={{ color: '#2288c9' }}>{filteredTasks.length} gösteriliyor</span></span>}
+              {/* Tüm sayaçların tabanı daima `gorunurTasks` (rol/il kapsamı
+                  uygulanmış) olmalı — `tasks` ham listedir.
+                  Bugün görünür bir fark YOK: sayfa `raporGorebilirMi` ile
+                  korunuyor ve oraya girebilen roller (owner/admin/viewer)
+                  zaten org'un tamamını görüyor. Fark, sayfa İl Sorumlusuna
+                  açıldığı anda ortaya çıkar; o zaman `tasks` org genelini
+                  gösterip listeyle çelişirdi. Şimdiden doğru tabana
+                  bağlanıyor. */}
+              {gorunurTasks.length} görev
+              {filteredTasks.length !== gorunurTasks.length && <span> · <span style={{ color: '#2288c9' }}>{filteredTasks.length} gösteriliyor</span></span>}
             </p>
           </div>
           {yazabilirMi(orgRole) && (
@@ -720,7 +731,8 @@ export default function TasksPage() {
         {/* ── Öncelik filtreleri ── */}
         <div className="flex items-center gap-2 flex-wrap mb-4">
           {PRIORITY_OPTIONS.map((p) => {
-            const count = tasks.filter(t => t.priority === p.value && t.status !== 'done').length
+            // Kapsam süzülmüş taban (termin chip'leri zaten böyleydi)
+            const count = gorunurTasks.filter(t => t.priority === p.value && t.status !== 'done').length
             const active = filterPriority === p.value
             return (
               <button

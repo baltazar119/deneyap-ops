@@ -13,7 +13,7 @@ import { useIsMobile } from '@/lib/useIsMobile'
 import { isCurrentlyIn, isOverdue } from '@/lib/utils'
 import { getCachedData, setCachedData } from '@/lib/pageDataCache'
 import { Users, CheckCircle2, Clock, Building2, ArrowRight, Columns2, ListTodo, CheckSquare, ChevronRight, X, AlertCircle } from 'lucide-react'
-import type { Profile, Task, Checkin, Schedule, Sprint, OrgRole } from '@/types/database'
+import type { Profile, Task, Checkin, Sprint, OrgRole } from '@/types/database'
 
 interface OrgUyelik {
   user_id: string
@@ -25,7 +25,6 @@ type DashCache = {
   profiles: Profile[]
   uyelikler?: OrgUyelik[]
   checkins: Checkin[]
-  schedules: Schedule[]
   tasks: Task[]
   activeSprint: Sprint | null
 }
@@ -51,7 +50,6 @@ export default function DashboardPage() {
   }
   const [checkins, setCheckins]         = useState<Checkin[]>(_initCache?.checkins ?? [])
   const [tasks, setTasks]               = useState<Task[]>(_initCache?.tasks ?? [])
-  const [, setSchedules]                = useState<Schedule[]>(_initCache?.schedules ?? [])
   const [activeSprint, setActiveSprint] = useState<Sprint | null>(_initCache?.activeSprint ?? null)
   const [loading, setLoading]           = useState(_initCache === null)
 
@@ -66,12 +64,13 @@ export default function DashboardPage() {
       const membershipsRes = await supabase.from('organization_members').select('user_id, role, il').eq('organization_id', org.id)
       const memberIds = membershipsRes.data?.map(m => m.user_id) ?? []
 
-      const [profilesRes, checkinsRes, schedulesRes, tasksRes, sprintRes] = await Promise.all([
+      // Not: `schedules` sorgusu buradan kaldırıldı — çekiliyor ama panelde
+      // hiçbir yerde kullanılmıyordu (setter'ı bile `const [, setSchedules]`
+      // şeklindeydi). Her panel açılışında boşuna bir sorgu maliyeti.
+      const [profilesRes, checkinsRes, tasksRes, sprintRes] = await Promise.all([
         supabase.from('profiles').select('*').in('id', memberIds).order('created_at', { ascending: true }),
         supabase.from('checkins').select('*').eq('organization_id', org.id)
           .gte('timestamp', rangeStart.toISOString()).lte('timestamp', rangeEnd.toISOString()),
-        supabase.from('schedules').select('*').eq('organization_id', org.id)
-          .gte('start_time', rangeStart.toISOString()).lte('start_time', rangeEnd.toISOString()),
         supabase.from('tasks').select('*').eq('organization_id', org.id),
         supabase.from('sprints').select('*').eq('organization_id', org.id).eq('is_active', true).maybeSingle(),
       ])
@@ -85,16 +84,14 @@ export default function DashboardPage() {
       setUyelikler(uyelikler)
       const newTasks    = tasksRes.data ?? []
       const newCheckins = checkinsRes.data ?? []
-      const newSchedules= schedulesRes.data ?? []
       const newSprint   = sprintRes.data ?? null
 
       setProfiles(allProfiles)
       setCheckins(newCheckins)
-      setSchedules(newSchedules)
       setTasks(newTasks)
       setActiveSprint(newSprint)
 
-      setCachedData<DashCache>(cacheKey, { profiles: allProfiles, uyelikler, checkins: newCheckins, schedules: newSchedules, tasks: newTasks, activeSprint: newSprint })
+      setCachedData<DashCache>(cacheKey, { profiles: allProfiles, uyelikler, checkins: newCheckins, tasks: newTasks, activeSprint: newSprint })
     } catch (err) {
       console.error('[Dashboard] loadData error:', err)
     } finally {
@@ -511,6 +508,11 @@ function KpiModal({ modal, data, slug, onClose }: {
   onClose: () => void
 }) {
   const overlayRef = useRef<HTMLDivElement>(null)
+  // Yorumu "centered modal on desktop" diyordu ama kod her ekranda alta
+  // yapıştırıyordu; masaüstünde geniş bir ekranın dibinde açılan sheet
+  // yanlış görünüyor.
+  const kpiMobil = useIsMobile()
+
   useEffect(() => {
     if (!modal) return
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -536,21 +538,22 @@ function KpiModal({ modal, data, slug, onClose }: {
       style={{
         position: 'fixed', inset: 0, zIndex: 9999,
         background: 'rgba(0,0,0,0.45)',
-        display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-        padding: '0 0 0 0',
+        display: 'flex', justifyContent: 'center',
+        alignItems: kpiMobil ? 'flex-end' : 'center',
+        padding: kpiMobil ? 0 : 24,
       }}
     >
-      {/* Panel — bottom sheet on mobile, centered modal on desktop */}
+      {/* Panel — mobilde alttan sheet, masaüstünde ortalanmış modal */}
       <div style={{
         background: '#fff',
-        borderRadius: '20px 20px 0 0',
+        borderRadius: kpiMobil ? '20px 20px 0 0' : 20,
         width: '100%',
         maxWidth: 520,
         maxHeight: '80vh',
         display: 'flex',
         flexDirection: 'column',
         boxShadow: '0 -4px 40px rgba(0,0,0,0.18)',
-        animation: 'slideUp 0.22s ease',
+        animation: kpiMobil ? 'slideUp 0.22s ease' : 'none',
       }}>
         {/* Handle bar */}
         <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 0' }}>
