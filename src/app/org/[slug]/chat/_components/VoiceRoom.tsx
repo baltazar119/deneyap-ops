@@ -56,12 +56,27 @@ export default function VoiceRoom({ orgId, userId, profileMap, supabase }: Props
       const analyser = ctx.createAnalyser()
       analyser.fftSize = 512
       source.connect(analyser)
-      const data = new Uint8Array(analyser.frequencyBinCount)
+      // Frekans-spektrumu ortalaması (getByteFrequencyData) güvenilir değildi:
+      // insan sesi enerjisi çoğunlukla düşük frekanslarda yoğunlaşır, yüksek
+      // frekans binleri neredeyse hep sıfır kalıp ortalamayı aşağı çekiyor —
+      // eşik mikrofon/ortama göre hiç aşılmayabiliyordu. Zaman-domain sinyalin
+      // gerçek genliğini (RMS) ölçmek çok daha güvenilir bir konuşma tespiti.
+      const data = new Uint8Array(analyser.fftSize)
+      let consecutiveQuiet = 0
       const timer = window.setInterval(() => {
-        analyser.getByteFrequencyData(data)
-        const avg = data.reduce((a, b) => a + b, 0) / data.length
+        analyser.getByteTimeDomainData(data)
+        let sumSquares = 0
+        for (let i = 0; i < data.length; i++) {
+          const normalized = (data[i] - 128) / 128
+          sumSquares += normalized * normalized
+        }
+        const rms = Math.sqrt(sumSquares / data.length)
+        const loudEnough = rms > 0.02
+        // Kısa sessizliklerde (kelimeler arası) çerçevenin titreşmemesi için
+        // ancak birkaç ardışık sessiz ölçümden sonra "konuşmuyor" say.
+        consecutiveQuiet = loudEnough ? 0 : consecutiveQuiet + 1
+        const isSpeaking = loudEnough || consecutiveQuiet < 3
         setSpeaking(prev => {
-          const isSpeaking = avg > 10
           const already = prev.includes(streamUserId)
           if (isSpeaking && !already) return [...prev, streamUserId]
           if (!isSpeaking && already) return prev.filter(id => id !== streamUserId)
