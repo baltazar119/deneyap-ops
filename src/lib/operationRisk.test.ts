@@ -161,4 +161,65 @@ describe('computeRisk', () => {
     expect(r.score).toBeLessThanOrEqual(100)
     expect(r.level).toBe('high')
   })
+
+  it('her sinyalde somut bir aksiyon önerisi olur', () => {
+    const r = computeRisk(girdi({ tasks: [gorev({ status: 'blocked' })] }))
+    expect(r.signals.every((s) => s.action.length > 0)).toBe(true)
+  })
+
+  describe('il bazlı kırılım', () => {
+    it('sorunsuz ili listede göstermez', () => {
+      const r = computeRisk(girdi({ tasks: [gorev({ il: 'Ankara' })] }))
+      expect(r.provinces).toHaveLength(0)
+    })
+
+    it('sorunlu ili yakalar ve en kritik sinyali özetler', () => {
+      const r = computeRisk(girdi({
+        tasks: [gorev({ il: 'Ankara', status: 'blocked' }), gorev({ il: 'Ankara' })],
+      }))
+      expect(r.provinces).toHaveLength(1)
+      expect(r.provinces[0].il).toBe('Ankara')
+      expect(r.provinces[0].blockedCount).toBe(1)
+      expect(r.provinces[0].openCount).toBe(2)
+      expect(r.provinces[0].topIssue).toContain('bloke')
+    })
+
+    it('en riskli ili en başa sıralar', () => {
+      const r = computeRisk(girdi({
+        tasks: [
+          gorev({ il: 'İzmir', due_date: gun(-1) }),                    // düşük puan
+          gorev({ il: 'Ankara', status: 'blocked' }),                   // yüksek puan
+          gorev({ il: 'Ankara', priority: 'critical' }),                // + atanmamış kritik
+        ],
+      }))
+      expect(r.provinces[0].il).toBe('Ankara')
+    })
+
+    it('il girilmemiş görevleri ayrı grupta toplar', () => {
+      const r = computeRisk(girdi({ tasks: [gorev({ status: 'blocked' })] }))
+      expect(r.provinces[0].il).toBe('İl Belirtilmemiş')
+    })
+
+    it('tamamlanmış görevleri il skoruna katmaz', () => {
+      const r = computeRisk(girdi({
+        tasks: [gorev({ il: 'Ankara', status: 'done', due_date: gun(-10) })],
+      }))
+      expect(r.provinces).toHaveLength(0)
+    })
+  })
+
+  describe('headline', () => {
+    it('sinyal yokken sakin bir mesaj döner', () => {
+      const r = computeRisk(girdi())
+      expect(r.headline).toBe('Şu an acele edilmesi gereken bir durum yok.')
+    })
+
+    it('acil sinyal sayısını ve en kritik ili belirtir', () => {
+      const r = computeRisk(girdi({
+        tasks: [gorev({ il: 'Ankara', status: 'blocked' }), gorev({ il: 'Ankara', status: 'blocked' })],
+      }))
+      expect(r.headline).toContain('acil')
+      expect(r.headline).toContain('Ankara')
+    })
+  })
 })

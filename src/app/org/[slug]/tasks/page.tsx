@@ -7,7 +7,7 @@ import { kapsamaGoreSuz } from '@/lib/taskScope'
 import { TASK_TYPES, TASK_TYPE_FALLBACK } from '@/lib/taskTypes'
 import { IL_SECENEKLERI } from '@/lib/iller'
 import { raporGorebilirMi, yazabilirMi } from '@/lib/roller'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
 import { createNotification } from '@/lib/notifications'
@@ -50,6 +50,7 @@ type TasksPageCache = { tasks: TaskWithAssignee[]; members: Profile[]; sprints: 
 
 export default function TasksPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { org, orgRole, userIl, userId, userEmail: orgEmail, avatarUrl: orgAvatarUrl, isAdmin, loading: orgLoading } = useOrg()
   const isMobile = useIsMobile()
 
@@ -68,7 +69,9 @@ export default function TasksPage() {
   const [filterStatus, setFilterStatus] = useState<TaskStatus | 'all'>('all')
   const [filterPriority, setFilterPriority] = useState<TaskPriority | 'all'>('all')
   const [filterType, setFilterType] = useState<TaskType | 'all'>('all')
-  const [filterIl, setFilterIl] = useState<string>('all')
+  // Operasyon Riski gibi ekranlardan "?il=Ankara" ile gelindiğinde filtre
+  // önceden uygulanmış olsun — kullanıcı elle tekrar seçmek zorunda kalmasın
+  const [filterIl, setFilterIl] = useState<string>(searchParams.get('il') ?? 'all')
   // PRD: Koordinatör akışı "geciken görevleri filtreler" ile başlıyor.
   // "Gecikti" bir DURUM olmadığı için (termin tarihinden hesaplanır)
   // durum filtresine eklenemez; ayrı bir hızlı süzgeç olarak duruyor.
