@@ -42,3 +42,6 @@ next-env.d.ts
 
 # Uretilen dokuman (scripts/tanitim-pdf/uret.mjs ile yeniden uretilebilir)
 DENEYAP-OYS-Dokuman.pdf
+
+# Supabase CLI gecici dosyalari
+supabase/.temp/
