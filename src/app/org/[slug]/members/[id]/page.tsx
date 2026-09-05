@@ -78,17 +78,32 @@ export default function MemberProfilePage() {
     async function init() {
       const auth = await getSessionAndRole()
       if (!auth) { router.replace('/login'); return }
-      if (auth.role !== 'admin') {
-        router.replace(auth.role === 'consultant' ? '/consultant' : '/me')
-        return
-      }
+
+      // Yetki kontrolü profiles.role (global, hiç doldurulmayan bir alan)
+      // yerine bu çalışma alanındaki GERÇEK role bakmalı — aksi halde
+      // owner/viewer gibi roller (profiles.role'de hiç karşılığı olmayan
+      // değerler) burada hep "yetkisiz" sayılıp yanlış sayfaya (ayrıca
+      // slug'sız, yani kırık bir yola) yönlendiriliyordu.
+      const { data: org } = await supabase.from('organizations').select('id').eq('slug', orgSlug).maybeSingle()
+      if (!org) { router.replace('/login'); return }
+      const { data: uyelik } = await supabase
+        .from('organization_members')
+        .select('role')
+        .eq('organization_id', org.id)
+        .eq('user_id', auth.userId)
+        .maybeSingle()
+      const orgRole = uyelik?.role
+
+      if (orgRole === 'consultant') { router.replace(`/org/${orgSlug}/consultant`); return }
+      if (orgRole !== 'owner' && orgRole !== 'admin') { router.replace(`/org/${orgSlug}/me`); return }
+
       setAdminEmail(auth.email)
       setUserAvatarUrl(auth.avatarUrl ?? null)
       await loadData()
       setLoading(false)
     }
     init()
-  }, [router, loadData])
+  }, [router, loadData, orgSlug])
 
   async function handleSave() {
     if (!profile) return
