@@ -8,7 +8,7 @@ Ayrıntılı 14 fazlık plan: **[docs/YOL-HARITASI.md](YOL-HARITASI.md)**
 ## Yeni oturumda ilk mesaj olarak şunu yaz
 
 > Proje: `C:\Users\Abdulgazi\Desktop\DENEYAP-Ops`
-> `docs/DEVAM.md` ve `docs/YOL-HARITASI.md` dosyalarını oku, Faz 3'ten devam et.
+> `docs/DEVAM.md` ve `docs/YOL-HARITASI.md` dosyalarını oku, Faz 4'ten devam et.
 >
 > ÖNEMLİ KURAL: `C:\Users\Abdulgazi\Desktop\Tarlis-uygulama-main` klasörüne
 > HİÇBİR değişiklik yapma — o ayrı bir proje, sadece bu klasörle çalış.
@@ -37,8 +37,8 @@ Workspace slug: `deneyap-demo`
 
 ## Şu anki durum
 
-Son commit: `cd5bd42`. Çalışma ağacı temiz, GitHub ile senkron.
-`npx tsc --noEmit` temiz · **251 test yeşil** · `npx next build` başarılı.
+Son commit: `b55c010`. Çalışma ağacı temiz, GitHub ile senkron.
+`npx tsc --noEmit` temiz · **296 test yeşil** · `npx next build` başarılı.
 
 ### Faz 0 — TAMAMLANDI (3 commit)
 
@@ -116,33 +116,82 @@ varsayılanlar URL'e yazılmaz.
 Artık ayrı `ATANMAMIS` sabiti var. `il`'in boş değeri URL'de anlamlı olduğu için
 orada bilerek korundu — ikisi farklı semantik.
 
-### Sırada: Faz 3 — DENEYAP veri modeli
+### Faz 3 — TAMAMLANDI (commit `b55c010`)
 
-YOL-HARITASI.md Faz 3. **Migration 060** (`tr_fold` + `deneyaplar` tablosu) ve
-**061** (`tasks.deneyap_id`, `organization_members.deneyap_id` + iki trigger).
+| Ne | Nerede |
+|---|---|
+| `tr_fold()` + `deneyaplar` tablosu, RLS, unique | `migrations/060_deneyaplar.sql` |
+| `deneyap_id` + **iki trigger** | `migrations/061_deneyap_baglanti.sql` |
+| Saf yardımcılar (etiket, arama, gruplama) | `lib/deneyap.ts` |
+| Liste hook'u (bellek içi cache, sessionStorage'a yazmaz) | `lib/useDeneyaplar.ts` |
+| Combobox (arama, il gruplu, render tavanı 60) | `components/DeneyapSecici.tsx` |
+| Yönetim ekranı + "il başına oluştur" onaylı aracı | `settings/deneyaplar/page.tsx` |
+| Tek yazma yolu | `api/org/[slug]/deneyaplar/` |
+| `IL_PLAKA` (81↔81 testli) + `ilGecerliMi` | `lib/iller.ts` (eklemeli) |
+| İkiz doğrulama script'i | `scripts/tr-fold-ikiz.mjs` |
+| 45 yeni test | `deneyap.test.ts`, `turkce.test.ts`, `taskScope.test.ts` |
 
-Faz 2'den devralınan bağlantı noktaları:
-- **Görünüm eklemek artık tek yerde:** `lib/gorevGorunumleri.ts` içindeki
-  `GORUNUMLER` dizisine bir kayıt. Faz 4'ün "DENEYAP'ım" görünümü buraya girecek.
-- **Filtre eklemek:** `GorevFiltreDegerleri`'ne alan + `gorevleriSuz`'a bir satır
-  + `urlSorgusuKur`'a bir satır + panele bir grup. `?deneyap=` böyle eklenecek.
-- **Arama alanı eklemek:** `aranabilirMetin`'e DENEYAP adını katmak yeterli.
+`orgContext`: `userDeneyapId` eklendi, `CACHE_PREFIX` **v2→v3**, `clearOrgCache`
+eski prefix'i de süpürüyor.
 
-**Faz 3 kuralları (yol haritasından, unutulmasın):** backfill migration YOK ·
-`taskScope.ts` değişmez · DENEYAP'ın `il`'i trigger ile **değiştirilemez**
-(fingerprint kayması → kopya görev) · çapraz-org `deneyap_id` enjeksiyonuna karşı
-trigger'da org eşleşme kontrolü · `orgContext` `CACHE_PREFIX` **v2→v3**.
+**Backfill YOK** (karar gereği) — yerine Ayarlar'daki onaylı araç. Araç
+uygulama anında listeyi **yeniden hesaplıyor**, istemciden gelene güvenmiyor.
+
+**`taskScope.ts` DEĞİŞMEDİ.** İl Sorumlusu kapsamı il seviyesinde kalıyor;
+`taskScope.test.ts`'e bunu kilitleyen 4 test eklendi.
+
+#### Faz 3'te öğrenilen iki şey (tekrar etmeyelim)
+
+1. **Deploy sırası tuzağı.** `deneyap_id` önce `orgContext`'in ANA üyelik
+   sorgusuna eklenmişti. Migration uygulanmamış bir ortamda o sorgu
+   "column does not exist" ile dönüyor, `membership` null oluyor ve kullanıcı
+   `/workspaces`'e atılıyor — yani **tüm org sayfaları kırılıyor.** Ayrı ve
+   hataya toleranslı bir sorguya alındı. *Kural: kod migration'dan önce yayına
+   çıkabilir; yeni kolonlar hiçbir zaman kritik yolun sorgusuna eklenmemeli.*
+   Bu yalnızca **tarayıcıda** görüldü — tsc ve testler kaçırdı.
+2. **PostgREST'te "tablo yok" kodu `PGRST205`**, Postgres'in `42P01`'i değil
+   (ölçüldü). Yalnızca 42P01'e bakan kontrol hiç tetiklenmiyordu.
+
+### Sırada: Faz 4 — DENEYAP'ın arayüze bağlanması
+
+YOL-HARITASI.md Faz 4. **Migration gerekmez** — Faz 3'ünkiler yeterli.
+
+Yapılacaklar:
+- Görev formuna `DeneyapSecici` (bileşen hazır, sadece bağlanacak).
+  DENEYAP seçilince `İl / Birim` alanı `disabled` olup DENEYAP'ın ilinden
+  dolmalı + "İl, seçilen DENEYAP'tan alınır" notu — **DB trigger'ının
+  kullanıcıya görünen aynası.**
+- Filtre paneline DENEYAP grubu + `?deneyap=` URL parametresi.
+- **"DENEYAP'ım" görünümü** — `GORUNUMLER` dizisine tek kayıt
+  (`userDeneyapId` `orgContext`'te hazır).
+- `GorevSatiri`'nda il rozeti yerine DENEYAP adı (varsa).
+- `aranabilirMetin`'e DENEYAP adı eklenecek.
+
+Faz 2'nin bıraktığı bağlantı noktaları (hepsi tek dosyada):
+görünüm → `lib/gorevGorunumleri.ts` · filtre → `GorevFiltreDegerleri` +
+`gorevleriSuz` + `urlSorgusuKur` + panel grubu · arama → `lib/gorevArama.ts`.
 
 ---
 
-## SENİN YAPMAN GEREKEN — migration 059
+## SENİN YAPMAN GEREKEN — migration 060 + 061
 
-`supabase/migrations/059_tasks_completed_at.sql` **henüz uygulanmadı.**
-Supabase → SQL Editor → dosya içeriğini yapıştır → çalıştır.
+`supabase/uygula/faz3_deneyap.sql` **henüz uygulanmadı.**
+Supabase → SQL Editor → dosyanın tamamını yapıştır → çalıştır.
+(060 ve 061 sırayla; tekrar çalıştırmak güvenli.)
 
-Görevin ne zaman tamamlandığını kaydetmeye başlar; tamamlanma trendi (Faz 8-9
-grafikleri) bunsuz hesaplanamaz. Ne kadar erken çalıştırılırsa o kadar erken veri
-birikir.
+Bunsuz DENEYAP ekranı "tablo yok" uyarısı gösterir; **uygulamanın geri kalanı
+etkilenmez.** Uygulandıktan sonra:
+
+```bash
+node scripts/tr-fold-ikiz.mjs   # SQL/TS ikiz doğrulaması
+npm run seed:demo               # demo veriye 5 DENEYAP ekler
+```
+
+Demo veri Ankara ve İzmir'e **ikişer** DENEYAP kuruyor — "bir ilde birden
+fazla DENEYAP" sunumda görünür olsun diye.
+
+> `migration 059` (`tasks.completed_at`) **uygulandı** — `completed_at`
+> sütununun varlığı REST sorgusuyla doğrulandı.
 
 > Supabase CLI kurulu ama **bağlı değil** (bağlamak DB şifresi ister — şifreyi
 > sohbete yazma, migration'ları SQL editöründen çalıştır).
