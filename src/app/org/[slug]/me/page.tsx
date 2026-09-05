@@ -115,7 +115,11 @@ export default function MePage() {
       setActiveSprint(null)
       setSprintTasks([])
     }
-  }, [loadSchedules])
+  // org, ilk render'da null iken (henüz yüklenmeden) closure'a kilitlenip
+  // hep null kalmasın diye dependency'de — aksi halde org!.id, org context'ten
+  // geç dolduğunda bile hâlâ eski (null) referansı kullanıp
+  // "Cannot read properties of null (reading 'id')" ile patlıyordu.
+  }, [loadSchedules, org])
 
   useEffect(() => {
     if (orgLoading) return
