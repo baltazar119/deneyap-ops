@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { raporHesapla, type HesapGirdisi } from './hesapla'
 import { raporKapsami } from './kapsam'
+import { donemCoz } from './donem'
 import type { Task, OrgRole } from '@/types/database'
 
 const BUGUN = '2026-09-01'
@@ -19,11 +20,24 @@ function gorev(o: Partial<Task> = {}): Task {
   } as Task
 }
 
-function hesapla(gorevler: Task[], rol: OrgRole, uyeIl: string | null = null) {
+/**
+ * Varsayılan dönem, ORNEK verisinin tamamını kapsayacak kadar geniş tutulur.
+ * Bu bloktaki testler KPI/kapsam/kırılım davranışını ölçüyor; dönem filtresi
+ * onların konusu değil ve araya girmemeli. Döneme özel testler aşağıda
+ * "dönem filtresi" başlığı altında, kendi dar dönemleriyle.
+ */
+const GENIS_DONEM = { baslangic: '2026-08-01', bitis: '2026-09-30', etiket: 'Test dönemi' }
+
+function hesapla(
+  gorevler: Task[],
+  rol: OrgRole,
+  uyeIl: string | null = null,
+  donem = GENIS_DONEM,
+) {
   const girdi: HesapGirdisi = {
     gorevler,
     kapsam: raporKapsami(rol, uyeIl),
-    donem: { baslangic: '2026-08-01', bitis: '2026-09-01', etiket: 'Ağustos 2026' },
+    donem,
     uyeAdlari: { u1: 'Ankara Sorumlusu', u2: 'İzmir Sorumlusu' },
     uyeIlleri: { u1: 'Ankara', u2: 'İzmir' },
     orgAd: 'DENEYAP Demo',
@@ -167,5 +181,104 @@ describe('raporHesapla — kırılımlar', () => {
   it('tür kırılımında Türkçe etiket kullanır', () => {
     const r = hesapla([gorev({ task_type: 'training' })], 'owner')
     expect(r.turKirilimi[0].etiket).toBe('Eğitim')
+  })
+})
+
+/**
+ * DÖNEM FİLTRESİ — regresyon koruması.
+ *
+ * Bu bölüm gerçek bir hatayı kilitliyor: dönem seçici uzun süre yalnızca
+ * başlıktaki etiketi değiştiriyor, hiçbir filtre uygulamıyordu. "Bu hafta" ile
+ * "Tüm zamanlar" birebir aynı sayıları veriyordu.
+ */
+describe('raporHesapla — dönem filtresi', () => {
+  const AGUSTOS = { baslangic: '2026-08-01', bitis: '2026-08-31', etiket: 'Ağustos' }
+  const EYLUL   = { baslangic: '2026-09-01', bitis: '2026-09-30', etiket: 'Eylül' }
+
+  it('dar dönem ile geniş dönem AYNI sonucu vermez', () => {
+    const veri = [
+      gorev({ due_date: '2026-08-10' }),
+      gorev({ due_date: '2026-09-10' }),
+    ]
+    expect(hesapla(veri, 'owner', null, AGUSTOS).kpi.toplam).toBe(1)
+    expect(hesapla(veri, 'owner', null, GENIS_DONEM).kpi.toplam).toBe(2)
+  })
+
+  it('termini döneme göre süzer', () => {
+    const veri = [
+      gorev({ due_date: '2026-07-31' }),   // dönemden önce
+      gorev({ due_date: '2026-08-01' }),   // ilk gün — dahil
+      gorev({ due_date: '2026-08-31' }),   // son gün — dahil
+      gorev({ due_date: '2026-09-01' }),   // dönemden sonra
+    ]
+    expect(hesapla(veri, 'owner', null, AGUSTOS).kpi.toplam).toBe(2)
+  })
+
+  it('termini olmayan görev oluşturulma tarihine göre değerlendirilir', () => {
+    const veri = [
+      gorev({ due_date: null, created_at: '2026-08-15' }),
+      gorev({ due_date: null, created_at: '2026-09-15' }),
+    ]
+    expect(hesapla(veri, 'owner', null, AGUSTOS).kpi.toplam).toBe(1)
+    expect(hesapla(veri, 'owner', null, EYLUL).kpi.toplam).toBe(1)
+  })
+
+  it('termin varsa oluşturulma tarihi dikkate ALINMAZ', () => {
+    // Temmuz'da açılmış ama Ağustos'ta bitecek iş, Ağustos raporuna girer.
+    const veri = [gorev({ created_at: '2026-07-01', due_date: '2026-08-15' })]
+    expect(hesapla(veri, 'owner', null, AGUSTOS).kpi.toplam).toBe(1)
+  })
+
+  it('hiç tarihi olmayan görev hiçbir dönemde kaybolmaz', () => {
+    // Aksi halde tarihsiz görevler tüm raporlardan tamamen düşerdi.
+    const veri = [gorev({ due_date: null, created_at: null as unknown as string })]
+    expect(hesapla(veri, 'owner', null, AGUSTOS).kpi.toplam).toBe(1)
+  })
+
+  it('yaklaşan terminler bölümü dönemden ETKİLENMEZ', () => {
+    // "Geçen ay" seçilince "önümüzdeki 7 gün" boşalırsa kullanıcı bunu hata
+    // sanar; o bölüm her zaman bugünden ileriye bakar.
+    const veri = [gorev({ status: 'backlog', due_date: '2026-09-03' })]  // bugün 2026-09-01
+    const gecmisDonem = { baslangic: '2026-07-01', bitis: '2026-07-31', etiket: 'Temmuz' }
+
+    expect(hesapla(veri, 'owner', null, gecmisDonem).kpi.toplam).toBe(0)   // KPI'da yok
+    expect(hesapla(veri, 'owner', null, gecmisDonem).yaklasan).toHaveLength(1) // ama burada var
+  })
+
+  it('dönem filtresi rol kapsamının ÜSTÜNE uygulanır, yerine değil', () => {
+    const veri = [
+      gorev({ il: 'Ankara', due_date: '2026-08-10' }),
+      gorev({ il: 'İzmir',  due_date: '2026-08-10' }),
+      gorev({ il: 'Ankara', due_date: '2026-09-10' }),
+    ]
+    const r = hesapla(veri, 'member', 'Ankara', AGUSTOS)
+    expect(r.kpi.toplam).toBe(1)   // hem Ankara hem Ağustos
+  })
+})
+
+describe('donemCoz — "Tüm zamanlar" sınırsızdır', () => {
+  it('gelecek terminli görevleri de kapsar', () => {
+    // Regresyon: "tumu" dönemi bitişi BUGÜN olarak üretiliyordu; termini
+    // gelecekte olan görevler eleniyor ve "Tüm zamanlar" toplamı
+    // "Bu çeyrek"ten KÜÇÜK çıkıyordu.
+    const veri = [
+      gorev({ due_date: '2020-01-01' }),   // çok eski
+      gorev({ due_date: '2030-12-31' }),   // çok ileri
+    ]
+    expect(hesapla(veri, 'owner', null, donemCoz('tumu')).kpi.toplam).toBe(2)
+  })
+
+  it('"Tüm zamanlar" her zaman diğer dönemlerin üst sınırıdır', () => {
+    const veri = [
+      gorev({ due_date: '2026-08-10' }),
+      gorev({ due_date: '2026-09-10' }),
+      gorev({ due_date: '2027-01-10' }),
+    ]
+    const referans = new Date('2026-09-01T12:00:00')
+    const tumu = hesapla(veri, 'owner', null, donemCoz('tumu', referans)).kpi.toplam
+    for (const d of ['bu-hafta', 'gecen-hafta', 'bu-ay', 'gecen-ay', 'ceyrek'] as const) {
+      expect(hesapla(veri, 'owner', null, donemCoz(d, referans)).kpi.toplam)
+        .toBeLessThanOrEqual(tumu)
+    }
   })
 })

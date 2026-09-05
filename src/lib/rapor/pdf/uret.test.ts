@@ -76,8 +76,10 @@ describe('raporPdfUret', () => {
   }, 30_000)
 
   it('çok satırlı veride sayfalara bölünür', async () => {
+    // Termin, fixture döneminin (Ağustos) İÇİNDE ama bugünden (2026-09-01)
+    // önce olmalı: dönem filtresine takılmasın ama gecikmiş sayılsın.
     const cok = Array.from({ length: 120 }, (_, i) =>
-      gorev({ title: `Gecikmiş görev ${i}`, il: 'Ankara', status: 'doing', due_date: '2026-07-01' }))
+      gorev({ title: `Gecikmiş görev ${i}`, il: 'Ankara', status: 'doing', due_date: '2026-08-05' }))
     const buf = await raporPdfUret(veri('owner', null, cok))
     expect(pdfMi(buf)).toBe(true)
     // Birden çok /Type /Page nesnesi olmalı

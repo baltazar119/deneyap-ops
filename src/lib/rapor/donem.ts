@@ -42,7 +42,10 @@ export function donemCoz(anahtar: DonemAnahtari, bugun = new Date()): Donem {
       return { baslangic: yerelGun(b), bitis: yerelGun(s), etiket: `${c + 1}. Çeyrek ${g.getFullYear()}` }
     }
     case 'tumu':
-      return { baslangic: '2000-01-01', bitis: yerelGun(g), etiket: 'Tüm zamanlar' }
+      // Bitiş BUGÜN olamaz: termini gelecekte olan görevler elenir ve
+      // "Tüm zamanlar" toplamı "Bu çeyrek"ten küçük çıkar — kullanıcı için
+      // anlamsız bir sonuç. Bu dönem gerçekten sınırsız olmalı.
+      return { baslangic: '0000-01-01', bitis: '9999-12-31', etiket: 'Tüm zamanlar' }
     case 'bu-ay':
     default: {
       const b = new Date(g.getFullYear(), g.getMonth(), 1)

@@ -1,5 +1,6 @@
 import { taskTypeLabel } from '@/lib/taskTypes'
 import { trCompare } from '@/lib/turkce'
+import { yerelGun } from './donem'
 import type { RaporKapsami } from './kapsam'
 import type { Task, OrgRole } from '@/types/database'
 
@@ -118,13 +119,37 @@ function gecikmeGunu(t: Task, bugun: string): number | null {
   return fark > 0 ? fark : null
 }
 
+/**
+ * Dönem, görevin TERMİN tarihine göre uygulanır.
+ *
+ * Ürün kararı: DENEYAP planı termin üzerinden yürüyor, dolayısıyla
+ * "bu ay raporu" = bu ay TERMİNİ olan işler. "Bu ay açılan görev" yönetsel
+ * olarak anlamsız — merkez ekip neyin ne zaman biteceğine bakıyor.
+ *
+ * Termini olmayan görevler oluşturulma tarihine göre değerlendirilir; aksi
+ * halde hiçbir döneme giremez ve raporlardan tamamen kaybolurlardı.
+ */
+function donemeGirerMi(t: Task, donem: Donem): boolean {
+  const olcut = t.due_date ?? (t.created_at ? yerelGun(new Date(t.created_at)) : null)
+  if (!olcut) return true
+  return olcut >= donem.baslangic && olcut <= donem.bitis
+}
+
 export function raporHesapla(g: HesapGirdisi): RaporVerisi {
   const { kapsam, bugun } = g
 
   // Kapsam filtresi — il listesi boş dizi ise hiçbir il geçmez
-  const kapsamli = kapsam.ilFiltresi === null
+  const ilKapsamli = kapsam.ilFiltresi === null
     ? g.gorevler
     : g.gorevler.filter(t => !!t.il && kapsam.ilFiltresi!.includes(t.il))
+
+  // Dönem filtresi kapsamın ÜSTÜNE uygulanır.
+  //
+  // DİKKAT: "Yaklaşan terminler" bölümü bilerek `ilKapsamli` üzerinden
+  // hesaplanır, dönemden etkilenmez. "Geçen ay" seçildiğinde "önümüzdeki
+  // 7 gün" listesinin boşalması kullanıcı tarafından hata olarak algılanır —
+  // o bölüm her zaman bugünden ileriye bakar.
+  const kapsamli = ilKapsamli.filter(t => donemeGirerMi(t, g.donem))
 
   const gorevSatiri = (t: Task): GorevSatiri => ({
     baslik: t.title,
@@ -218,8 +243,8 @@ export function raporHesapla(g: HesapGirdisi): RaporVerisi {
     .map(gorevSatiri)
     .sort((a, b) => (b.gecikmeGunu ?? 0) - (a.gecikmeGunu ?? 0))
 
-  /* ── Yaklaşan terminler (7 gün) ── */
-  const yaklasan = kapsamli
+  /* ── Yaklaşan terminler (7 gün) — dönemden BAĞIMSIZ, bkz. donemeGirerMi ── */
+  const yaklasan = ilKapsamli
     .filter(t => {
       if (!t.due_date || t.status === 'done') return false
       const fark = gunFarki(bugun, t.due_date)

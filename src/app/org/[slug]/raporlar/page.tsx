@@ -33,7 +33,10 @@ export default function RaporlarPage() {
   const slug = params.slug as string
   const { orgRole, userIl, loading: orgLoading } = useOrg()
 
-  const [donem, setDonem] = useState<DonemAnahtari>('tumu')
+  // API varsayılanıyla aynı olmalı (rapor/route.ts). Dönem artık gerçekten
+  // filtre uyguluyor; ekran 'tumu', indirilen dosya 'bu-ay' gösterirse
+  // kullanıcı iki farklı sayı görür.
+  const [donem, setDonem] = useState<DonemAnahtari>('bu-ay')
   const [veri, setVeri] = useState<RaporVerisi | null>(null)
   const [yukleniyor, setYukleniyor] = useState(true)
   const [indiriliyor, setIndiriliyor] = useState<string | null>(null)
@@ -128,6 +131,11 @@ export default function RaporlarPage() {
                 }}>{d.label}</button>
             ))}
           </div>
+          <p className="text-xs mb-5 -mt-3" style={{ color: '#94a3b8' }}>
+            Dönem, görevin <strong>termin tarihine</strong> göre uygulanır.
+            Termini olmayan görevler oluşturulma tarihine göre sayılır.
+            &quot;Önümüzdeki 7 Gün&quot; bölümü dönemden bağımsızdır.
+          </p>
 
           <div className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: '#64748b' }}>İndir</div>
           <div className="flex flex-wrap gap-2">
