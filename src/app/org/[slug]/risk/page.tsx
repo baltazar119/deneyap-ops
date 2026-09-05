@@ -111,11 +111,11 @@ export default function OperasyonRiskPage() {
                       <Link
                         key={p.il}
                         href={ilLinki(p.il)}
-                        className="flex items-center justify-between gap-3 rounded-2xl px-4 py-3.5 transition-all hover:opacity-90"
+                        className="block rounded-2xl px-4 py-3.5 transition-all hover:opacity-90"
                         style={{ background: '#fff', border: '1px solid #e5e7eb', borderLeft: `4px solid ${r.color}` }}
                       >
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0 flex items-center gap-2">
                             <span className="text-sm font-bold truncate" style={{ color: '#111827' }}>{p.il}</span>
                             <span
                               className="px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0"
@@ -124,11 +124,18 @@ export default function OperasyonRiskPage() {
                               {r.label}
                             </span>
                           </div>
-                          <p className="text-xs mt-1 truncate" style={{ color: '#64748b' }}>
-                            {p.topIssue} · {p.openCount} açık görev
-                          </p>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-sm font-bold tabular-nums" style={{ color: r.color }}>{p.score}</span>
+                            <ChevronRight size={16} style={{ color: '#cbd5e1' }} />
+                          </div>
                         </div>
-                        <ChevronRight size={16} style={{ color: '#cbd5e1', flexShrink: 0 }} />
+                        <p className="text-xs mt-1 truncate" style={{ color: '#64748b' }}>
+                          {p.topIssue} · {p.openCount} açık görev
+                        </p>
+                        {/* Diğer illerle kabaca kıyaslamak için — çıplak sayı yerine görsel referans */}
+                        <div className="h-1 rounded-full mt-2 overflow-hidden" style={{ background: '#f1f5f9' }}>
+                          <div className="h-full rounded-full transition-all" style={{ width: `${p.score}%`, background: r.color }} />
+                        </div>
                       </Link>
                     )
                   })}
