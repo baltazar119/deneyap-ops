@@ -12,6 +12,11 @@ export interface OrgContextValue {
   orgRole: OrgRole | null
   /** Kullanıcının bu org'da sorumlu olduğu il/birim (İl Sorumlusu filtresi) */
   userIl: string | null
+  /**
+   * Üyenin bağlı olduğu DENEYAP (061). Kapsam kuralı İL seviyesinde kalır —
+   * bu alan yalnızca form varsayılanı ve "DENEYAP'ım" görünümü için.
+   */
+  userDeneyapId: string | null
   userId: string | null
   userEmail: string | null
   avatarUrl: string | null
@@ -27,6 +32,7 @@ export const OrgContext = createContext<OrgContextValue>({
   org: null,
   orgRole: null,
   userIl: null,
+  userDeneyapId: null,
   userId: null,
   userEmail: null,
   avatarUrl: null,
@@ -42,11 +48,16 @@ export function useOrg(): OrgContextValue {
   return useContext(OrgContext)
 }
 
-const CACHE_PREFIX = 'deneyap_org_v2_'   // v2: org objesi de dahil
+// v3: userDeneyapId eklendi. Şema değiştiği için prefix bumplandı — eski v2
+// girdileri okunmaya çalışılsa `userDeneyapId` sessizce undefined kalırdı.
+const CACHE_PREFIX = 'deneyap_org_v3_'
+/** Süpürülecek eski prefix'ler — bkz. clearOrgCache. */
+const ESKI_CACHE_PREFIXLERI = ['deneyap_org_v2_']
 
 interface CacheData {
   orgRole: OrgRole
   userIl?: string | null
+  userDeneyapId?: string | null
   userPlan: PlanType
   orgId: string
   org: Organization
@@ -83,7 +94,7 @@ export function getStoredUserId(): string | null {
 }
 
 const DEFAULT_VALUE: OrgContextValue = {
-  org: null, orgRole: null, userIl: null, userId: null, userEmail: null, avatarUrl: null,
+  org: null, orgRole: null, userIl: null, userDeneyapId: null, userId: null, userEmail: null, avatarUrl: null,
   isPro: false, hasAiAddon: false, isAdmin: false, isOwner: false, isConsultant: false,
   loading: true,
 }
@@ -100,6 +111,7 @@ function readCachedValue(slug: string): OrgContextValue | null {
       org: cached.org,
       orgRole: cached.orgRole,
       userIl: cached.userIl ?? null,
+      userDeneyapId: cached.userDeneyapId ?? null,
       userId: uid,
       userEmail: null,          // session email aşağıdaki useEffect'te güncellenir
       avatarUrl: cached.avatarUrl,
@@ -164,7 +176,7 @@ export function OrgProvider({ children }: { children: ReactNode }) {
         }
 
         // 3. Org + üyelik ve profil sorgularını paralel çalıştır
-        const [membershipResult, profileResult] = await Promise.all([
+        const [membershipResult, deneyapUyelikResult, profileResult] = await Promise.all([
           supabase
             .from('organization_members')
             .select(`
@@ -177,6 +189,22 @@ export function OrgProvider({ children }: { children: ReactNode }) {
             .eq('user_id', userId)
             .eq('organizations.slug', slug)
             .single(),
+
+          // deneyap_id AYRI ve HATAYA TOLERANSLI sorguda.
+          //
+          // Ana üyelik sorgusuna eklenirse, migration 061 uygulanmadan
+          // yayına çıkan bir sürüm TÜM org sayfalarını kırar: sorgu
+          // "column does not exist" ile döner, membership null olur ve
+          // kullanıcı /workspaces'e atılır. Ayrı sorguda hata yalnızca
+          // deneyap_id'nin null kalmasına yol açar; uygulama çalışmaya
+          // devam eder. Kod ile migration'ın aynı anda yayına çıkmadığı
+          // her durumda geçerli olan kural.
+          supabase
+            .from('organization_members')
+            .select('deneyap_id, organizations!inner(slug)')
+            .eq('user_id', userId)
+            .eq('organizations.slug', slug)
+            .maybeSingle(),
 
           supabase
             .from('profiles')
@@ -196,6 +224,9 @@ export function OrgProvider({ children }: { children: ReactNode }) {
         const org = (membership.organizations as any) as Organization
         const orgRole = membership.role as OrgRole
         const userIl  = (membership.il as string | null) ?? null
+        // Hata varsa (kolon yok) sessizce null — yukarıdaki gerekçe.
+        const userDeneyapId =
+          ((deneyapUyelikResult.data as { deneyap_id?: string | null } | null)?.deneyap_id) ?? null
 
         const profile = profileResult.data
         const userPlan = (profile?.plan ?? 'free') as PlanType
@@ -206,6 +237,7 @@ export function OrgProvider({ children }: { children: ReactNode }) {
           org,
           orgRole,
           userIl,
+          userDeneyapId,
           userId,
           userEmail: session.user.email ?? null,
           avatarUrl,
@@ -217,7 +249,7 @@ export function OrgProvider({ children }: { children: ReactNode }) {
           loading: false,
         })
 
-        if (slug) setCache(userId, slug, { orgRole, userIl, userPlan, orgId: org.id, org, avatarUrl, hasAiAddon })
+        if (slug) setCache(userId, slug, { orgRole, userIl, userDeneyapId, userPlan, orgId: org.id, org, avatarUrl, hasAiAddon })
 
       } catch (err) {
         console.error('[OrgContext] load error:', err)
@@ -234,8 +266,11 @@ export function OrgProvider({ children }: { children: ReactNode }) {
 /** Org cache'ini temizle (logout veya workspace değiştirme sırasında) */
 export function clearOrgCache(userId?: string) {
   try {
+    // Eski sürümlerin girdileri de süpürülüyor; kalırlarsa sessionStorage'da
+    // sonsuza kadar ölü veri olarak birikirlerdi.
+    const prefixler = [CACHE_PREFIX, ...ESKI_CACHE_PREFIXLERI]
     Object.keys(sessionStorage)
-      .filter(k => k.startsWith(CACHE_PREFIX) && (!userId || k.includes(userId)))
+      .filter(k => prefixler.some(p => k.startsWith(p)) && (!userId || k.includes(userId)))
       .forEach(k => sessionStorage.removeItem(k))
   } catch {}
 }

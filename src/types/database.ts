@@ -123,6 +123,10 @@ export interface Database {
           actual_hours: number | null
           sprint_id: string | null
           il: string | null
+          // 061: DENEYAP birimi. Doluysa `il` DB trigger'ı tarafından
+          // DENEYAP'ın ilinden yazılır; null ise `il` serbesttir.
+          deneyap_id: string | null
+          completed_at: string | null
           organization_id: string
           created_by: string
           created_at: string
@@ -142,6 +146,8 @@ export interface Database {
           actual_hours?: number | null
           sprint_id?: string | null
           il?: string | null
+          deneyap_id?: string | null
+          completed_at?: string | null
           organization_id: string
           created_by: string
           created_at?: string
@@ -160,6 +166,8 @@ export interface Database {
           actual_hours?: number | null
           sprint_id?: string | null
           il?: string | null
+          deneyap_id?: string | null
+          completed_at?: string | null
           organization_id?: string
           created_by?: string
           created_at?: string
@@ -295,6 +303,31 @@ export interface OrganizationMember {
   user_id: string
   role: OrgRole
   joined_at: string
+  /** 053 — üyenin sorumlu olduğu il / birim. */
+  il: string | null
+  /**
+   * 061 — üyenin bağlı olduğu DENEYAP. Kapsam kuralı (taskScope.ts) İL
+   * seviyesinde kalır; bu alan varsayılan seçim ve "DENEYAP'ım" görünümü için.
+   */
+  deneyap_id: string | null
+}
+
+/** 060 — DENEYAP birimi. Bir ilde birden fazla olabilir. */
+export interface Deneyap {
+  id: string
+  organization_id: string
+  ad: string
+  /** DB trigger'ı bu alanın DEĞİŞTİRİLMESİNİ engeller (061). */
+  il: string
+  ilce: string | null
+  kod: string | null
+  adres: string | null
+  notlar: string | null
+  /** false = kapatılmış. Silme yok, kapatma var. */
+  aktif: boolean
+  created_by: string | null
+  created_at: string
+  updated_at: string
 }
 
 export interface OrganizationInvitation {

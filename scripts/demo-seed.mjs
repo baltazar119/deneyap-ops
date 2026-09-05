@@ -75,20 +75,36 @@ function gun(n) {
 
 // PRD'deki dört durumu da kapsar: Bekliyor / Devam Ediyor / Tamamlandı / Gecikti
 // ("Gecikti" ayrı bir durum değil, termini geçmiş açık görev demek.)
+/**
+ * DENEYAP birimleri (060/061).
+ *
+ * Ankara ve İzmir'e BİLEREK ikişer DENEYAP konuyor: "bir ilde birden fazla
+ * DENEYAP" bu projenin belirleyici gereksinimi ve demoda GÖRÜNÜR olmalı.
+ * Genel Merkez görevleri `deneyap_id = null` kalıyor — kaçış kapısı da
+ * demoda çalışır durumda olsun.
+ */
+const DENEYAPLAR = [
+  { ad: 'Çankaya DENEYAP',   il: 'Ankara', ilce: 'Çankaya',   kod: 'ANK-01' },
+  { ad: 'Keçiören DENEYAP',  il: 'Ankara', ilce: 'Keçiören',  kod: 'ANK-02' },
+  { ad: 'Bornova DENEYAP',   il: 'İzmir',  ilce: 'Bornova',   kod: 'IZM-01' },
+  { ad: 'Karşıyaka DENEYAP', il: 'İzmir',  ilce: 'Karşıyaka', kod: 'IZM-02' },
+  { ad: 'Nilüfer DENEYAP',   il: 'Bursa',  ilce: 'Nilüfer',   kod: 'BRS-01' },
+]
+
 const GOREVLER = [
-  { title: 'Ankara atölyesi robotik kiti sayımı', il: 'Ankara', atanan: 'ankara@deneyap.demo',
+  { title: 'Ankara atölyesi robotik kiti sayımı', deneyap: 'Çankaya DENEYAP', il: 'Ankara', atanan: 'ankara@deneyap.demo',
     status: 'doing',   priority: 'high',     task_type: 'supply',    due: gun(4),
     description: 'Depodaki Arduino ve sensör setlerinin sayımı yapılıp merkeze raporlanacak.' },
-  { title: 'Ankara eğitmen oryantasyonu', il: 'Ankara', atanan: 'ankara@deneyap.demo',
+  { title: 'Ankara eğitmen oryantasyonu', deneyap: 'Keçiören DENEYAP', il: 'Ankara', atanan: 'ankara@deneyap.demo',
     status: 'backlog', priority: 'normal',   task_type: 'training',  due: gun(12),
     description: 'Yeni dönem eğitmenleri için yarım günlük oryantasyon programı planlanacak.' },
-  { title: 'Ankara dönem raporu', il: 'Ankara', atanan: 'ankara@deneyap.demo',
+  { title: 'Ankara dönem raporu', deneyap: 'Çankaya DENEYAP', il: 'Ankara', atanan: 'ankara@deneyap.demo',
     status: 'doing',   priority: 'critical', task_type: 'reporting', due: gun(-3),
     description: 'Geçen dönemin katılım ve tamamlanma verileri merkeze iletilecek. TERMİN GEÇTİ.' },
-  { title: 'İzmir atölye açılış etkinliği', il: 'İzmir', atanan: 'izmir@deneyap.demo',
+  { title: 'İzmir atölye açılış etkinliği', deneyap: 'Bornova DENEYAP', il: 'İzmir', atanan: 'izmir@deneyap.demo',
     status: 'doing',   priority: 'high',     task_type: 'event',     due: gun(7),
     description: 'Açılış programı, davetli listesi ve basın duyurusu hazırlanacak.' },
-  { title: 'İzmir 3D yazıcı bakımı', il: 'İzmir', atanan: 'izmir@deneyap.demo',
+  { title: 'İzmir 3D yazıcı bakımı', deneyap: 'Karşıyaka DENEYAP', il: 'İzmir', atanan: 'izmir@deneyap.demo',
     status: 'blocked', priority: 'high',     task_type: 'mechanical', due: gun(-1),
     description: 'Yedek parça tedariki beklendiği için bloke. TERMİN GEÇTİ.' },
   { title: 'İzmir katılımcı listesi güncellemesi', il: 'İzmir', atanan: 'izmir@deneyap.demo',
@@ -99,7 +115,7 @@ const GOREVLER = [
   { title: 'Ankara valilik protokol yazışması', il: 'Ankara', atanan: null,
     status: 'backlog', priority: 'high',     task_type: 'admin',     due: gun(5),
     description: 'Henüz kimseye atanmadı — il sorumlusu görüp üstlenebilmeli.' },
-  { title: 'Bursa atölyesi kurulum takibi', il: 'Bursa', atanan: null,
+  { title: 'Bursa atölyesi kurulum takibi', deneyap: 'Nilüfer DENEYAP', il: 'Bursa', atanan: null,
     status: 'backlog', priority: 'critical', task_type: 'admin',     due: gun(9),
     description: 'İl sorumlusu henüz atanmadı — merkez tarafından atanacak.' },
   { title: 'Ulusal eğitim içeriği v2 hazırlığı', il: 'Genel Merkez', atanan: 'koordinator@deneyap.demo',
@@ -214,12 +230,34 @@ async function main() {
   }
   console.log('  + uyelikler ve il atamalari yazildi')
 
-  /* 5) Görevler — demo workspace'in görevleri sıfırlanır */
+  /* 5) DENEYAP birimleri — görevlerden ÖNCE, çünkü görevler bunlara bağlanacak */
+  const deneyapIdleri = {}
+  const { error: deneyapTabloHatasi } = await db.from('deneyaplar').select('id').limit(1)
+  if (deneyapTabloHatasi) {
+    // 060/061 henüz uygulanmadıysa demo yine kurulsun: DENEYAP'sız hâli
+    // 060 öncesiyle birebir aynı çalışır. Sessiz geçmiyoruz, uyarıyoruz.
+    console.log("  ! deneyaplar tablosu yok (migration 060/061 uygulanmamis) — DENEYAP kayitlari atlandi")
+  } else {
+    await db.from('tasks').update({ deneyap_id: null }).eq('organization_id', orgId)
+    await db.from('deneyaplar').delete().eq('organization_id', orgId)
+    const { data: eklenen, error: dHata } = await db
+      .from('deneyaplar')
+      .insert(DENEYAPLAR.map(d => ({ ...d, organization_id: orgId, created_by: sahipId })))
+      .select('id, ad')
+    if (dHata) cik('DENEYAP kayitlari eklenemedi: ' + dHata.message)
+    for (const d of eklenen ?? []) deneyapIdleri[d.ad] = d.id
+    console.log(`  + ${eklenen?.length ?? 0} DENEYAP eklendi (Ankara ve Izmir'de ikiser tane)`)
+  }
+
+  /* 6) Görevler — demo workspace'in görevleri sıfırlanır */
   await db.from('tasks').delete().eq('organization_id', orgId)
 
   const satirlar = GOREVLER.map(g => ({
     organization_id: orgId,
     created_by: sahipId,
+    // deneyap_id doluysa 061'deki trigger `il`'i DENEYAP'tan yazar; burada
+    // yine de gönderiyoruz ki 060/061 uygulanmamış kurulumlarda da çalışsın.
+    deneyap_id: g.deneyap ? (deneyapIdleri[g.deneyap] ?? null) : null,
     title: g.title,
     description: g.description,
     status: g.status,
@@ -234,7 +272,7 @@ async function main() {
   if (gorevHata) cik('Görevler eklenemedi: ' + gorevHata.message)
   console.log(`  + ${satirlar.length} ornek gorev eklendi`)
 
-  /* 6) Özet */
+  /* 7) Özet */
   console.log('\nDemo hazir. Giris bilgileri:\n')
   const etiket = { owner: 'Merkez Operasyon Ekibi', admin: 'Koordinator',
                    member: 'Il Sorumlusu', viewer: 'Yetkili Yonetici' }

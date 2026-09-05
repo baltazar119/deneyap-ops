@@ -120,3 +120,37 @@ describe('taskScopeOrFilter', () => {
       .toBe(`assignee_id.eq.${BEN},il.eq."Genel Merkez"`)
   })
 })
+
+// ── Faz 3 koruması ────────────────────────────────────────────────────────
+// Kullanıcı kararı: "İl Sorumlusu kapsamı İL seviyesinde KALIR — kimse
+// gördüğü görevi kaybetmesin." `deneyap_id` eklendi ama kapsam kuralına
+// GİRMEDİ. Bu testler o kararı kilitler; taskScope'a deneyap eklemek isteyen
+// bir değişiklik burada durur.
+describe('deneyap_id kapsam kuralını DEĞİŞTİRMEZ', () => {
+  it('İl Sorumlusu, başka bir DENEYAP\'a bağlı olsa da kendi ilinin görevlerini görür', () => {
+    const gorev = { assignee_id: BASKASI, il: 'Ankara', deneyap_id: 'baska-deneyap' }
+    expect(gorevKapsamdaMi(gorev, kapsam('member', 'Ankara'))).toBe(true)
+  })
+
+  it('deneyap_id null olan görev de aynı şekilde görünür', () => {
+    const gorev = { assignee_id: BASKASI, il: 'Ankara', deneyap_id: null }
+    expect(gorevKapsamdaMi(gorev, kapsam('member', 'Ankara'))).toBe(true)
+  })
+
+  it('başka ilin görevi, DENEYAP eşleşse bile görünmez', () => {
+    const gorev = { assignee_id: BASKASI, il: 'İzmir', deneyap_id: 'ayni-deneyap' }
+    expect(gorevKapsamdaMi(gorev, kapsam('member', 'Ankara'))).toBe(false)
+  })
+
+  it('süzme sonucu deneyap_id eklenmeden öncekiyle birebir aynı', () => {
+    const gorevler = [
+      { id: 'a', assignee_id: BASKASI, il: 'Ankara', deneyap_id: 'd1' },
+      { id: 'b', assignee_id: BASKASI, il: 'İzmir',  deneyap_id: 'd2' },
+      { id: 'c', assignee_id: BEN,     il: 'İzmir',  deneyap_id: null },
+    ]
+    const deneyapsiz = gorevler.map(({ deneyap_id: _yok, ...g }) => g)
+    const kap = kapsam('member', 'Ankara')
+    expect(kapsamaGoreSuz(gorevler, kap).map(g => g.id))
+      .toEqual(kapsamaGoreSuz(deneyapsiz, kap).map(g => g.id))
+  })
+})

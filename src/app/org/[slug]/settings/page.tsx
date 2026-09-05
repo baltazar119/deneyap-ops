@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { useOrg } from '@/lib/supabase/orgContext'
@@ -335,6 +336,26 @@ export default function SettingsPage() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* DENEYAP'lar — ayrı ekran */}
+        {isAdmin && (
+          <Link
+            href={`/org/${org?.slug}/settings/deneyaplar`}
+            className="block bg-white rounded-2xl border border-[#e5e7eb] p-6 hover:border-[#5eead4] transition-colors"
+            style={{ textDecoration: 'none' }}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="font-semibold text-[#0d1a2a]">DENEYAP&apos;lar</h2>
+                <p className="text-sm text-[#6b7280] mt-1">
+                  Birimleri tanımlayın. Bir ilde birden fazla DENEYAP olabilir; görevler,
+                  raporlar ve harita bu listeye göre kırılır.
+                </p>
+              </div>
+              <span className="text-lg shrink-0" style={{ color: '#9ca3af' }} aria-hidden="true">›</span>
+            </div>
+          </Link>
         )}
 
         {/* Genel ayarlar */}
