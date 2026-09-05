@@ -75,31 +75,14 @@ export default function OperasyonRiskPage() {
           subtitle={`${org?.name} · mevcut görev ve sprint verisinden otomatik hesaplanır`}
         />
 
-        {/* ── Durum özeti — soyut bir skor yerine ne yapılması gerektiğini söyleyen tek cümle ── */}
+        {/* ── Durum özeti — tek cümle, sayı yok; detaylar zaten aşağıdaki listelerde ── */}
         <div
           className="rounded-2xl p-5 sm:p-6 mb-5"
           style={{ background: 'linear-gradient(135deg, #0d1a2a 0%, #1a2f45 100%)', border: '1px solid rgba(122,207,230,0.15)' }}
         >
-          <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: 'rgba(122,207,230,0.55)' }}>
-            Durum
-          </p>
           <p className="text-lg sm:text-xl font-bold text-white leading-snug">
             {sonuc.headline}
           </p>
-          {!sakin && (
-            <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-              {[
-                ['Termini geçen', sonuc.counts.overdue],
-                ['Bloke', sonuc.counts.blocked],
-                ['Atanmamış kritik', sonuc.counts.unassignedCritical],
-                ['Aşırı yüklü üye', sonuc.counts.overloaded],
-              ].filter(([, n]) => (n as number) > 0).map(([etiket, n]) => (
-                <span key={etiket as string} className="text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>
-                  <strong style={{ color: 'rgba(255,255,255,0.85)' }}>{n}</strong> {etiket}
-                </span>
-              ))}
-            </div>
-          )}
         </div>
 
         {sakin ? (
