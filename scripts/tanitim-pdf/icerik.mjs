@@ -12,7 +12,7 @@ export const KAPAK = {
     'İl ve birim operasyonlarının merkezden planlanması, görev takibi, ' +
     'termin uyarıları ve rol bazlı raporlama için geliştirilen web uygulaması',
   etiketler: ['T3 Vakfı Yapay Zekâ Creathon', 'Proje Tanıtım ve Teknik Dokümanı'],
-  tarih: '27 Ağustos 2026',
+  tarih: '5 Eylül 2026',
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -217,14 +217,14 @@ export const BOLUM_2 = {
       baslik: 'Proje Büyüklüğü',
       bloklar: [
         { tip: 'tablo', basliklar: ['Ölçüt', 'Değer'], satirlar: [
-          ['TypeScript / TSX satır sayısı', '41.549'],
+          ['TypeScript / TSX satır sayısı', '41.712'],
           ['Uygulama sayfası', '32'],
           ['API uç noktası', '58'],
           ['Yardımcı kütüphane modülü', '64'],
           ['Veritabanı migration dosyası', '58'],
           ['Veritabanı tablosu', '38'],
           ['Satır bazlı güvenlik politikası', '235'],
-          ['Otomatik test', '173 test / 12 dosya'],
+          ['Otomatik test', '181 test / 12 dosya'],
         ]},
       ],
     },
@@ -377,16 +377,23 @@ export const BOLUM_2 = {
       baslik: 'Test Yaklaşımı',
       bloklar: [
         { tip: 'p', metin:
-          '12 dosyada toplam 173 otomatik test bulunur. Testler arayüzü değil, hatanın ' +
+          '12 dosyada toplam 181 otomatik test bulunur. Testler arayüzü değil, hatanın ' +
           'sessizce oluşabileceği saf mantık birimlerini hedefler: rol kapsamı, Türkçe ' +
           'metin normalleştirme, sütun eşleştirme, değer dönüşümleri, rapor hesaplamaları ' +
           've e-posta şablonlarının kaçırma davranışı.' },
-        { tip: 'p', metin: 'Testlerin geliştirme sırasında yakaladığı gerçek hatalardan örnekler:' },
+        { tip: 'p', metin: 'Testlerin ve elle yapılan tarayıcı turlarının yakaladığı gerçek hatalardan örnekler:' },
         { tip: 'liste', maddeler: [
           'Yetkili Yönetici raporunda sorumlu kırılımı gizlenmiş olmasına rağmen gecikme listesindeki satırlarda kişi adlarının görünmeye devam etmesi',
           'E-posta şablonunda geçerli bir yol ile başlamayan bir bağlantının uygulama adresiyle birleştirilerek çalıştırılabilir bir adrese dönüşmesi',
           'Excel şablonunda yardımcı sayfanın ilk sıraya gelmesi ve hem kullanıcıya hem okuyucuya yanlış sayfayı göstermesi',
+          '"Üye Profili" sayfasının yanlış bir yetki kaynağı yüzünden hiçbir rol tarafından açılamaması — kod derleniyordu, tip kontrolü geçiyordu, yalnızca gerçek bir oturumla denenince ortaya çıktı',
+          '"Panelim" sayfasının (İl Sorumlusunun günlük kullandığı ekran) bir React kapanışı bayatlığı yüzünden sessizce çökmesi — arayüz sonsuza dek yükleniyor gibi görünüyordu',
         ]},
+        { tip: 'p', metin:
+          'Bu son iki hata otomatik testlerle yakalanamazdı — ikisi de yalnızca gerçek bir ' +
+          'oturumla, gerçek bir role girip sayfayı fiilen açmakla ortaya çıktı. Bu yüzden ' +
+          'kod incelemesinin yanında dört rolün her biriyle 21 ekranı tek tek dolaşan bir ' +
+          'mobil doğrulama turu ayrıca yapıldı (bkz. Bölüm 2.2).' },
         { tip: 'p', metin:
           'Bunun yanında canlı ortamda çalışan doğrulama betikleri bulunur: dağıtım ' +
           'sonrası kontrol betiği, içe aktarma ve rapor uçlarını uçtan uca deneyen ' +
@@ -415,7 +422,7 @@ export const BOLUM_2 = {
       bloklar: [
         { tip: 'tablo', basliklar: ['Konu', 'Durum'], satirlar: [
           ['Google OAuth güvenlik kalemleri', 'Bilinen teknik borç; kapsam dışı bırakıldı'],
-          ['Tüm ekranların sistematik responsive testi', 'Kısmen yapıldı; tam tur planlandı'],
+          ['Mobil responsive tur', 'Tamamlandı — 21 ekran, 3 rol, gerçek cihaz genişliğinde tek tek test edildi'],
           ['PWA ikonları ve manifest', 'Eklenmedi'],
           ['WhatsApp kanalı', 'Arayüz hazır, etkinleştirilmedi'],
           ['Yasal metinlerin hukuki onayı', 'Metinler hazır; kurum onayı bekleniyor'],
