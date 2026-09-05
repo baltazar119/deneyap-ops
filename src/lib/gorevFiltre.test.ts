@@ -1,5 +1,8 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
-import { gorevleriSuz, type GorevFiltreDegerleri } from './useGorevFiltreleri'
+import {
+  gorevleriSuz, urlSorgusuKur, aktifFiltreSayisi, ATANMAMIS,
+  type GorevFiltreDegerleri,
+} from './useGorevFiltreleri'
 import { gecikmisMi, yaklasanMi } from './gorevTermin'
 import type { Task } from '@/types/database'
 
@@ -97,5 +100,62 @@ describe('filtreler birlikte AND olarak uygulanır', () => {
 
   it('çelişen filtreler boş sonuç verir', () => {
     expect(gorevleriSuz(GOREVLER, f({ il: 'İzmir', termin: 'geciken' }))).toEqual([])
+  })
+})
+
+describe('Atanmamış filtresi (Faz 2 düzeltmesi)', () => {
+  // Faz 2 öncesi bu seçenek boş metin gönderiyordu; `assignee_id` null olduğu
+  // için hiçbir görevle eşleşmiyor, liste sessizce boşalıyordu.
+  it('ATANMAMIS sabiti sahipsiz görevleri getirir', () => {
+    const g = [
+      gorev({ id: 'sahipsiz', assignee_id: null }),
+      gorev({ id: 'sahipli', assignee_id: 'user-1' }),
+    ]
+    expect(idler(gorevleriSuz(g, f({ assignee: ATANMAMIS })))).toEqual(['sahipsiz'])
+  })
+
+  it('boş metin ATANMAMIS ile karıştırılmaz — il filtresinin boş değeri ayrı bir semantik', () => {
+    expect(ATANMAMIS).not.toBe('')
+  })
+})
+
+describe('URL sorgusu', () => {
+  it('varsayılanlar URL e yazılmaz', () => {
+    expect(urlSorgusuKur(f(), 'tumu', '', 'tumu')).toBe('')
+  })
+
+  it('il in boş değeri korunur (?il= "il atanmamış" demek)', () => {
+    expect(urlSorgusuKur(f({ il: '' }), 'tumu', '', 'tumu')).toBe('il=')
+  })
+
+  it('varsayılan görünüm yazılmaz, farklı olan yazılır', () => {
+    expect(urlSorgusuKur(f(), 'bana', '', 'bana')).toBe('')
+    expect(urlSorgusuKur(f(), 'gecikenler', '', 'tumu')).toBe('gorunum=gecikenler')
+  })
+
+  it('arama sorgusu kırpılarak yazılır, boşsa yazılmaz', () => {
+    expect(urlSorgusuKur(f(), 'tumu', '  ankara  ', 'tumu')).toBe('q=ankara')
+    expect(urlSorgusuKur(f(), 'tumu', '   ', 'tumu')).toBe('')
+  })
+
+  it('birden fazla filtre birlikte serileşir', () => {
+    const sorgu = urlSorgusuKur(f({ il: 'Ankara', termin: 'geciken' }), 'tumu', '', 'tumu')
+    const p = new URLSearchParams(sorgu)
+    expect(p.get('il')).toBe('Ankara')
+    expect(p.get('termin')).toBe('geciken')
+  })
+})
+
+describe('aktifFiltreSayisi — "Filtrele · 3" rozeti', () => {
+  it('varsayılanda sıfır', () => {
+    expect(aktifFiltreSayisi(f())).toBe(0)
+  })
+
+  it('boş il değeri de aktif bir filtredir', () => {
+    expect(aktifFiltreSayisi(f({ il: '' }))).toBe(1)
+  })
+
+  it('her varsayılandan sapma bir sayılır', () => {
+    expect(aktifFiltreSayisi(f({ il: 'Ankara', termin: 'geciken', status: 'doing' }))).toBe(3)
   })
 })

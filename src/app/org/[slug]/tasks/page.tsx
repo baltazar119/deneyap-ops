@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { kapsamaGoreSuz } from '@/lib/taskScope'
 import { raporGorebilirMi, yazabilirMi } from '@/lib/roller'
 import { useRouter } from 'next/navigation'
@@ -13,6 +13,9 @@ import { useOrg } from '@/lib/supabase/orgContext'
 import { useIsMobile } from '@/lib/useIsMobile'
 import { getCachedData, setCachedData } from '@/lib/pageDataCache'
 import { useGorevFiltreleri, gorevleriSuz } from '@/lib/useGorevFiltreleri'
+import { gorevleriGorunumeGoreSuz, gorulebilirGorunumler, type GorunumBaglami } from '@/lib/gorevGorunumleri'
+import { aranabilirMetin, aramaTokenlari, aramaEslesirMi } from '@/lib/gorevArama'
+import GorevAramaVeGorunumler from './_components/GorevAramaVeGorunumler'
 import GorevFiltrePaneli from './_components/GorevFiltrePaneli'
 import GorevListesi from './_components/GorevListesi'
 import GorevFormModal, { type GorevFormPayload } from './_components/GorevFormModal'
@@ -29,6 +32,10 @@ type TasksPageCache = { tasks: TaskWithAssignee[]; members: Profile[]; sprints: 
  * ağaç: bölümler `_components/` altında, filtre durumu
  * `lib/useGorevFiltreleri.ts`'te. `useIsMobile` yalnızca DOM'un gerçekten
  * farklılaştığı yerde (FAB ↔ düğme, kart ↔ satır) kullanılıyor.
+ *
+ * Faz 2'de sürekli ekranda duran kontrol sayısı 11'den 3'e indi: hazır
+ * görünümler, arama ve tek "Filtrele" düğmesi. Detaylar rozetli düğmenin
+ * arkasındaki panelde ve artık iki breakpoint'te de AYNI küme.
  */
 export default function TasksPage() {
   const router = useRouter()
@@ -45,10 +52,21 @@ export default function TasksPage() {
   const [sprints, setSprints] = useState<Sprint[]>(_initCache?.sprints ?? [])
   const [loading, setLoading] = useState(_initCache === null)
 
-  const { filtreler, ayarla, temizle, aktifMi } = useGorevFiltreleri()
+  // Görünümler role bağlı: İl Sorumlusu "Bana atananlar" ile açılır,
+  // "Atanmamış" görünümünü yalnızca atama yetkisi olanlar görür.
+  const gorunumBaglami: GorunumBaglami = useMemo(
+    () => ({ role: orgRole ?? null, userId: userId ?? '', userIl: userIl ?? null }),
+    [orgRole, userId, userIl],
+  )
+
+  const {
+    filtreler, ayarla, temizle, filtreSayisi,
+    gorunum, setGorunum, q, setQ, qUygulanan,
+  } = useGorevFiltreleri(gorunumBaglami)
 
   const [showForm, setShowForm] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
+  const [filtrePaneliAcik, setFiltrePaneliAcik] = useState(false)
 
   const loadTasks = useCallback(async () => {
     if (!org) return
@@ -253,7 +271,36 @@ export default function TasksPage() {
     new Set(gorunurTasks.map(t => t.il).filter((il): il is string => !!il))
   ).sort((a, b) => a.localeCompare(b, 'tr'))
 
-  const filteredTasks = gorevleriSuz(gorunurTasks, filtreler)
+  // Süzme sırası: kapsam → filtreler → arama → görünüm.
+  // Görünüm en sonda çünkü chip sayaçları "bu görünüme geçersem, ŞU ANKİ
+  // filtre ve aramayla kaç görev görürüm" sorusunu yanıtlamalı.
+  const filtrelenmis = gorevleriSuz(gorunurTasks, filtreler)
+
+  // Katlanmış metinler görev listesi değişince hesaplanır; her tuş vuruşunda
+  // yeniden katlamak arama kutusunu takılmalı hissettiriyordu.
+  const aramaMetinleri = useMemo(() => {
+    const harita = new Map<string, string>()
+    for (const t of gorunurTasks) harita.set(t.id, aranabilirMetin(t))
+    return harita
+  }, [gorunurTasks])
+
+  const arananlar = useMemo(() => {
+    const tokenlar = aramaTokenlari(qUygulanan)
+    if (tokenlar.length === 0) return filtrelenmis
+    return filtrelenmis.filter(t => aramaEslesirMi(aramaMetinleri.get(t.id) ?? '', tokenlar))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtrelenmis, qUygulanan, aramaMetinleri])
+
+  const filteredTasks = gorevleriGorunumeGoreSuz(arananlar, gorunum, gorunumBaglami)
+
+  const gorunumSayaclari = useMemo(() => {
+    const s: Record<string, number> = {}
+    for (const g of gorulebilirGorunumler(gorunumBaglami)) {
+      s[g.id] = gorevleriGorunumeGoreSuz(arananlar, g.id, gorunumBaglami).length
+    }
+    return s
+  }, [arananlar, gorunumBaglami])
+
   const yazabilir = yazabilirMi(orgRole)
 
   if (loading) {
@@ -271,62 +318,49 @@ export default function TasksPage() {
 
   return (
     <div className="min-h-screen pb-20 md:pb-0 bg-[#f0f4f8] md:bg-[#f5f7fa]">
-      <main className="w-full md:px-6 md:py-5">
+      <main className="w-full px-4 py-4 md:px-6 md:py-5">
 
-        {/* ── Başlık (mobil) ── */}
-        <div className="md:hidden" style={{ background: '#fff', padding: '14px 16px 0', borderBottom: '1px solid #e5e7eb' }}>
-          <div style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 18, fontWeight: 800, color: '#111827', letterSpacing: '-0.02em' }}>Görevler</div>
-            <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 2 }}>
-              {filteredTasks.length} görev
-              {filtreler.status !== 'all' && ` · ${STATUS_OPTIONS.find(s => s.value === filtreler.status)?.label}`}
-            </div>
-          </div>
-          {/* Durum sekmeleri panelin mobil bölümünde; kutunun içinde kalmalı */}
-          <GorevFiltrePaneli
-            gorunurTasks={gorunurTasks}
-            filtreler={filtreler} ayarla={ayarla} temizle={temizle} aktifMi={aktifMi}
-            kullanilanIller={kullanilanIller} members={members}
-            sadeceDurumSekmeleri
-          />
-        </div>
-
-        {/* ── Başlık (masaüstü) ── */}
-        <div className="hidden md:flex items-center justify-between mb-5">
-          <div>
-            <h1 className="text-xl font-bold" style={{ color: '#111827', letterSpacing: '-0.02em' }}>Görevler</h1>
-            <p className="text-sm mt-0.5" style={{ color: '#9ca3af' }}>
+        {/* ── Başlık ── */}
+        <div className="flex items-center justify-between gap-3 mb-4 md:mb-5">
+          <div className="min-w-0">
+            <h1 className="text-lg md:text-xl font-bold" style={{ color: '#111827', letterSpacing: '-0.02em' }}>Görevler</h1>
+            <p className="text-xs md:text-sm mt-0.5" style={{ color: '#9ca3af' }}>
               {gorunurTasks.length} görev
               {filteredTasks.length !== gorunurTasks.length && <span> · <span style={{ color: '#2288c9' }}>{filteredTasks.length} gösteriliyor</span></span>}
             </p>
           </div>
+          {/* Masaüstünde başlıkta düğmeler, mobilde FAB — mobilde başlık
+              satırına iki düğme sığmıyor. */}
           {yazabilir && (
-            <Link
-              href={`/org/${org?.slug}/tasks/import`}
-              className="flex items-center gap-1.5 text-sm font-medium px-4 py-2 rounded-xl transition-colors"
-              style={{ background: '#fff', color: '#0f766e', border: '1px solid #5eead4', textDecoration: 'none' }}
-            >
-              Excel&apos;den İçe Aktar
-            </Link>
-          )}
-          {yazabilir && (
-            <button
-              onClick={openCreateForm}
-              className="flex items-center gap-1.5 text-sm font-medium px-4 py-2 rounded-xl transition-colors"
-              style={{ background: '#2288c9', color: '#fff' }}
-              onMouseEnter={e => { e.currentTarget.style.background = '#1d78b8' }}
-              onMouseLeave={e => { e.currentTarget.style.background = '#2288c9' }}
-            >
-              + Görev Oluştur
-            </button>
+            <div className="hidden md:flex items-center gap-2 shrink-0">
+              <Link
+                href={`/org/${org?.slug}/tasks/import`}
+                className="flex items-center gap-1.5 text-sm font-medium px-4 py-2 rounded-xl transition-colors"
+                style={{ background: '#fff', color: '#0f766e', border: '1px solid #5eead4', textDecoration: 'none' }}
+              >
+                Excel&apos;den İçe Aktar
+              </Link>
+              <button
+                onClick={openCreateForm}
+                className="flex items-center gap-1.5 text-sm font-medium px-4 py-2 rounded-xl transition-colors"
+                style={{ background: '#2288c9', color: '#fff' }}
+                onMouseEnter={e => { e.currentTarget.style.background = '#1d78b8' }}
+                onMouseLeave={e => { e.currentTarget.style.background = '#2288c9' }}
+              >
+                + Görev Oluştur
+              </button>
+            </div>
           )}
         </div>
 
-        {/* ── Filtreler ── */}
-        <GorevFiltrePaneli
-          gorunurTasks={gorunurTasks}
-          filtreler={filtreler} ayarla={ayarla} temizle={temizle} aktifMi={aktifMi}
-          kullanilanIller={kullanilanIller} members={members}
+        {/* ── Görünümler + arama + Filtrele ── */}
+        <GorevAramaVeGorunumler
+          baglam={gorunumBaglami}
+          gorunum={gorunum} setGorunum={setGorunum}
+          q={q} setQ={setQ}
+          sayaclar={gorunumSayaclari}
+          filtreSayisi={filtreSayisi}
+          onFiltreAc={() => setFiltrePaneliAcik(true)}
         />
 
         {/* ── Liste ── */}
@@ -352,6 +386,15 @@ export default function TasksPage() {
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </button>
       )}
+
+      <GorevFiltrePaneli
+        acik={filtrePaneliAcik}
+        onKapat={() => setFiltrePaneliAcik(false)}
+        gorunurTasks={gorunurTasks}
+        filtreler={filtreler} ayarla={ayarla} temizle={temizle}
+        filtreSayisi={filtreSayisi}
+        kullanilanIller={kullanilanIller} members={members}
+      />
 
       <GorevFormModal
         open={showForm}

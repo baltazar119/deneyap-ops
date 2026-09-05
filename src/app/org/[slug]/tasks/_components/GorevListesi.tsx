@@ -25,7 +25,7 @@ export default function GorevListesi({ gorevler, slug, sprints, yazabilir, onEdi
 
   if (isMobile) {
     return (
-      <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div className="flex flex-col gap-2">
         {gorevler.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '48px 0', color: '#9ca3af' }}>
             <div style={{ fontSize: 32, marginBottom: 8 }}>📭</div>
