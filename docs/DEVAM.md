@@ -8,7 +8,7 @@ Ayrıntılı 14 fazlık plan: **[docs/YOL-HARITASI.md](YOL-HARITASI.md)**
 ## Yeni oturumda ilk mesaj olarak şunu yaz
 
 > Proje: `C:\Users\Abdulgazi\Desktop\DENEYAP-Ops`
-> `docs/DEVAM.md` ve `docs/YOL-HARITASI.md` dosyalarını oku, Faz 2'den devam et.
+> `docs/DEVAM.md` ve `docs/YOL-HARITASI.md` dosyalarını oku, Faz 3'ten devam et.
 >
 > ÖNEMLİ KURAL: `C:\Users\Abdulgazi\Desktop\Tarlis-uygulama-main` klasörüne
 > HİÇBİR değişiklik yapma — o ayrı bir proje, sadece bu klasörle çalış.
@@ -37,8 +37,8 @@ Workspace slug: `deneyap-demo`
 
 ## Şu anki durum
 
-Son commit: `27f41c5`. Çalışma ağacı temiz.
-`npx tsc --noEmit` temiz · **217 test yeşil** · `npx next build` başarılı.
+Son commit: `cd5bd42`. Çalışma ağacı temiz, GitHub ile senkron.
+`npx tsc --noEmit` temiz · **251 test yeşil** · `npx next build` başarılı.
 
 ### Faz 0 — TAMAMLANDI (3 commit)
 
@@ -83,25 +83,55 @@ testler de kaçırdı, yalnızca ekran görüntüsüyle görüldü.*
 
 `useIsMobile` yalnızca iki yerde kaldı: kart↔satır ve FAB↔düğme.
 
-### Sırada: Faz 2 — Görevler UX
+### Faz 2 — TAMAMLANDI (commit `cd5bd42`)
 
-YOL-HARITASI.md Faz 2. Hazır görünümler, arama, tek "Filtrele" düğmesi
-(`Filtrele · 3` rozetiyle), mobil durum sekmelerinin filtre paneline taşınması,
-URL'e `?gorunum=` / `?q=` eklenmesi.
+Sürekli ekranda duran kontrol sayısı **11 → 3**: görünüm satırı, arama,
+"Filtrele" düğmesi. Mobil ve masaüstü artık **aynı kontrol kümesini** gösteriyor.
 
-Faz 1'den devralınan iki iskele:
-- `GorevFiltrePaneli`'nin **`sadeceDurumSekmeleri`** bayrağı — mobilde durum
-  sekmeleri beyaz başlık kutusunun içinde kaldığı için panel iki parça halinde
-  yerleştiriliyor. Sekmeler filtre paneline taşınınca bu bayrak kalkacak.
-- Yol haritasındaki **`GorevAramaVeGorunumler`** bileşeni Faz 1'de
-  oluşturulmadı: arama ve hazır görünümler henüz yok, boş bir bileşen eklemek
-  davranış eklemek olurdu. Faz 2'de yazılacak.
+| Ne | Nerede |
+|---|---|
+| Hazır görünümler (saf, test edilir) | `lib/gorevGorunumleri.ts` |
+| Arama — `trFold` token AND | `lib/gorevArama.ts` |
+| Görünüm + arama + Filtrele çubuğu | `_components/GorevAramaVeGorunumler.tsx` |
+| Filtre paneli → `ResponsiveModal`, etiketli gruplar | `_components/GorevFiltrePaneli.tsx` |
+| URL senkronu + `ATANMAMIS` sabiti | `lib/useGorevFiltreleri.ts` |
+| 34 yeni test (görünüm, arama, URL, rozet) | `lib/gorev*.test.ts` |
 
-**Bilinen, Faz 1 öncesinden gelen davranış** (kasten korundu, düzeltilmedi):
-masaüstü "Atanan Üye" filtresindeki **"Atanmamış"** seçeneği `''` değeri
-gönderiyor, `assignee_id` ise `null` → hiçbir şey eşleşmiyor, liste boşalıyor.
-Faz 1 davranışı değiştirmeme kuralı gereği aynen bırakıldı; **Faz 2'de
-düzeltilmeli** (`?il=`'in boş-değer semantiği gibi ayrı bir "atanmamış" sabiti).
+**Görünümler:** Tümü · Bana atananlar · Gecikenler · Bu hafta ·
+"*İl* görevleri" (yalnız İl Sorumlusu) · Atanmamış (yalnız owner/admin).
+Varsayılan: `member` → Bana atananlar, diğerleri → Tümü. Bilinmeyen ya da rolün
+göremeyeceği `?gorunum=` değeri **sessizce varsayılana düşer** — boş liste gibi
+görünüp kullanıcıyı yanıltmaz. Chip sayaçları "bu görünüme geçersem şu anki
+filtre ve aramayla kaç görev görürüm" sorusunu yanıtlar.
+
+**Arama:** başlık, açıklama, il ve atanan adı; 150ms debounce; katlanmış
+metinler `useMemo` ile önceden hesaplanıyor.
+
+**URL:** `?il=` (boş-değer semantiği korunarak) · `?durum=` `?oncelik=` `?tur=`
+`?termin=` `?atanan=` `?gorunum=` `?q=`. `router.replace` + `scroll:false`,
+varsayılanlar URL'e yazılmaz.
+
+**Düzeltilen hata:** "Atanmamış" filtresi boş metin gönderiyordu, `assignee_id`
+`null` olduğu için hiçbir görevle eşleşmiyor ve **liste sessizce boşalıyordu**.
+Artık ayrı `ATANMAMIS` sabiti var. `il`'in boş değeri URL'de anlamlı olduğu için
+orada bilerek korundu — ikisi farklı semantik.
+
+### Sırada: Faz 3 — DENEYAP veri modeli
+
+YOL-HARITASI.md Faz 3. **Migration 060** (`tr_fold` + `deneyaplar` tablosu) ve
+**061** (`tasks.deneyap_id`, `organization_members.deneyap_id` + iki trigger).
+
+Faz 2'den devralınan bağlantı noktaları:
+- **Görünüm eklemek artık tek yerde:** `lib/gorevGorunumleri.ts` içindeki
+  `GORUNUMLER` dizisine bir kayıt. Faz 4'ün "DENEYAP'ım" görünümü buraya girecek.
+- **Filtre eklemek:** `GorevFiltreDegerleri`'ne alan + `gorevleriSuz`'a bir satır
+  + `urlSorgusuKur`'a bir satır + panele bir grup. `?deneyap=` böyle eklenecek.
+- **Arama alanı eklemek:** `aranabilirMetin`'e DENEYAP adını katmak yeterli.
+
+**Faz 3 kuralları (yol haritasından, unutulmasın):** backfill migration YOK ·
+`taskScope.ts` değişmez · DENEYAP'ın `il`'i trigger ile **değiştirilemez**
+(fingerprint kayması → kopya görev) · çapraz-org `deneyap_id` enjeksiyonuna karşı
+trigger'da org eşleşme kontrolü · `orgContext` `CACHE_PREFIX` **v2→v3**.
 
 ---
 
