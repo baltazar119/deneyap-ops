@@ -62,7 +62,6 @@ export default function VoiceRoom({ orgId, userId, profileMap, supabase }: Props
       // eşik mikrofon/ortama göre hiç aşılmayabiliyordu. Zaman-domain sinyalin
       // gerçek genliğini (RMS) ölçmek çok daha güvenilir bir konuşma tespiti.
       const data = new Uint8Array(analyser.fftSize)
-      let consecutiveQuiet = 0
       const timer = window.setInterval(() => {
         analyser.getByteTimeDomainData(data)
         let sumSquares = 0
@@ -71,11 +70,14 @@ export default function VoiceRoom({ orgId, userId, profileMap, supabase }: Props
           sumSquares += normalized * normalized
         }
         const rms = Math.sqrt(sumSquares / data.length)
-        const loudEnough = rms > 0.02
-        // Kısa sessizliklerde (kelimeler arası) çerçevenin titreşmemesi için
-        // ancak birkaç ardışık sessiz ölçümden sonra "konuşmuyor" say.
-        consecutiveQuiet = loudEnough ? 0 : consecutiveQuiet + 1
-        const isSpeaking = loudEnough || consecutiveQuiet < 3
+        // 0.02'lik eşik gerçek mikrofonlarda (oda gürültüsü, fan sesi, mikrofon
+        // taban gürültüsü) sürekli aşılabiliyordu. Daha kötüsü: eklenen "birkaç
+        // ardışık sessiz ölçümden sonra söndür" mantığı, gürültü 300ms içinde
+        // bir kez bile eşiği geçtiğinde sayacı sıfırlıyor ve ışık asla sönmüyordu
+        // — konuşma bitse de kalıcı yeşil kalma hatası buradan geliyordu. Eşiği
+        // gürültü tabanının üstüne çıkarıp gecikmeli/sticky mantığı kaldırdık:
+        // anlık RMS'e göre direkt karar veriliyor.
+        const isSpeaking = rms > 0.055
         setSpeaking(prev => {
           const already = prev.includes(streamUserId)
           if (isSpeaking && !already) return [...prev, streamUserId]
@@ -176,7 +178,13 @@ export default function VoiceRoom({ orgId, userId, profileMap, supabase }: Props
     // 2. Request microphone access
     let stream: MediaStream
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+      stream = await navigator.mediaDevices.getUserMedia({
+        // autoGainControl kapalı: sessizlikte mikrofon kazancını otomatik
+        // yükseltip taban gürültüsünü abartıyor, bu da RMS tabanlı konuşma
+        // tespitinin (yeşil çerçeve) kararsız çalışmasına yol açıyordu.
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false },
+        video: false,
+      })
     } catch (err: unknown) {
       const name = (err as { name?: string })?.name ?? 'UnknownError'
       const msg = (err as { message?: string })?.message ?? ''
