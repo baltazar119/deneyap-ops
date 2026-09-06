@@ -78,6 +78,21 @@ export function raporGorebilirMi(role: OrgRole | null | undefined): boolean {
   return role === 'owner' || role === 'admin' || role === 'viewer'
 }
 
+/**
+ * Görev LİSTESİNİ görebilen roller — İl Sorumlusu dahil.
+ *
+ * `raporGorebilirMi`'den AYRI bir kural olmasının sebebi: onu genişletmek
+ * Panel'i (`dashboard`) ve Operasyon Riski'ni de sessizce açardı; ikisi de
+ * org genelinde toplu veri gösteriyor ve İl Sorumlusuna kapalı olmalı.
+ * Yetki genişletmesi tek bir ekranla sınırlı kalsın diye ayrı fonksiyon.
+ *
+ * İl Sorumlusu bu listeyi görür ama kapsamı `taskScope.ts` ile kendi iliyle
+ * sınırlıdır ve `yazabilirMi` false olduğu için salt okunurdur.
+ */
+export function gorevListesiGorebilirMi(role: OrgRole | null | undefined): boolean {
+  return raporGorebilirMi(role) || role === 'member'
+}
+
 /** Salt-okunur rol — arayüzde tüm aksiyon butonları gizlenir */
 export function saltOkunurMu(role: OrgRole | null | undefined): boolean {
   return role === 'viewer'

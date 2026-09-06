@@ -161,24 +161,34 @@ export default function GorevSatiri({
 
       <div className="flex items-center gap-2 shrink-0">
         <StatusBadge status={task.status} />
-        <button
-          onClick={() => onEdit(task)}
-          className="text-xs px-2.5 py-1 rounded-lg font-medium"
-          style={{ color: '#2288c9', background: '#eff6ff', border: '1px solid #dbeafe', display: yazabilir ? undefined : 'none' }}
-          onMouseEnter={e => { e.currentTarget.style.background = '#dbeafe' }}
-          onMouseLeave={e => { e.currentTarget.style.background = '#eff6ff' }}
-        >
-          Düzenle
-        </button>
-        <button
-          onClick={() => onDelete(task.id)}
-          className="text-xs px-2.5 py-1 rounded-lg font-medium"
-          style={{ color: '#dc2626', background: '#fff1f1', border: '1px solid #fecaca', display: yazabilir ? undefined : 'none' }}
-          onMouseEnter={e => { e.currentTarget.style.background = '#fee2e2' }}
-          onMouseLeave={e => { e.currentTarget.style.background = '#fff1f1' }}
-        >
-          Sil
-        </button>
+        {/*
+          Salt okunur rollerde (Yetkili Yönetici, İl Sorumlusu) düğmeler HİÇ
+          render edilmiyor. Önceden `display: none` ile gizleniyorlardı; DOM'da
+          duran bir "Sil" düğmesi, listesi artık İl Sorumlusuna da açık olan bu
+          ekranda gereksiz bir davet. RLS zaten engelliyor, bu ek katman.
+        */}
+        {yazabilir && (
+          <>
+            <button
+              onClick={() => onEdit(task)}
+              className="text-xs px-2.5 py-1 rounded-lg font-medium"
+              style={{ color: '#2288c9', background: '#eff6ff', border: '1px solid #dbeafe' }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#dbeafe' }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#eff6ff' }}
+            >
+              Düzenle
+            </button>
+            <button
+              onClick={() => onDelete(task.id)}
+              className="text-xs px-2.5 py-1 rounded-lg font-medium"
+              style={{ color: '#dc2626', background: '#fff1f1', border: '1px solid #fecaca' }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#fee2e2' }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#fff1f1' }}
+            >
+              Sil
+            </button>
+          </>
+        )}
       </div>
     </div>
   )

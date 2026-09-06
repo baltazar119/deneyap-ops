@@ -3,8 +3,8 @@
 export const dynamic = 'force-dynamic'
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
-import { kapsamaGoreSuz } from '@/lib/taskScope'
-import { raporGorebilirMi, yazabilirMi } from '@/lib/roller'
+import { kapsamaGoreSuz, applyTaskScope, type TaskScope } from '@/lib/taskScope'
+import { gorevListesiGorebilirMi, yazabilirMi } from '@/lib/roller'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
@@ -83,11 +83,16 @@ export default function TasksPage() {
 
   const loadTasks = useCallback(async () => {
     if (!org) return
-    const { data: tasksData } = await supabase
+    // Kapsam SORGUDA da uygulanıyor: İl Sorumlusu org'un tamamını indirip
+    // istemcide süzmemeli. `kapsamaGoreSuz` yine de duruyor — sorgu ile
+    // gösterim tek kuraldan beslensin ve biri atlanırsa diğeri yakalasın.
+    let q = supabase
       .from('tasks')
       .select('*')
       .eq('organization_id', org.id)
       .order('created_at', { ascending: false })
+    q = applyTaskScope(q, { role: orgRole!, userId: userId ?? '', il: userIl })
+    const { data: tasksData } = await q
 
     const enriched: TaskWithAssignee[] = (tasksData || []).map((t: Task) => ({
       ...t,
@@ -95,15 +100,17 @@ export default function TasksPage() {
     }))
     setTasks(enriched)
     return enriched
-  }, [org, members])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [org, members, orgRole, userId, userIl])
 
   useEffect(() => {
     if (orgLoading) return
     if (!org || !userId) return
 
-    // Yetkili Yönetici (viewer) listeyi salt okunur görebilir; yazma
-    // aksiyonları aşağıda yazabilirMi() ile gizleniyor, RLS de engelliyor.
-    if (!raporGorebilirMi(orgRole)) {
+    // Yetkili Yönetici (viewer) ve İl Sorumlusu (member) listeyi salt okunur
+    // görebilir; yazma aksiyonları aşağıda yazabilirMi() ile gizleniyor, RLS
+    // de engelliyor. İl Sorumlusunun kapsamı taskScope ile kendi ili.
+    if (!gorevListesiGorebilirMi(orgRole)) {
       router.replace(orgRole === 'consultant' ? `/org/${org.slug}/consultant` : `/org/${org.slug}/me`)
       return
     }
@@ -123,9 +130,13 @@ export default function TasksPage() {
         const memberIds = membershipsRes.data?.map(m => m.user_id) ?? []
 
         // Adım 2: Profiller ve görevler paralel
+        const kapsam: TaskScope = { role: orgRole!, userId: userId ?? '', il: userIl }
         const [profilesRes, tasksData] = await Promise.all([
           supabase.from('profiles').select('*').in('id', memberIds).order('created_at'),
-          supabase.from('tasks').select('*').eq('organization_id', org!.id).order('created_at', { ascending: false }),
+          applyTaskScope(
+            supabase.from('tasks').select('*').eq('organization_id', org!.id).order('created_at', { ascending: false }),
+            kapsam,
+          ),
         ])
 
         const profilesList: Profile[] = profilesRes.data || []

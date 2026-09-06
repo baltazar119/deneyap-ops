@@ -7,6 +7,7 @@ import {
   taskScopeOrFilter,
   type TaskScope,
 } from './taskScope'
+import { gorevListesiGorebilirMi, raporGorebilirMi, yazabilirMi } from './roller'
 
 const BEN = 'user-1'
 const BASKASI = 'user-2'
@@ -152,5 +153,56 @@ describe('deneyap_id kapsam kuralını DEĞİŞTİRMEZ', () => {
     const kap = kapsam('member', 'Ankara')
     expect(kapsamaGoreSuz(gorevler, kap).map(g => g.id))
       .toEqual(kapsamaGoreSuz(deneyapsiz, kap).map(g => g.id))
+  })
+})
+
+// ── Faz 4b: Görevler sayfası İl Sorumlusuna açıldı ────────────────────────
+// Yetki genişletmesi AYRI bir kuralla yapıldı. Bu testler, kuralın yanlışlıkla
+// `raporGorebilirMi` üzerinden genişletilmesini yakalar: öyle olsaydı Panel ve
+// Operasyon Riski de sessizce açılırdı.
+describe('gorevListesiGorebilirMi — dar kapsamlı yetki', () => {
+  it('İl Sorumlusu görev listesini görebilir', () => {
+    expect(gorevListesiGorebilirMi('member')).toBe(true)
+  })
+
+  it('rapor görebilen roller de görebilir', () => {
+    expect(gorevListesiGorebilirMi('owner')).toBe(true)
+    expect(gorevListesiGorebilirMi('admin')).toBe(true)
+    expect(gorevListesiGorebilirMi('viewer')).toBe(true)
+  })
+
+  it('Danışman ve rolsüz kullanıcı göremez', () => {
+    expect(gorevListesiGorebilirMi('consultant')).toBe(false)
+    expect(gorevListesiGorebilirMi(null)).toBe(false)
+  })
+
+  it('Panel/Risk yetkisi (raporGorebilirMi) GENİŞLEMEDİ', () => {
+    expect(raporGorebilirMi('member')).toBe(false)
+  })
+
+  it('İl Sorumlusu hâlâ yazamaz — liste salt okunur', () => {
+    expect(yazabilirMi('member')).toBe(false)
+  })
+})
+
+describe('sorgu filtresi ile gösterim filtresi aynı kuralı verir', () => {
+  // Sayfa artık kapsamı SORGUDA da uyguluyor (member org'un tamamını
+  // indirmesin). İki yolun ayrışması, indirilenden farklı bir liste
+  // göstermek demek olurdu.
+  it('İl Sorumlusu için PostgREST filtresi kendi ili + kendi görevleri', () => {
+    // İl değeri TIRNAKLANIR — yanlış tırnaklama PostgREST'te hata vermez,
+    // sessizce yanlış sonuç verir; bu yüzden literal olarak kilitli.
+    expect(taskScopeOrFilter(kapsam('member', 'Ankara')))
+      .toBe(`assignee_id.eq.${BEN},il.eq."Ankara"`)
+  })
+
+  it('boşluklu il adı da güvenli tırnaklanır', () => {
+    expect(taskScopeOrFilter(kapsam('member', 'Genel Merkez')))
+      .toBe(`assignee_id.eq.${BEN},il.eq."Genel Merkez"`)
+  })
+
+  it('tüm görevleri gören roller için filtre üretilmez', () => {
+    expect(taskScopeOrFilter(kapsam('owner', 'Ankara'))).toBeNull()
+    expect(taskScopeOrFilter(kapsam('viewer'))).toBeNull()
   })
 })

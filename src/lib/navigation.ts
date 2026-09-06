@@ -123,6 +123,9 @@ export function getNavLinks({ base, role, isPro }: { base: string; role: OrgRole
     // Akışın başladığı yer: "kendi görevlerini görür"
     ana(`${base}/me`, 'Panelim'),
 
+    // Görev listesi salt okunur: kapsam taskScope ile kendi ili, yazma
+    // aksiyonları gizli. Kuralı `gorevListesiGorebilirMi` taşıyor.
+    is(`${base}/tasks`, 'Görevler'),
     is(`${base}/kanban`, 'Kanban'),
     is(`${base}/calendar`, 'Takvim'),
     is(`${base}/timeline`, 'Timeline'),
