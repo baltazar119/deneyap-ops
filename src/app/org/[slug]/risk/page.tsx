@@ -9,11 +9,13 @@ import Link from 'next/link'
 import { MapPin, ShieldCheck, ChevronRight } from 'lucide-react'
 import { useOrg } from '@/lib/supabase/orgContext'
 import { getCachedData, setCachedData } from '@/lib/pageDataCache'
-import { computeRisk, RISK_RENK, type RiskResult } from '@/lib/operationRisk'
+import { computeRisk, RISK_RENK, type RiskResult, type RiskInput } from '@/lib/operationRisk'
 import { fetchRiskInput } from '@/lib/risk/istemciVeri'
 import ResponsivePageHeader from '@/components/responsive/ResponsivePageHeader'
 import { supabase } from '@/lib/supabase/client'
 import Cizgi from '@/components/grafik/Cizgi'
+import TurkiyeHaritasi from '@/components/harita/TurkiyeHaritasi'
+import { haritaVerisiKur, type DeneyapDurumu } from '@/lib/harita/ilDurumu'
 import type { RaporVerisi } from '@/lib/rapor/hesapla'
 
 const ONEM_RENK: Record<string, { bg: string; bd: string; fg: string }> = {
@@ -37,6 +39,9 @@ export default function OperasyonRiskPage() {
   // Yorum ve eğilim rapor API'sinden gelir; risk sayfası kendi hesabını
   // yapmaz. Hata durumunda sayfa yine çalışır (blok gizlenir).
   const [rapor, setRapor] = useState<RaporVerisi | null>(null)
+  // Harita DENEYAP kirilimi icin ham gorev listesi ve DENEYAP adlari gerekir
+  const [girdiOnbellek, setGirdiOnbellek] = useState<RiskInput | null>(null)
+  const [deneyapAdlari, setDeneyapAdlari] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (orgLoading) return
@@ -62,6 +67,17 @@ export default function OperasyonRiskPage() {
           ? { ...girdi, tasks: girdi.tasks.filter(t => t.il === kendiIli) }
           : girdi
 
+        // DENEYAP adları — harita detay panelinde gösterilir. Hata olursa
+        // kırılım "DENEYAP" genel adıyla görünür, sayfa çalışmaya devam eder.
+        const { data: dnp } = await supabase
+          .from('deneyaplar')
+          .select('id, ad')
+          .eq('organization_id', org!.id)
+        if (!iptal && dnp) {
+          setDeneyapAdlari(Object.fromEntries(dnp.map((d: { id: string; ad: string }) => [d.id, d.ad])))
+        }
+
+        setGirdiOnbellek(kapsamli)
         const r = computeRisk(kapsamli)
         setSonuc(r)
         setCachedData(cacheKey, r)
@@ -104,6 +120,24 @@ export default function OperasyonRiskPage() {
 
   if (!sonuc) return null
 
+  /**
+   * Harita verisi.
+   *
+   * `veriOlanIller` ayrı hesaplanıyor: risk skoru 0 olan ama görevi OLAN bir
+   * il, hiç görevi olmayandan farklıdır. İkisini aynı renge boyamak
+   * haritayı yalancı yapar (bkz. lib/harita/ilDurumu.ts).
+   */
+  const haritaVerisi = sonuc && girdiOnbellek
+    ? haritaVerisiKur({
+        provinces: sonuc.provinces,
+        veriOlanIller: [...new Set(
+          girdiOnbellek.tasks.map(t => t.il?.trim()).filter((x): x is string => !!x),
+        )],
+        deneyaplar: deneyapKirilimi(girdiOnbellek.tasks, deneyapAdlari),
+      })
+    : null
+
+
   const sakin = sonuc.provinces.length === 0 && sonuc.signals.length === 0
   const ilLinki = (il: string) => `/org/${org?.slug}/tasks?il=${encodeURIComponent(il === 'İl Belirtilmemiş' ? '' : il)}`
 
@@ -125,6 +159,20 @@ export default function OperasyonRiskPage() {
             {sonuc.headline}
           </p>
         </div>
+
+        {/* ── Türkiye ısı haritası ─────────────────────────────────────────
+            İl Sorumlusu ULUSAL haritayı görmez: tek il gören biri için
+            80 ili gri bir tablo ya boş ya yanıltıcıdır. Onun yerine kendi
+            ilinin konturu ve DENEYAP kartları gösterilir. */}
+        {haritaVerisi && (
+          <div className="rounded-2xl p-4 sm:p-5 mb-5" style={{ background: '#fff', border: '1px solid #e5e7eb' }}>
+            <TurkiyeHaritasi
+              veri={haritaVerisi}
+              tekIl={orgRole === 'member' ? userIl : null}
+              ilLinki={ilLinki}
+            />
+          </div>
+        )}
 
         {/* ── Yorumlanmış veri ve eğilim ───────────────────────────────────
             Rapor API'sinden gelir; risk sayfası için AYRI bir hesap yolu
@@ -277,5 +325,37 @@ export default function OperasyonRiskPage() {
         </p>
       </main>
     </div>
+  )
+}
+
+/**
+ * il → o ildeki DENEYAP'ların açık/geciken sayıları.
+ * Bir ilde birden fazla DENEYAP olabilmesi bu kırılımın varlık sebebi.
+ */
+function deneyapKirilimi(
+  gorevler: { il: string | null; deneyap_id?: string | null; status: string; due_date: string | null }[],
+  adlar: Record<string, string>,
+): Record<string, DeneyapDurumu[]> {
+  const bugun = new Date().toISOString().slice(0, 10)
+  const harita: Record<string, Map<string, DeneyapDurumu>> = {}
+
+  for (const t of gorevler) {
+    const id = t.deneyap_id
+    const il = t.il?.trim()
+    if (!id || !il) continue
+    if (t.status === 'done') continue
+
+    if (!harita[il]) harita[il] = new Map()
+    const mevcut = harita[il].get(id) ?? { id, ad: adlar[id] ?? 'DENEYAP', acik: 0, geciken: 0 }
+    mevcut.acik += 1
+    if (t.due_date && t.due_date < bugun) mevcut.geciken += 1
+    harita[il].set(id, mevcut)
+  }
+
+  return Object.fromEntries(
+    Object.entries(harita).map(([il, m]) => [
+      il,
+      [...m.values()].sort((a, b) => b.geciken - a.geciken || b.acik - a.acik),
+    ]),
   )
 }
