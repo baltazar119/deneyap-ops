@@ -12,6 +12,7 @@ import { createNotification } from '@/lib/notifications'
 import { useOrg } from '@/lib/supabase/orgContext'
 import { useIsMobile } from '@/lib/useIsMobile'
 import { getCachedData, setCachedData } from '@/lib/pageDataCache'
+import { useDeneyaplar } from '@/lib/useDeneyaplar'
 import { useGorevFiltreleri, gorevleriSuz } from '@/lib/useGorevFiltreleri'
 import { gorevleriGorunumeGoreSuz, gorulebilirGorunumler, type GorunumBaglami } from '@/lib/gorevGorunumleri'
 import { aranabilirMetin, aramaTokenlari, aramaEslesirMi } from '@/lib/gorevArama'
@@ -39,8 +40,9 @@ type TasksPageCache = { tasks: TaskWithAssignee[]; members: Profile[]; sprints: 
  */
 export default function TasksPage() {
   const router = useRouter()
-  const { org, orgRole, userIl, userId, loading: orgLoading } = useOrg()
+  const { org, orgRole, userIl, userDeneyapId, userId, loading: orgLoading } = useOrg()
   const isMobile = useIsMobile()
+  const { deneyaplar } = useDeneyaplar(org?.id)
 
   // Senkron cache init
   const _initKey   = org?.id ? `tasks:${org.id}` : ''
@@ -54,9 +56,20 @@ export default function TasksPage() {
 
   // Görünümler role bağlı: İl Sorumlusu "Bana atananlar" ile açılır,
   // "Atanmamış" görünümünü yalnızca atama yetkisi olanlar görür.
+  const deneyapHaritasi = useMemo(
+    () => new Map(deneyaplar.map(d => [d.id, d])),
+    [deneyaplar],
+  )
+
   const gorunumBaglami: GorunumBaglami = useMemo(
-    () => ({ role: orgRole ?? null, userId: userId ?? '', userIl: userIl ?? null }),
-    [orgRole, userId, userIl],
+    () => ({
+      role: orgRole ?? null,
+      userId: userId ?? '',
+      userIl: userIl ?? null,
+      userDeneyapId: userDeneyapId ?? null,
+      userDeneyapAdi: userDeneyapId ? deneyapHaritasi.get(userDeneyapId)?.ad ?? null : null,
+    }),
+    [orgRole, userId, userIl, userDeneyapId, deneyapHaritasi],
   )
 
   const {
@@ -280,9 +293,16 @@ export default function TasksPage() {
   // yeniden katlamak arama kutusunu takılmalı hissettiriyordu.
   const aramaMetinleri = useMemo(() => {
     const harita = new Map<string, string>()
-    for (const t of gorunurTasks) harita.set(t.id, aranabilirMetin(t))
+    for (const t of gorunurTasks) {
+      harita.set(t.id, aranabilirMetin({
+        ...t,
+        // DENEYAP adı da aranabilsin: kullanıcı "Çankaya" yazdığında o
+        // birimin görevlerini bulmayı bekliyor.
+        deneyapAdi: t.deneyap_id ? deneyapHaritasi.get(t.deneyap_id)?.ad ?? null : null,
+      }))
+    }
     return harita
-  }, [gorunurTasks])
+  }, [gorunurTasks, deneyapHaritasi])
 
   const arananlar = useMemo(() => {
     const tokenlar = aramaTokenlari(qUygulanan)
@@ -368,6 +388,7 @@ export default function TasksPage() {
           gorevler={filteredTasks}
           slug={org?.slug ?? ''}
           sprints={sprints}
+          deneyapHaritasi={deneyapHaritasi}
           yazabilir={yazabilir}
           onEdit={openEditForm}
           onDelete={handleDelete}
@@ -394,6 +415,7 @@ export default function TasksPage() {
         filtreler={filtreler} ayarla={ayarla} temizle={temizle}
         filtreSayisi={filtreSayisi}
         kullanilanIller={kullanilanIller} members={members}
+        deneyaplar={deneyaplar} kullaniciIl={userIl}
       />
 
       <GorevFormModal
@@ -401,6 +423,9 @@ export default function TasksPage() {
         editingTask={editingTask}
         members={members}
         sprints={sprints}
+        deneyaplar={deneyaplar}
+        kullaniciIl={userIl}
+        onYeniDeneyap={yazabilir ? () => router.push(`/org/${org?.slug}/settings/deneyaplar`) : undefined}
         onClose={closeForm}
         onSubmit={handleFormSubmit}
       />

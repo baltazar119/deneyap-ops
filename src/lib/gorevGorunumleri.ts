@@ -12,14 +12,22 @@ import type { Task, OrgRole } from '@/types/database'
  * doğrudan test ediliyor.
  */
 
-export type GorunumId = 'tumu' | 'bana' | 'gecikenler' | 'bu-hafta' | 'atanmamis' | 'ilim'
+export type GorunumId =
+  | 'tumu' | 'bana' | 'gecikenler' | 'bu-hafta' | 'atanmamis' | 'ilim' | 'deneyapim'
 
 export interface GorunumBaglami {
   role: OrgRole | null
   userId: string
   /** Kullanıcının ili — yalnızca İl Sorumlusu görünümü için. */
   userIl: string | null
+  /** Üyenin bağlı olduğu DENEYAP (061) — "DENEYAP'ım" görünümü için. */
+  userDeneyapId?: string | null
+  /** Chip etiketinde gösterilecek DENEYAP adı. */
+  userDeneyapAdi?: string | null
 }
+
+/** Görünümlerin dokunduğu alanlar — tam `Task` gerekmiyor. */
+export type GorunumGorevi = Pick<Task, 'status' | 'due_date' | 'assignee_id' | 'il' | 'deneyap_id'>
 
 interface GorunumTanimi {
   id: GorunumId
@@ -27,7 +35,7 @@ interface GorunumTanimi {
   /** Rol/bağlam bu görünümü hiç görmüyorsa chip render edilmez. */
   gorunurMu: (b: GorunumBaglami) => boolean
   /** `null` = süzme yok (Tümü). */
-  esler: ((t: Pick<Task, 'status' | 'due_date' | 'assignee_id' | 'il'>, b: GorunumBaglami) => boolean) | null
+  esler: ((t: GorunumGorevi, b: GorunumBaglami) => boolean) | null
 }
 
 export const GORUNUMLER: GorunumTanimi[] = [
@@ -67,6 +75,15 @@ export const GORUNUMLER: GorunumTanimi[] = [
     esler: (t, b) => t.il === b.userIl,
   },
   {
+    id: 'deneyapim',
+    // Etiket çalışma anında DENEYAP'ın adıyla değişir; bkz. gorunumEtiketi().
+    etiket: 'DENEYAP’ım',
+    // Üyenin bir DENEYAP'ı yoksa anlamsız. Rolden bağımsız: Merkez'deki biri
+    // de bir DENEYAP'a bağlıysa kendi biriminin işlerini görmek isteyebilir.
+    gorunurMu: b => !!b.userDeneyapId,
+    esler: (t, b) => t.deneyap_id === b.userDeneyapId,
+  },
+  {
     id: 'atanmamis',
     etiket: 'Atanmamış',
     // Kimseye atanmamış işi görmek atama yetkisi olanın derdi.
@@ -75,9 +92,10 @@ export const GORUNUMLER: GorunumTanimi[] = [
   },
 ]
 
-/** Chip etiketi — "İlim" görünümü ilin gerçek adıyla gösterilir. */
+/** Chip etiketi — "İlim" ve "DENEYAP'ım" gerçek adla gösterilir. */
 export function gorunumEtiketi(g: GorunumTanimi, b: GorunumBaglami): string {
   if (g.id === 'ilim' && b.userIl) return `${b.userIl} görevleri`
+  if (g.id === 'deneyapim' && b.userDeneyapAdi) return b.userDeneyapAdi
   return g.etiket
 }
 
@@ -99,7 +117,7 @@ export function gorunumCoz(deger: string | null, b: GorunumBaglami): GorunumId {
   return bulunan?.id ?? varsayilanGorunum(b.role)
 }
 
-export function gorevleriGorunumeGoreSuz<T extends Pick<Task, 'status' | 'due_date' | 'assignee_id' | 'il'>>(
+export function gorevleriGorunumeGoreSuz<T extends GorunumGorevi>(
   gorevler: T[], gorunum: GorunumId, b: GorunumBaglami,
 ): T[] {
   const tanim = GORUNUMLER.find(g => g.id === gorunum)

@@ -61,8 +61,13 @@ const ORG   = { name: 'DENEYAP Demo', slug: 'deneyap-demo' }
 const HESAPLAR = [
   { email: 'merkez@deneyap.demo',  ad: 'Merkez Operasyon',  role: 'owner',  il: 'Genel Merkez' },
   { email: 'koordinator@deneyap.demo', ad: 'Selin Koordinatör', role: 'admin',  il: 'Genel Merkez' },
-  { email: 'ankara@deneyap.demo',  ad: 'Ankara İl Sorumlusu', role: 'member', il: 'Ankara' },
-  { email: 'izmir@deneyap.demo',   ad: 'İzmir İl Sorumlusu',  role: 'member', il: 'İzmir' },
+  // `deneyap`: üyenin bağlı olduğu DENEYAP (061). Kapsam kuralını
+  // DEĞİŞTİRMEZ — İl Sorumlusu ilinin tüm görevlerini görmeye devam eder;
+  // yalnızca "DENEYAP'ım" görünümünü ve form varsayılanını besler.
+  { email: 'ankara@deneyap.demo',  ad: 'Ankara İl Sorumlusu', role: 'member', il: 'Ankara',
+    deneyap: 'Çankaya DENEYAP' },
+  { email: 'izmir@deneyap.demo',   ad: 'İzmir İl Sorumlusu',  role: 'member', il: 'İzmir',
+    deneyap: 'Bornova DENEYAP' },
   { email: 'yonetici@deneyap.demo', ad: 'Yetkili Yönetici',  role: 'viewer', il: 'Genel Merkez' },
 ]
 
@@ -247,6 +252,18 @@ async function main() {
     if (dHata) cik('DENEYAP kayitlari eklenemedi: ' + dHata.message)
     for (const d of eklenen ?? []) deneyapIdleri[d.ad] = d.id
     console.log(`  + ${eklenen?.length ?? 0} DENEYAP eklendi (Ankara ve Izmir'de ikiser tane)`)
+
+    // Üye ↔ DENEYAP bağı. Üyelikler DENEYAP'lardan ÖNCE yazıldığı için
+    // burada ikinci bir geçişle güncelleniyor.
+    for (const h of HESAPLAR.filter(x => x.deneyap)) {
+      const id = deneyapIdleri[h.deneyap]
+      if (!id) continue
+      await db.from('organization_members')
+        .update({ deneyap_id: id })
+        .eq('organization_id', orgId)
+        .eq('user_id', kullanicilar[h.email])
+    }
+    console.log("  + uye-DENEYAP baglari yazildi (Il Sorumlulari icin \"DENEYAP'im\" gorunumu)")
   }
 
   /* 6) Görevler — demo workspace'in görevleri sıfırlanır */

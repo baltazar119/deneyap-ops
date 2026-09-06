@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react'
 import ResponsiveModal from '@/components/responsive/ResponsiveModal'
+import DeneyapSecici from '@/components/DeneyapSecici'
 import { TASK_TYPES } from '@/lib/taskTypes'
 import { IL_SECENEKLERI } from '@/lib/iller'
 import { STATUS_OPTIONS, PRIORITY_OPTIONS } from './gorevMeta'
-import type { Task, Profile, Sprint, TaskStatus, TaskPriority, TaskType } from '@/types/database'
+import type { Task, Profile, Sprint, Deneyap, TaskStatus, TaskPriority, TaskType } from '@/types/database'
 
 export interface GorevFormPayload {
   title: string
@@ -20,6 +21,7 @@ export interface GorevFormPayload {
   actual_hours: number | null
   sprint_id: string | null
   il: string | null
+  deneyap_id: string | null
 }
 
 interface Props {
@@ -28,6 +30,11 @@ interface Props {
   editingTask: Task | null
   members: Profile[]
   sprints: Sprint[]
+  deneyaplar: Deneyap[]
+  /** Kullanıcının ili — DENEYAP seçicide o il en üste alınır. */
+  kullaniciIl?: string | null
+  /** Satır içi "+ Yeni DENEYAP" yalnızca yetkiliye gösterilir. */
+  onYeniDeneyap?: () => void
   onClose: () => void
   /** Hata mesajı döndürürse modal açık kalır ve mesajı gösterir. */
   onSubmit: (payload: GorevFormPayload, files: File[]) => Promise<string | null>
@@ -45,7 +52,9 @@ const MAX_DOSYA = 50 * 1024 * 1024
  * Modal kabuğu `ResponsiveModal` (masaüstünde ortalı, mobilde alttan sheet) —
  * `useIsMobile` gerekmiyor, fark saf CSS.
  */
-export default function GorevFormModal({ open, editingTask, members, sprints, onClose, onSubmit }: Props) {
+export default function GorevFormModal({
+  open, editingTask, members, sprints, deneyaplar, kullaniciIl, onYeniDeneyap, onClose, onSubmit,
+}: Props) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [status, setStatus] = useState<TaskStatus>('backlog')
@@ -58,6 +67,7 @@ export default function GorevFormModal({ open, editingTask, members, sprints, on
   const [actualHours, setActualHours] = useState('')
   const [sprintId, setSprintId] = useState('')
   const [il, setIl] = useState('')
+  const [deneyapId, setDeneyapId] = useState<string | null>(null)
   const [files, setFiles] = useState<File[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -80,6 +90,7 @@ export default function GorevFormModal({ open, editingTask, members, sprints, on
     setActualHours(t?.actual_hours != null ? String(t.actual_hours) : '')
     setSprintId(t?.sprint_id ?? '')
     setIl(t?.il ?? '')
+    setDeneyapId(t?.deneyap_id ?? null)
     setFiles([])
     setError(null)
   }, [open, editingTask])
@@ -91,6 +102,8 @@ export default function GorevFormModal({ open, editingTask, members, sprints, on
     })
     setFiles(prev => [...prev, ...gecerli])
   }
+
+  const secilenDeneyap = deneyapId ? deneyaplar.find(d => d.id === deneyapId) ?? null : null
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -108,7 +121,10 @@ export default function GorevFormModal({ open, editingTask, members, sprints, on
       estimated_hours: estimatedHours ? parseFloat(estimatedHours) : null,
       actual_hours: actualHours ? parseFloat(actualHours) : null,
       sprint_id: sprintId || null,
-      il: il || null,
+      // DENEYAP seçiliyse il ondan gelir; DB trigger'ı (061) zaten aynısını
+      // yapıyor, burada gönderilen değer yalnızca ekranla tutarlı olsun diye.
+      il: (secilenDeneyap ? secilenDeneyap.il : il) || null,
+      deneyap_id: deneyapId,
     }, files)
     setLoading(false)
     if (hata) setError(hata)
@@ -184,11 +200,44 @@ export default function GorevFormModal({ open, editingTask, members, sprints, on
         </div>
 
         <div>
+          <label className={etiket} style={{ color: '#374151' }}>DENEYAP</label>
+          <DeneyapSecici
+            deneyaplar={deneyaplar}
+            deger={deneyapId}
+            onChange={setDeneyapId}
+            oncelikliIl={kullaniciIl}
+            onYeniIste={onYeniDeneyap}
+          />
+        </div>
+
+        <div>
           <label className={etiket} style={{ color: '#374151' }}>İl / Birim</label>
-          <select value={il} onChange={e => setIl(e.target.value)} className="input">
+          {/*
+            DENEYAP seçiliyken il alanı KİLİTLİ ve DENEYAP'ın ilinden dolu.
+            Bu, 061'deki DB trigger'ının kullanıcıya görünen aynası: orada da
+            `il` DENEYAP'tan yazılıyor. Alan açık bırakılsaydı kullanıcı başka
+            bir il seçer, kaydeder ve kaydettiğinden farklı bir sonuç görürdü.
+          */}
+          <select
+            value={secilenDeneyap ? secilenDeneyap.il : il}
+            onChange={e => setIl(e.target.value)}
+            className="input"
+            disabled={!!secilenDeneyap}
+            style={secilenDeneyap ? { background: '#f8fafc', color: '#64748b' } : undefined}
+          >
             <option value="">-- İl atanmamış --</option>
             {IL_SECENEKLERI.map(o => <option key={o} value={o}>{o}</option>)}
+            {/* Seçili DENEYAP'ın ili listede yoksa (veri elle girilmişse)
+                alan boş görünmesin. */}
+            {secilenDeneyap && !IL_SECENEKLERI.includes(secilenDeneyap.il) && (
+              <option value={secilenDeneyap.il}>{secilenDeneyap.il}</option>
+            )}
           </select>
+          {secilenDeneyap && (
+            <p className="text-[11px] mt-1.5" style={{ color: '#64748b' }}>
+              İl, seçilen DENEYAP&apos;tan alınır.
+            </p>
+          )}
         </div>
 
         <div>

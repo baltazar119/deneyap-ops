@@ -33,10 +33,19 @@ export interface GorevFiltreDegerleri {
   termin: TerminFiltresi
   /** 'all' | ATANMAMIS | üye id'si */
   assignee: string
+  /**
+   * `il` ile AYNI üç anlamlı desen:
+   *   'all' → DENEYAP süzmesi yok
+   *   ''    → "DENEYAP atanmamış" (`deneyap_id is null`)
+   *   uuid  → o DENEYAP
+   * URL'de `?deneyap=` (boş değer) ikinci anlamı taşır.
+   */
+  deneyap: string
 }
 
 const VARSAYILAN: GorevFiltreDegerleri = {
-  status: 'all', priority: 'all', type: 'all', il: 'all', termin: 'all', assignee: 'all',
+  status: 'all', priority: 'all', type: 'all', il: 'all', termin: 'all',
+  assignee: 'all', deneyap: 'all',
 }
 
 /** Panelde "Filtrele · 3" rozetinde gösterilen sayı. */
@@ -61,6 +70,8 @@ export function urlSorgusuKur(
   if (f.type !== 'all') p.set('tur', f.type)
   if (f.termin !== 'all') p.set('termin', f.termin)
   if (f.assignee !== 'all') p.set('atanan', f.assignee)
+  // `il` gibi: boş metin anlamlı bir değer, truthy kontrolüyle atlanamaz.
+  if (f.deneyap !== 'all') p.set('deneyap', f.deneyap)
   if (gorunum !== varsayilanGorunumId) p.set('gorunum', gorunum)
   if (q.trim()) p.set('q', q.trim())
   return p.toString()
@@ -77,6 +88,7 @@ function ilkFiltreler(sp: URLSearchParams): GorevFiltreDegerleri {
     type:     (sp.get('tur') as TaskType) ?? 'all',
     termin:   (sp.get('termin') as TerminFiltresi) ?? 'all',
     assignee: sp.get('atanan') ?? 'all',
+    deneyap:  sp.get('deneyap') ?? 'all',
   }
 }
 
@@ -152,6 +164,7 @@ export function gorevleriSuz<T extends Task>(gorevler: T[], f: GorevFiltreDegerl
     if (f.termin === 'yaklasan' && !yaklasanMi(t)) return false
     if (f.assignee === ATANMAMIS) { if (t.assignee_id) return false }
     else if (f.assignee !== 'all' && t.assignee_id !== f.assignee) return false
+    if (f.deneyap !== 'all' && (t.deneyap_id ?? '') !== f.deneyap) return false
     return true
   })
 }

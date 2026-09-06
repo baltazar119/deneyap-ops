@@ -3,12 +3,14 @@
 import { useIsMobile } from '@/lib/useIsMobile'
 import GorevSatiri from './GorevSatiri'
 import type { TaskWithAssignee } from './gorevMeta'
-import type { Sprint } from '@/types/database'
+import type { Sprint, Deneyap } from '@/types/database'
 
 interface Props {
   gorevler: TaskWithAssignee[]
   slug: string
   sprints: Sprint[]
+  /** DENEYAP id → kayıt. Satırdaki yer rozeti için. */
+  deneyapHaritasi: Map<string, Deneyap>
   yazabilir: boolean
   onEdit: (task: TaskWithAssignee) => void
   onDelete: (taskId: string) => void
@@ -20,7 +22,9 @@ interface Props {
  * öğe, satırda aksiyon düğmeleri var) — Tailwind breakpoint'iyle ifade etmek
  * her görevi iki kez render etmek olurdu. Bkz. `useIsMobile.ts` doc kuralı.
  */
-export default function GorevListesi({ gorevler, slug, sprints, yazabilir, onEdit, onDelete }: Props) {
+export default function GorevListesi({
+  gorevler, slug, sprints, deneyapHaritasi, yazabilir, onEdit, onDelete,
+}: Props) {
   const isMobile = useIsMobile()
 
   if (isMobile) {
@@ -35,6 +39,7 @@ export default function GorevListesi({ gorevler, slug, sprints, yazabilir, onEdi
           <GorevSatiri
             key={task.id}
             task={task} slug={slug} sprints={sprints} variant="kart"
+            deneyap={task.deneyap_id ? deneyapHaritasi.get(task.deneyap_id) : null}
             yazabilir={yazabilir} onEdit={onEdit} onDelete={onDelete}
           />
         ))}
@@ -52,6 +57,7 @@ export default function GorevListesi({ gorevler, slug, sprints, yazabilir, onEdi
         <GorevSatiri
           key={task.id}
           task={task} slug={slug} sprints={sprints} variant="satir"
+          deneyap={task.deneyap_id ? deneyapHaritasi.get(task.deneyap_id) : null}
           sonMu={i === gorevler.length - 1}
           yazabilir={yazabilir} onEdit={onEdit} onDelete={onDelete}
         />

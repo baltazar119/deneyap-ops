@@ -7,12 +7,14 @@ import {
   STATUS_KISA_ETIKET, STATUS_RENK,
   type TaskWithAssignee,
 } from './gorevMeta'
-import type { Sprint } from '@/types/database'
+import type { Sprint, Deneyap } from '@/types/database'
 
 interface Props {
   task: TaskWithAssignee
   slug: string
   sprints: Sprint[]
+  /** Görevin DENEYAP'ı — varsa il rozeti yerine bunun adı gösterilir. */
+  deneyap?: Deneyap | null
   /** 'satir' = masaüstü liste satırı, 'kart' = mobil kart. */
   variant: 'satir' | 'kart'
   /** Satır varyantında son öğede alt çizgi çizilmez. */
@@ -32,12 +34,23 @@ interface Props {
  * Tailwind ile tek ağaçta ifade edilemezdi.
  */
 export default function GorevSatiri({
-  task, slug, sprints, variant, sonMu = false, yazabilir, onEdit, onDelete,
+  task, slug, sprints, deneyap, variant, sonMu = false, yazabilir, onEdit, onDelete,
 }: Props) {
   const pMeta = getPriorityMeta(task.priority || 'normal')
   const tMeta = getTypeMeta(task.task_type || 'other')
   const overdue = gecikmisMi(task)
   const sprint = task.sprint_id ? sprints.find(s => s.id === task.sprint_id) : undefined
+  /*
+    DENEYAP varsa il rozeti yerine DENEYAP adı gösteriliyor: "Ankara"
+    rozeti, aynı ilde iki DENEYAP olduğunda hangi birimin işi olduğunu
+    söylemiyor — ki bu projenin belirleyici gereksinimi tam olarak buydu.
+    DENEYAP'ın ili zaten onun ili (061 trigger'ı garanti ediyor), o yüzden
+    bilgi kaybı yok.
+  */
+  const yerRozeti = deneyap
+    ? { metin: deneyap.ad, baslik: `${deneyap.il}${deneyap.ilce ? ` · ${deneyap.ilce}` : ''}` }
+    : task.il ? { metin: task.il, baslik: undefined } : null
+
   const terminMetni = task.due_date
     ? new Date(task.due_date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })
     : null
@@ -69,7 +82,11 @@ export default function GorevSatiri({
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
             <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: pMeta.bg, color: pMeta.color }}>{pMeta.label}</span>
             <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: '#f1f5f9', color: '#64748b' }}>{tMeta.label}</span>
-            {task.il && <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: '#f0fdfa', color: '#0f766e' }}>📍 {task.il}</span>}
+            {yerRozeti && (
+              <span title={yerRozeti.baslik} style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: '#f0fdfa', color: '#0f766e' }}>
+                📍 {yerRozeti.metin}
+              </span>
+            )}
             {sprint && <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: '#ede9fe', color: '#7c3aed' }}>{sprint.name}</span>}
           </div>
 
@@ -121,9 +138,9 @@ export default function GorevSatiri({
           <span className="text-xs px-1.5 py-0.5 rounded font-medium" style={{ background: '#f1f5f9', color: '#64748b' }}>
             {tMeta.label}
           </span>
-          {task.il && (
-            <span className="text-xs px-1.5 py-0.5 rounded font-medium" style={{ background: '#f0fdfa', color: '#0f766e' }}>
-              📍 {task.il}
+          {yerRozeti && (
+            <span title={yerRozeti.baslik} className="text-xs px-1.5 py-0.5 rounded font-medium" style={{ background: '#f0fdfa', color: '#0f766e' }}>
+              📍 {yerRozeti.metin}
             </span>
           )}
           {task.assigneeName && (

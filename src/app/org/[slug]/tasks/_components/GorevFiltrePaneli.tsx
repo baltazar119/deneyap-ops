@@ -4,7 +4,8 @@ import ResponsiveModal from '@/components/responsive/ResponsiveModal'
 import { TASK_TYPES } from '@/lib/taskTypes'
 import { STATUS_OPTIONS, PRIORITY_OPTIONS, gecikmisMi, yaklasanMi, type TaskWithAssignee } from './gorevMeta'
 import { ATANMAMIS, type GorevFiltreDegerleri } from '@/lib/useGorevFiltreleri'
-import type { Profile, TaskType } from '@/types/database'
+import { deneyaplariIleGoreGrupla, deneyapKisaEtiket } from '@/lib/deneyap'
+import type { Profile, TaskType, Deneyap } from '@/types/database'
 
 interface Props {
   acik: boolean
@@ -17,6 +18,9 @@ interface Props {
   filtreSayisi: number
   kullanilanIller: string[]
   members: Profile[]
+  deneyaplar: Deneyap[]
+  /** Kullanıcının ili — DENEYAP listesinde o il en üstte. */
+  kullaniciIl?: string | null
 }
 
 /**
@@ -29,6 +33,7 @@ interface Props {
  */
 export default function GorevFiltrePaneli({
   acik, onKapat, gorunurTasks, filtreler, ayarla, temizle, filtreSayisi, kullanilanIller, members,
+  deneyaplar, kullaniciIl,
 }: Props) {
   const sayi = (esler: (t: TaskWithAssignee) => boolean) => gorunurTasks.filter(esler).length
 
@@ -132,6 +137,33 @@ export default function GorevFiltrePaneli({
             {kullanilanIller.map(il => <option key={il} value={il}>{il}</option>)}
           </select>
         </Grup>
+
+        {/* DENEYAP — yalnızca tanımlıysa gösterilir; hiç DENEYAP'ı olmayan
+            bir çalışma alanında boş bir grup göstermek gürültü olurdu. */}
+        {deneyaplar.length > 0 && (
+          <Grup baslik="DENEYAP">
+            <select
+              value={filtreler.deneyap}
+              onChange={e => ayarla('deneyap', e.target.value)}
+              className="input"
+              aria-label="DENEYAP filtresi"
+            >
+              {/* `il` filtresiyle aynı üç anlamlı desen: 'all' / '' / id */}
+              <option value="all">Tüm DENEYAP&apos;lar</option>
+              <option value="">DENEYAP atanmamış ({sayi(t => !t.deneyap_id)})</option>
+              {deneyaplariIleGoreGrupla(deneyaplar, kullaniciIl).map(grup => (
+                <optgroup key={grup.il} label={grup.il}>
+                  {grup.deneyaplar.map(d => (
+                    <option key={d.id} value={d.id}>
+                      {deneyapKisaEtiket(d)}{d.aktif ? '' : ' (kapalı)'}
+                      {' · '}{sayi(t => t.deneyap_id === d.id)}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </Grup>
+        )}
 
         {/* Atanan */}
         <Grup baslik="Atanan Üye">

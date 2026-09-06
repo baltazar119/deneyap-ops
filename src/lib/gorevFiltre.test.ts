@@ -16,7 +16,8 @@ import type { Task } from '@/types/database'
  */
 
 const VARSAYILAN: GorevFiltreDegerleri = {
-  status: 'all', priority: 'all', type: 'all', il: 'all', termin: 'all', assignee: 'all',
+  status: 'all', priority: 'all', type: 'all', il: 'all', termin: 'all',
+  assignee: 'all', deneyap: 'all',
 }
 
 function f(kismi: Partial<GorevFiltreDegerleri> = {}): GorevFiltreDegerleri {
@@ -157,5 +158,41 @@ describe('aktifFiltreSayisi — "Filtrele · 3" rozeti', () => {
 
   it('her varsayılandan sapma bir sayılır', () => {
     expect(aktifFiltreSayisi(f({ il: 'Ankara', termin: 'geciken', status: 'doing' }))).toBe(3)
+  })
+})
+
+describe('DENEYAP filtresi (Faz 4)', () => {
+  const g = [
+    gorev({ id: 'cankaya',  deneyap_id: 'd-cankaya',  il: 'Ankara' }),
+    gorev({ id: 'kecioren', deneyap_id: 'd-kecioren', il: 'Ankara' }),
+    gorev({ id: 'birimsiz', deneyap_id: null,         il: 'Ankara' }),
+  ]
+
+  // `il` ile aynı üç anlamlı desen — ikisinin de aynı şekilde davranması
+  // kullanıcı açısından tahmin edilebilirliğin tamamı.
+  it("'all' → DENEYAP süzmesi yok", () => {
+    expect(gorevleriSuz(g, f({ deneyap: 'all' })).length).toBe(3)
+  })
+
+  it("'' → yalnızca DENEYAP atanmamış görevler", () => {
+    expect(idler(gorevleriSuz(g, f({ deneyap: '' })))).toEqual(['birimsiz'])
+  })
+
+  it('id → yalnızca o DENEYAP; aynı ildeki diğer DENEYAP dışarıda', () => {
+    expect(idler(gorevleriSuz(g, f({ deneyap: 'd-cankaya' })))).toEqual(['cankaya'])
+  })
+
+  it('bir ilde iki DENEYAP: il filtresi ikisini de tutar, DENEYAP filtresi ayırır', () => {
+    expect(gorevleriSuz(g, f({ il: 'Ankara' })).length).toBe(3)
+    expect(gorevleriSuz(g, f({ il: 'Ankara', deneyap: 'd-kecioren' })).length).toBe(1)
+  })
+
+  it('URL: boş DENEYAP değeri korunur, varsayılan yazılmaz', () => {
+    expect(urlSorgusuKur(f({ deneyap: '' }), 'tumu', '', 'tumu')).toBe('deneyap=')
+    expect(urlSorgusuKur(f({ deneyap: 'all' }), 'tumu', '', 'tumu')).toBe('')
+  })
+
+  it('rozet sayacına dahil', () => {
+    expect(aktifFiltreSayisi(f({ deneyap: 'd-cankaya' }))).toBe(1)
   })
 })

@@ -16,8 +16,11 @@ const gunSonra = (n: number) => new Date(Date.parse(SIMDI) + n * GUN).toISOStrin
 const BEN = 'user-ben'
 const BASKASI = 'user-baskasi'
 
-function baglam(role: OrgRole | null, userIl: string | null = null): GorunumBaglami {
-  return { role, userId: BEN, userIl }
+function baglam(
+  role: OrgRole | null, userIl: string | null = null,
+  userDeneyapId: string | null = null, userDeneyapAdi: string | null = null,
+): GorunumBaglami {
+  return { role, userId: BEN, userIl, userDeneyapId, userDeneyapAdi }
 }
 
 function gorev(p: Partial<Task> & { id: string }): Task {
@@ -114,5 +117,43 @@ describe('görünüm süzgeci', () => {
   it('rolün göremeyeceği görünüm süzme yapmaz', () => {
     expect(gorevleriGorunumeGoreSuz(GOREVLER, 'atanmamis', baglam('viewer')).length)
       .toBe(GOREVLER.length)
+  })
+})
+
+describe("DENEYAP'ım görünümü (Faz 4)", () => {
+  const G = [
+    gorev({ id: 'benim-birim',  deneyap_id: 'd-cankaya',  il: 'Ankara' }),
+    gorev({ id: 'diger-birim',  deneyap_id: 'd-kecioren', il: 'Ankara' }),
+    gorev({ id: 'birimsiz',     deneyap_id: null,         il: 'Ankara' }),
+  ]
+
+  it("üyenin DENEYAP'ı yoksa görünüm hiç çıkmaz", () => {
+    expect(gorulebilirGorunumler(baglam('member', 'Ankara')).map(g => g.id))
+      .not.toContain('deneyapim')
+  })
+
+  it('DENEYAP bağlıysa görünür ve rolden bağımsızdır', () => {
+    for (const rol of ['owner', 'admin', 'member', 'viewer'] as OrgRole[]) {
+      expect(gorulebilirGorunumler(baglam(rol, null, 'd-cankaya')).map(g => g.id))
+        .toContain('deneyapim')
+    }
+  })
+
+  it("chip etiketi DENEYAP'ın gerçek adını taşır", () => {
+    const g = GORUNUMLER.find(x => x.id === 'deneyapim')!
+    expect(gorunumEtiketi(g, baglam('admin', null, 'd-cankaya', 'Çankaya DENEYAP')))
+      .toBe('Çankaya DENEYAP')
+  })
+
+  // Projenin belirleyici gereksinimi: aynı ildeki iki DENEYAP birbirinden
+  // ayrılabilmeli. İl bazlı bir görünüm bunu yapamazdı.
+  it("aynı ildeki DİĞER DENEYAP'ın görevini getirmez", () => {
+    expect(idler(gorevleriGorunumeGoreSuz(G, 'deneyapim', baglam('admin', 'Ankara', 'd-cankaya'))))
+      .toEqual(['benim-birim'])
+  })
+
+  it("DENEYAP'sız görevler bu görünümde yer almaz", () => {
+    const sonuc = idler(gorevleriGorunumeGoreSuz(G, 'deneyapim', baglam('admin', null, 'd-cankaya')))
+    expect(sonuc).not.toContain('birimsiz')
   })
 })

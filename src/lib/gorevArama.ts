@@ -7,6 +7,8 @@ import type { Task } from '@/types/database'
  * "ankara rapor" yazan kullanıcı iki kelimeyi de içeren görevi bekliyor,
  * herhangi birini içeren 40 görevi değil. Sıra önemli değil.
  *
+ * Aranan alanlar: başlık, açıklama, il, atanan ve DENEYAP adı.
+ *
  * Katlama `trFold` ile — "İZMİR", "izmir" ve "Izmir" aynı sonucu vermeli.
  * Aynı katlama içe aktarmada da kullanılıyor, ikinci bir kopya çıkarılmadı.
  */
@@ -16,6 +18,8 @@ export interface AranabilirGorev {
   description?: string | null
   il?: string | null
   assigneeName?: string
+  /** Görevin DENEYAP'ının adı (varsa) — çağıran taraf çözüp verir. */
+  deneyapAdi?: string | null
 }
 
 /**
@@ -26,7 +30,9 @@ export interface AranabilirGorev {
  * gözle görülür şekilde yavaşlatırdı.
  */
 export function aranabilirMetin(t: AranabilirGorev): string {
-  return trFold([t.title, t.description ?? '', t.il ?? '', t.assigneeName ?? ''].join(' '))
+  return trFold(
+    [t.title, t.description ?? '', t.il ?? '', t.assigneeName ?? '', t.deneyapAdi ?? ''].join(' '),
+  )
 }
 
 /** Sorguyu katlanmış token'lara böler. Boş sorgu → boş dizi (süzme yok). */
