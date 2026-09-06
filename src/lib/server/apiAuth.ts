@@ -66,9 +66,28 @@ function servisAnahtari(): string {
   return key
 }
 
+/**
+ * Next.js App Router, route handler'ların içindeki global `fetch`'i sarmalayıp
+ * yanıtları ÖNBELLEĞE ALIYOR. supabase-js de fetch kullandığı için bu, veri
+ * tabanı OKUMALARININ önbelleğe alınması demek: aynı sorgu, veri değişmiş
+ * olsa bile eski yanıtı döndürüyor.
+ *
+ * Gerçek bir hatayla bulundu: duyuru "Anladım" ile okundu işaretleniyor,
+ * `duyuru_okundu` sorgusu ise POST'tan ÖNCEKİ boş yanıtı döndürmeye devam
+ * ediyor ve popup her girişte tekrar çıkıyordu. Belirti sinsiydi — istek
+ * 200 dönüyor, sadece içerik bayat.
+ *
+ * `dynamic = 'force-dynamic'` bunu güvenilir şekilde kapatmıyor; önbelleği
+ * istemcinin kendi fetch'inde kapatmak tek sağlam yol. Tüm route'lar bu
+ * fabrikadan geçtiği için düzeltme tek yerde.
+ */
+const onbelleksizFetch: typeof fetch = (girdi, init) =>
+  fetch(girdi, { ...init, cache: 'no-store' })
+
 function adminClient(): SupabaseClient {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, servisAnahtari(), {
     auth: { autoRefreshToken: false, persistSession: false },
+    global: { fetch: onbelleksizFetch },
   })
 }
 
@@ -78,7 +97,7 @@ function userClient(token: string): SupabaseClient {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       auth: { autoRefreshToken: false, persistSession: false },
-      global: { headers: { Authorization: `Bearer ${token}` } },
+      global: { headers: { Authorization: `Bearer ${token}` }, fetch: onbelleksizFetch },
     },
   )
 }
