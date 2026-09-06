@@ -90,48 +90,59 @@ export default function FormOlusturucu({ alanlar, onDegis, sablonlar }: Props) {
       )}
 
       {alanlar.length === 0 && (
-        <div className="text-center py-6 text-sm rounded-xl"
-          style={{ color: '#9ca3af', border: '1px dashed #e5e7eb' }}>
-          Henüz soru yok. Aşağıdan ekleyin.
+        <div className="text-center py-8 rounded-xl"
+          style={{ background: '#f8fafc', border: '1.5px dashed #cbd5e1' }}>
+          <div className="text-sm font-semibold" style={{ color: '#475569' }}>Henüz soru yok</div>
+          <div className="text-xs mt-1" style={{ color: '#64748b' }}>Aşağıdan bir soru tipi seçerek başlayın.</div>
         </div>
       )}
 
       {alanlar.map((alan, i) => {
         const acik = acikIndex === i
         return (
-          <div key={alan.id} className="rounded-xl overflow-hidden" style={{ border: '1px solid #e5e7eb', background: '#fff' }}>
-            <div className="flex items-center gap-2 px-3 py-2.5">
+          <div key={alan.id} className="rounded-xl overflow-hidden"
+            style={{ border: `1.5px solid ${acik ? '#38bdf8' : '#cbd5e1'}`, background: '#fff' }}>
+            <div className="flex items-center gap-2 px-3 py-2.5"
+              style={{ background: acik ? '#f0f9ff' : '#fff' }}>
               <button type="button" onClick={() => setAcikIndex(acik ? null : i)}
                 className="min-w-0 flex-1 text-left" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
-                <div className="text-[13px] font-semibold truncate" style={{ color: '#111827' }}>
+                <div className="text-[14px] font-bold truncate" style={{ color: '#0f172a' }}>
                   {alan.etiket}{alan.zorunlu && <span style={{ color: '#dc2626' }}> *</span>}
                 </div>
-                <div className="text-[11px] mt-0.5" style={{ color: '#9ca3af' }}>
-                  {ALAN_TIPI_ETIKET[alan.tip]} · <code style={{ color: '#0f766e' }}>{`{{${alan.id}}}`}</code>
+                <div className="text-[11px] mt-1 flex items-center gap-1.5 flex-wrap">
+                  <span className="font-semibold px-1.5 py-0.5 rounded"
+                    style={{ background: '#f1f5f9', color: '#475569' }}>{ALAN_TIPI_ETIKET[alan.tip]}</span>
+                  {/* Alan kimliği görünür olmalı: sonraki görev şablonunda
+                      kullanıcı tam olarak bunu yazacak. */}
+                  <code className="px-1.5 py-0.5 rounded font-semibold"
+                    style={{ background: '#f0fdfa', color: '#0f766e' }}>{`{{${alan.id}}}`}</code>
                 </div>
               </button>
               <div className="flex items-center gap-1 shrink-0">
                 <button type="button" onClick={() => tasi(i, -1)} aria-label="Yukarı taşı"
-                  className="px-1.5 text-xs" style={{ color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer' }}>↑</button>
+                  className="w-6 h-6 rounded-md text-xs font-bold"
+                  style={{ color: '#475569', background: '#f1f5f9', border: 'none', cursor: 'pointer' }}>↑</button>
                 <button type="button" onClick={() => tasi(i, 1)} aria-label="Aşağı taşı"
-                  className="px-1.5 text-xs" style={{ color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer' }}>↓</button>
+                  className="w-6 h-6 rounded-md text-xs font-bold"
+                  style={{ color: '#475569', background: '#f1f5f9', border: 'none', cursor: 'pointer' }}>↓</button>
                 <button type="button" onClick={() => sil(i)} aria-label="Soruyu sil"
-                  className="px-1.5 text-sm font-bold" style={{ color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer' }}>×</button>
+                  className="w-6 h-6 rounded-md text-sm font-bold"
+                  style={{ color: '#dc2626', background: '#fef2f2', border: 'none', cursor: 'pointer' }}>×</button>
               </div>
             </div>
 
             {acik && (
               <div className="px-3 pb-3 space-y-3" style={{ borderTop: '1px solid #f3f4f6' }}>
                 <div className="pt-3">
-                  <label className="block text-xs font-semibold mb-1" style={{ color: '#374151' }}>Soru metni</label>
-                  <input className="input" value={alan.etiket}
+                  <label className="block text-[13px] font-semibold mb-1.5" style={{ color: '#1e293b' }}>Soru metni</label>
+                  <input className="input" style={{ borderColor: '#cbd5e1' }} value={alan.etiket}
                     onChange={e => etiketDegistir(i, e.target.value)} />
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-xs font-semibold mb-1" style={{ color: '#374151' }}>Tip</label>
-                    <select className="input" value={alan.tip}
+                    <label className="block text-[13px] font-semibold mb-1.5" style={{ color: '#1e293b' }}>Tip</label>
+                    <select className="input" style={{ borderColor: '#cbd5e1' }} value={alan.tip}
                       onChange={e => {
                         const tip = e.target.value as AlanTipi
                         const yama: Partial<FormAlani> = { tip }
@@ -155,15 +166,15 @@ export default function FormOlusturucu({ alanlar, onDegis, sablonlar }: Props) {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold mb-1" style={{ color: '#374151' }}>Yardım metni</label>
-                  <input className="input" value={alan.aciklama ?? ''}
+                  <label className="block text-[13px] font-semibold mb-1.5" style={{ color: '#1e293b' }}>Yardım metni</label>
+                  <input className="input" style={{ borderColor: '#cbd5e1' }} value={alan.aciklama ?? ''}
                     placeholder="İsteğe bağlı"
                     onChange={e => guncelle(i, { aciklama: e.target.value || null })} />
                 </div>
 
                 {secenekGerekirMi(alan.tip) && (
                   <div>
-                    <label className="block text-xs font-semibold mb-1" style={{ color: '#374151' }}>
+                    <label className="block text-[13px] font-semibold mb-1.5" style={{ color: '#1e293b' }}>
                       Seçenekler (her satıra bir tane)
                     </label>
                     <textarea className="input resize-y" rows={3} style={{ color: '#111827' }}
@@ -186,7 +197,7 @@ export default function FormOlusturucu({ alanlar, onDegis, sablonlar }: Props) {
                             yeni[si] = { ...s, baslik, id: idTuret(baslik, new Set(yeni.filter((_, k) => k !== si).map(x => x.id))) }
                             guncelle(i, { sutunlar: yeni })
                           }} />
-                        <select className="input" style={{ width: 110 }} value={s.tip}
+                        <select className="input" style={{ borderColor: '#cbd5e1', width: 110 }} value={s.tip}
                           onChange={e => {
                             const yeni = [...(alan.sutunlar ?? [])]
                             yeni[si] = { ...s, tip: e.target.value as 'metin' | 'sayi' | 'tarih' }
@@ -213,10 +224,10 @@ export default function FormOlusturucu({ alanlar, onDegis, sablonlar }: Props) {
                       + Sütun ekle
                     </button>
                     <div>
-                      <label className="block text-xs font-semibold mb-1" style={{ color: '#374151' }}>
+                      <label className="block text-[13px] font-semibold mb-1.5" style={{ color: '#1e293b' }}>
                         En az kaç satır doldurulmalı
                       </label>
-                      <input type="number" min={1} className="input" style={{ width: 120 }}
+                      <input type="number" min={1} className="input" style={{ borderColor: '#cbd5e1', width: 120 }}
                         value={alan.enAzSatir ?? 1}
                         onChange={e => guncelle(i, { enAzSatir: Math.max(1, Number(e.target.value) || 1) })} />
                     </div>
@@ -231,8 +242,8 @@ export default function FormOlusturucu({ alanlar, onDegis, sablonlar }: Props) {
       <div className="flex flex-wrap gap-1.5 pt-1">
         {TIPLER.map(t => (
           <button key={t} type="button" onClick={() => ekle(t)}
-            className="px-3 py-1.5 rounded-full text-xs font-semibold"
-            style={{ background: '#fff', color: '#475569', border: '1px solid #e5e7eb', cursor: 'pointer' }}>
+            className="px-3 py-2 rounded-lg text-xs font-semibold transition-colors"
+            style={{ background: '#fff', color: '#334155', border: '1.5px solid #cbd5e1', cursor: 'pointer' }}>
             + {ALAN_TIPI_ETIKET[t]}
           </button>
         ))}

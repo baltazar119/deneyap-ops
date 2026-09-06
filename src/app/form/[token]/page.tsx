@@ -88,59 +88,90 @@ export default function FormDoldurPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center px-4 py-8" style={{ background: '#f5f7fa' }}>
-      <div className="w-full max-w-2xl">
-        <div className="mb-4 text-center">
-          <div className="text-sm font-bold" style={{ color: '#0f2942', letterSpacing: '-0.01em' }}>
-            DENEYAP OYS
-          </div>
+    <div className="min-h-screen" style={{ background: '#eef2f7' }}>
+      {/* Marka bandı: dışarıdan gelen kişi formun nereden geldiğini görsün. */}
+      <div style={{ background: '#0f2942' }}>
+        <div className="max-w-2xl mx-auto px-4 py-3.5 flex items-center gap-2">
+          <span className="text-[15px] font-bold text-white" style={{ letterSpacing: '-0.01em' }}>
+            DENEYAP
+          </span>
+          <span className="text-[11px] font-semibold" style={{ color: 'rgba(255,255,255,0.5)' }}>OYS</span>
         </div>
+      </div>
 
-        <div className="rounded-2xl p-6 md:p-8" style={{ background: '#fff', border: '1px solid #e5e7eb' }}>
-          {yukleniyor ? (
-            <div className="space-y-3">
-              <div className="skeleton h-7 w-2/3 rounded-xl" />
-              {[0, 1, 2].map(i => <div key={i} className="skeleton h-12 rounded-xl" />)}
+      <div className="max-w-2xl mx-auto px-4 py-6 md:py-10">
+        {yukleniyor ? (
+          <div className="rounded-2xl p-6 md:p-8 space-y-3"
+            style={{ background: '#fff', border: '1px solid #e2e8f0' }}>
+            <div className="skeleton h-7 w-2/3 rounded-xl" />
+            {[0, 1, 2].map(i => <div key={i} className="skeleton h-14 rounded-xl" />)}
+          </div>
+        ) : bitti ? (
+          <div className="rounded-2xl p-8 text-center"
+            style={{ background: '#fff', border: '1px solid #e2e8f0' }}>
+            <div className="mx-auto mb-4 flex items-center justify-center rounded-full"
+              style={{ width: 56, height: 56, background: '#dcfce7' }}>
+              <span style={{ fontSize: 26, color: '#15803d' }}>✓</span>
             </div>
-          ) : bitti ? (
-            <div className="text-center py-8">
-              <div className="text-4xl mb-3">✓</div>
-              <h1 className="text-lg font-bold mb-2" style={{ color: '#111827' }}>Teşekkürler</h1>
-              <p className="text-sm" style={{ color: '#6b7280' }}>
-                Cevaplarınız kaydedildi. Bu sayfayı kapatabilirsiniz.
-              </p>
+            <h1 className="text-lg font-bold mb-1.5" style={{ color: '#0f172a' }}>Cevaplarınız alındı</h1>
+            <p className="text-sm leading-relaxed" style={{ color: '#64748b' }}>
+              Teşekkürler. Bu sayfayı kapatabilirsiniz.
+            </p>
+          </div>
+        ) : hata ? (
+          <div className="rounded-2xl p-8 text-center"
+            style={{ background: '#fff', border: '1px solid #e2e8f0' }}>
+            <div className="mx-auto mb-4 flex items-center justify-center rounded-full"
+              style={{ width: 56, height: 56, background: '#fee2e2' }}>
+              <span style={{ fontSize: 24, color: '#dc2626' }}>!</span>
             </div>
-          ) : hata ? (
-            <div className="text-center py-8">
-              <p className="text-sm mb-4" style={{ color: '#dc2626' }}>{hata}</p>
-              {girisGerekli && (
-                <Link href={`/login?next=${encodeURIComponent(`/form/${token}`)}`}
-                  className="btn-primary inline-block" style={{ textDecoration: 'none' }}>
-                  Giriş yap
-                </Link>
-              )}
+            <p className="text-sm mb-5 font-medium" style={{ color: '#0f172a' }}>{hata}</p>
+            {girisGerekli && (
+              <Link href={`/login?next=${encodeURIComponent(`/form/${token}`)}`}
+                className="inline-block rounded-xl text-sm font-bold"
+                style={{ padding: '11px 24px', background: '#2288c9', color: '#fff', textDecoration: 'none' }}>
+                Giriş yap
+              </Link>
+            )}
+          </div>
+        ) : !acik ? (
+          <div className="rounded-2xl p-8 text-center"
+            style={{ background: '#fff', border: '1px solid #e2e8f0' }}>
+            <div className="mx-auto mb-4 flex items-center justify-center rounded-full"
+              style={{ width: 56, height: 56, background: '#f1f5f9' }}>
+              <span style={{ fontSize: 24, color: '#64748b' }}>⏳</span>
             </div>
-          ) : !acik ? (
-            <div className="text-center py-8">
-              <p className="text-sm" style={{ color: '#6b7280' }}>{sebep ?? 'Bu form artık doldurulamıyor.'}</p>
-            </div>
-          ) : form ? (
-            <>
-              <h1 className="text-xl font-bold mb-1" style={{ color: '#111827', letterSpacing: '-0.02em' }}>
+            <p className="text-sm font-medium" style={{ color: '#334155' }}>
+              {sebep ?? 'Bu form artık doldurulamıyor.'}
+            </p>
+          </div>
+        ) : form ? (
+          <>
+            {/* Başlık kartı gövdeden ayrı: uzun formda kaydırınca sorular
+                kendi kartlarında kalıyor, başlık karışmıyor. */}
+            <div className="rounded-2xl px-6 py-5 mb-4"
+              style={{ background: '#fff', border: '1px solid #e2e8f0', borderTop: '4px solid #2288c9' }}>
+              <h1 className="text-[22px] font-bold leading-tight" style={{ color: '#0f172a', letterSpacing: '-0.02em' }}>
                 {form.baslik}
               </h1>
               {form.aciklama && (
-                <p className="text-sm mb-6 whitespace-pre-wrap leading-relaxed" style={{ color: '#6b7280' }}>
+                <p className="text-sm mt-2 whitespace-pre-wrap leading-relaxed" style={{ color: '#475569' }}>
                   {form.aciklama}
                 </p>
               )}
-              {!form.aciklama && <div className="mb-6" />}
-              <FormDoldurucu alanlar={form.alanlar} onGonder={gonder} />
-            </>
-          ) : null}
-        </div>
+              <div className="flex items-center gap-3 mt-3 pt-3 text-xs" style={{ borderTop: '1px solid #f1f5f9', color: '#64748b' }}>
+                <span>{form.alanlar.length} soru</span>
+                {form.alanlar.some(a => a.zorunlu) && (
+                  <span><span style={{ color: '#dc2626' }}>*</span> işaretli alanlar zorunlu</span>
+                )}
+              </div>
+            </div>
 
-        <p className="text-center text-xs mt-4" style={{ color: '#9ca3af' }}>
+            <FormDoldurucu alanlar={form.alanlar} onGonder={gonder} />
+          </>
+        ) : null}
+
+        <p className="text-center text-xs mt-6" style={{ color: '#94a3b8' }}>
           Bu form DENEYAP OYS üzerinden gönderildi.
         </p>
       </div>

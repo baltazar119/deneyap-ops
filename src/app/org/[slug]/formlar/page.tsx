@@ -7,9 +7,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
 import { useOrg } from '@/lib/supabase/orgContext'
 import ResponsiveModal from '@/components/responsive/ResponsiveModal'
-import FormOlusturucu from './_components/FormOlusturucu'
-import { TASK_TYPES } from '@/lib/taskTypes'
-import type { Form, FormAlani } from '@/lib/form/tipler'
+import type { Form } from '@/lib/form/tipler'
 import type { Profile, Task } from '@/types/database'
 
 /**
@@ -19,11 +17,6 @@ import type { Profile, Task } from '@/types/database'
  * hazırlayabilsin); düzenleme/silme yalnızca sahibinde ya da yöneticide.
  * Aynı kural sunucuda ve RLS'te de var.
  */
-
-const ONCELIKLER = [
-  { v: 'critical', e: 'Kritik' }, { v: 'high', e: 'Yüksek' },
-  { v: 'normal', e: 'Normal' }, { v: 'low', e: 'Düşük' },
-]
 
 interface Sayac { gonderim: number; yanit: number }
 
@@ -37,25 +30,6 @@ export default function FormlarPage() {
   const [yukleniyor, setYukleniyor] = useState(true)
   const [hata, setHata] = useState<string | null>(null)
   const [migrationGerekli, setMigrationGerekli] = useState(false)
-
-  // ── Form düzenleme durumu ──
-  const [formAcik, setFormAcik] = useState(false)
-  const [duzenlenen, setDuzenlenen] = useState<Form | null>(null)
-  const [fBaslik, setFBaslik] = useState('')
-  const [fAciklama, setFAciklama] = useState('')
-  const [fErisim, setFErisim] = useState<'uyeler' | 'baglanti'>('uyeler')
-  const [fYayinda, setFYayinda] = useState(true)
-  const [fAlanlar, setFAlanlar] = useState<FormAlani[]>([])
-  const [fSonrakiAktif, setFSonrakiAktif] = useState(false)
-  const [fSonrakiBaslik, setFSonrakiBaslik] = useState('')
-  const [fSonrakiAciklama, setFSonrakiAciklama] = useState('')
-  const [fSonrakiOncelik, setFSonrakiOncelik] = useState('normal')
-  const [fSonrakiTur, setFSonrakiTur] = useState('other')
-  const [fSonrakiTermin, setFSonrakiTermin] = useState('')
-  const [fSonrakiKaynak, setFSonrakiKaynak] = useState<'gonderen' | 'yanitlayan' | 'sabit'>('gonderen')
-  const [fSonrakiAtanan, setFSonrakiAtanan] = useState('')
-  const [formHata, setFormHata] = useState<string | null>(null)
-  const [kaydediliyor, setKaydediliyor] = useState(false)
 
   // ── Gönderme durumu ──
   const [gonderAcik, setGonderAcik] = useState(false)
@@ -117,62 +91,6 @@ export default function FormlarPage() {
       setGorevler((gorevData ?? []) as Task[])
     })()
   }, [orgLoading, org, yukle])
-
-  function yeniAc() {
-    setDuzenlenen(null)
-    setFBaslik(''); setFAciklama(''); setFErisim('uyeler'); setFYayinda(true); setFAlanlar([])
-    setFSonrakiAktif(false); setFSonrakiBaslik(''); setFSonrakiAciklama('')
-    setFSonrakiOncelik('normal'); setFSonrakiTur('other'); setFSonrakiTermin('')
-    setFSonrakiKaynak('gonderen'); setFSonrakiAtanan('')
-    setFormHata(null); setFormAcik(true)
-  }
-
-  function duzenleAc(f: Form) {
-    setDuzenlenen(f)
-    setFBaslik(f.baslik); setFAciklama(f.aciklama ?? '')
-    setFErisim(f.erisim); setFYayinda(f.yayinda)
-    setFAlanlar((f.alanlar ?? []) as FormAlani[])
-    setFSonrakiAktif(f.sonraki_gorev_aktif)
-    setFSonrakiBaslik(f.sonraki_gorev_baslik ?? '')
-    setFSonrakiAciklama(f.sonraki_gorev_aciklama ?? '')
-    setFSonrakiOncelik(f.sonraki_gorev_oncelik ?? 'normal')
-    setFSonrakiTur(f.sonraki_gorev_tur ?? 'other')
-    setFSonrakiTermin(f.sonraki_gorev_termin_gun != null ? String(f.sonraki_gorev_termin_gun) : '')
-    setFSonrakiKaynak(f.sonraki_gorev_atanan_kaynak ?? 'gonderen')
-    setFSonrakiAtanan(f.sonraki_gorev_atanan_id ?? '')
-    setFormHata(null); setFormAcik(true)
-  }
-
-  async function kaydet(e: React.FormEvent) {
-    e.preventDefault()
-    if (!org) return
-    setKaydediliyor(true); setFormHata(null)
-    const govde = {
-      baslik: fBaslik, aciklama: fAciklama, erisim: fErisim, yayinda: fYayinda,
-      alanlar: fAlanlar,
-      sonraki_gorev_aktif: fSonrakiAktif,
-      sonraki_gorev_baslik: fSonrakiBaslik,
-      sonraki_gorev_aciklama: fSonrakiAciklama,
-      sonraki_gorev_oncelik: fSonrakiOncelik,
-      sonraki_gorev_tur: fSonrakiTur,
-      sonraki_gorev_termin_gun: fSonrakiTermin === '' ? null : Number(fSonrakiTermin),
-      sonraki_gorev_atanan_kaynak: fSonrakiKaynak,
-      sonraki_gorev_atanan_id: fSonrakiAtanan || null,
-    }
-    try {
-      if (duzenlenen) {
-        await istek(`/api/org/${org.slug}/formlar`, { method: 'PATCH', body: JSON.stringify({ ...govde, id: duzenlenen.id }) })
-      } else {
-        await istek(`/api/org/${org.slug}/formlar`, { method: 'POST', body: JSON.stringify(govde) })
-      }
-      setFormAcik(false)
-      await yukle()
-    } catch (e) {
-      setFormHata(e instanceof Error ? e.message : 'Kaydedilemedi.')
-    } finally {
-      setKaydediliyor(false)
-    }
-  }
 
   async function sil(f: Form) {
     if (!org) return
@@ -236,10 +154,11 @@ export default function FormlarPage() {
               {formlar.length} form · dolduruldukça bağlı görev tamamlanır
             </p>
           </div>
-          <button onClick={yeniAc} className="shrink-0 text-sm font-medium px-4 py-2 rounded-xl"
-            style={{ background: '#2288c9', color: '#fff', border: 'none' }}>
+          <Link href={`/org/${org?.slug}/formlar/yeni`}
+            className="shrink-0 text-sm font-bold px-4 py-2.5 rounded-xl"
+            style={{ background: '#2288c9', color: '#fff', textDecoration: 'none' }}>
             + Yeni Form
-          </button>
+          </Link>
         </div>
 
         {hata && (
@@ -300,10 +219,11 @@ export default function FormlarPage() {
                     </button>
                     {duzenleyebilirMi(f) && (
                       <>
-                        <button onClick={() => duzenleAc(f)} className="text-xs px-2.5 py-1 rounded-lg font-medium"
-                          style={{ color: '#2288c9', background: '#eff6ff', border: '1px solid #dbeafe' }}>
+                        <Link href={`/org/${org?.slug}/formlar/${f.id}/duzenle`}
+                          className="text-xs px-2.5 py-1.5 rounded-lg font-semibold"
+                          style={{ color: '#2288c9', background: '#eff6ff', border: '1px solid #bfdbfe', textDecoration: 'none' }}>
                           Düzenle
-                        </button>
+                        </Link>
                         <button onClick={() => sil(f)} className="text-xs px-2.5 py-1 rounded-lg font-medium"
                           style={{ color: '#dc2626', background: '#fff1f1', border: '1px solid #fecaca' }}>
                           Sil
@@ -317,144 +237,6 @@ export default function FormlarPage() {
           })}
         </div>
       </main>
-
-      {/* ── Form oluştur / düzenle ── */}
-      <ResponsiveModal open={formAcik} onClose={() => setFormAcik(false)}
-        title={duzenlenen ? 'Formu Düzenle' : 'Yeni Form'} maxWidth="xl">
-        <form onSubmit={kaydet} className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold mb-1.5" style={{ color: '#374151' }}>Form başlığı *</label>
-            <input className="input" value={fBaslik} onChange={e => setFBaslik(e.target.value)} required />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold mb-1.5" style={{ color: '#374151' }}>Açıklama</label>
-            <textarea className="input resize-y" rows={2} style={{ color: '#111827' }}
-              value={fAciklama} onChange={e => setFAciklama(e.target.value)} />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold mb-1.5" style={{ color: '#374151' }}>Kimler doldurabilir</label>
-            <div className="flex gap-1.5">
-              {[
-                { v: 'uyeler' as const, e: 'Sadece üyeler' },
-                { v: 'baglanti' as const, e: 'Bağlantısı olan herkes' },
-              ].map(o => (
-                <button key={o.v} type="button" onClick={() => setFErisim(o.v)}
-                  className="px-3 py-1.5 rounded-full text-xs font-semibold"
-                  style={{
-                    background: fErisim === o.v ? '#e0f2fe' : '#fff',
-                    color: fErisim === o.v ? '#0369a1' : '#64748b',
-                    border: `1px solid ${fErisim === o.v ? '#7dd3fc' : '#e5e7eb'}`,
-                  }}>
-                  {o.e}
-                </button>
-              ))}
-            </div>
-            {fErisim === 'baglanti' && (
-              <p className="text-[11px] mt-1.5" style={{ color: '#b45309' }}>
-                Bağlantıyı alan herkes giriş yapmadan doldurabilir. Kim doldurduğunu bilmek
-                istiyorsanız forma bir &quot;Adınız&quot; sorusu ekleyin.
-              </p>
-            )}
-          </div>
-
-          <div>
-            <div className="text-[11px] font-bold uppercase mb-2" style={{ color: '#64748b', letterSpacing: '0.04em' }}>
-              Sorular
-            </div>
-            <FormOlusturucu alanlar={fAlanlar} onDegis={setFAlanlar}
-              sablonlar={[fSonrakiBaslik, fSonrakiAciklama]} />
-          </div>
-
-          {/* ── Workflow ── */}
-          <div className="rounded-xl p-3" style={{ background: '#f8fafc', border: '1px solid #e5e7eb' }}>
-            <label className="flex items-center gap-2 text-sm font-semibold cursor-pointer" style={{ color: '#111827' }}>
-              <input type="checkbox" checked={fSonrakiAktif} onChange={e => setFSonrakiAktif(e.target.checked)} />
-              Form dolunca sonraki görevi otomatik aç
-            </label>
-            <p className="text-[11px] mt-1 leading-relaxed" style={{ color: '#6b7280' }}>
-              Bağlı görev her hâlükârda &quot;tamamlandı&quot; olur. Bu seçenek, cevaplardan
-              beslenen YENİ bir görev daha açar. Başlıkta{' '}
-              <code style={{ color: '#0f766e' }}>{'{{soru_kimliği}}'}</code> yazarsanız cevapla değişir.
-            </p>
-
-            {fSonrakiAktif && (
-              <div className="space-y-3 mt-3">
-                <div>
-                  <label className="block text-xs font-semibold mb-1" style={{ color: '#374151' }}>Görev başlığı şablonu *</label>
-                  <input className="input" value={fSonrakiBaslik} onChange={e => setFSonrakiBaslik(e.target.value)}
-                    placeholder="ör. {{il}} için malzeme siparişi" />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold mb-1" style={{ color: '#374151' }}>Açıklama şablonu</label>
-                  <textarea className="input resize-y" rows={2} style={{ color: '#111827' }}
-                    value={fSonrakiAciklama} onChange={e => setFSonrakiAciklama(e.target.value)} />
-                  <p className="text-[11px] mt-1" style={{ color: '#9ca3af' }}>
-                    Tüm cevapların özeti zaten otomatik eklenir.
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs font-semibold mb-1" style={{ color: '#374151' }}>Öncelik</label>
-                    <select className="input" value={fSonrakiOncelik} onChange={e => setFSonrakiOncelik(e.target.value)}>
-                      {ONCELIKLER.map(o => <option key={o.v} value={o.v}>{o.e}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold mb-1" style={{ color: '#374151' }}>Tür</label>
-                    <select className="input" value={fSonrakiTur} onChange={e => setFSonrakiTur(e.target.value)}>
-                      {TASK_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs font-semibold mb-1" style={{ color: '#374151' }}>Termin (kaç gün sonra)</label>
-                    <input type="number" min={0} className="input" placeholder="boş = terminsiz"
-                      value={fSonrakiTermin} onChange={e => setFSonrakiTermin(e.target.value)} />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold mb-1" style={{ color: '#374151' }}>Kime atansın</label>
-                    <select className="input" value={fSonrakiKaynak}
-                      onChange={e => setFSonrakiKaynak(e.target.value as typeof fSonrakiKaynak)}>
-                      <option value="gonderen">Formu gönderen</option>
-                      <option value="yanitlayan">Formu dolduran</option>
-                      <option value="sabit">Belirli bir kişi</option>
-                    </select>
-                  </div>
-                </div>
-                {fSonrakiKaynak === 'sabit' && (
-                  <select className="input" value={fSonrakiAtanan} onChange={e => setFSonrakiAtanan(e.target.value)}>
-                    <option value="">-- Kişi seçin --</option>
-                    {uyeler.map(u => <option key={u.id} value={u.id}>{u.full_name || u.id}</option>)}
-                  </select>
-                )}
-                {fSonrakiKaynak === 'yanitlayan' && fErisim === 'baglanti' && (
-                  <p className="text-[11px]" style={{ color: '#b45309' }}>
-                    Açık bağlantıda dolduranın kimliği bilinmez; bu durumda görev atanmamış açılır.
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-
-          <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: '#374151' }}>
-            <input type="checkbox" checked={fYayinda} onChange={e => setFYayinda(e.target.checked)} />
-            Yayında (kapalıysa gönderilemez)
-          </label>
-
-          {formHata && (
-            <div className="text-xs rounded-xl px-4 py-3" style={{ background: '#fee2e2', color: '#dc2626' }}>{formHata}</div>
-          )}
-
-          <div className="flex gap-3 pt-1">
-            <button type="button" onClick={() => setFormAcik(false)} className="btn-secondary flex-1">İptal</button>
-            <button type="submit" disabled={kaydediliyor} className="btn-primary flex-1">
-              {kaydediliyor ? 'Kaydediliyor...' : duzenlenen ? 'Güncelle' : 'Oluştur'}
-            </button>
-          </div>
-        </form>
-      </ResponsiveModal>
 
       {/* ── Gönder ── */}
       <ResponsiveModal open={gonderAcik} onClose={() => setGonderAcik(false)} title="Formu Gönder" maxWidth="md">
