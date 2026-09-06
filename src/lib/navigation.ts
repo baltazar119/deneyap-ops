@@ -2,6 +2,7 @@ import {
   LayoutDashboard, CheckSquare, Columns2, Calendar, GitBranch, FileBarChart,
   Zap, FolderOpen, Sparkles, MessageSquare, Users, User,
   LayoutGrid, MessageCircle, ListTodo, Video, Settings, ShieldAlert, Megaphone,
+  ClipboardList,
   type LucideIcon,
 } from 'lucide-react'
 import type { OrgRole } from '@/types/database'
@@ -23,6 +24,7 @@ export const NAV_ICONS: Record<string, LucideIcon> = {
   'Operasyon Riski': ShieldAlert,
   Raporlar: FileBarChart,
   Duyurular: Megaphone,
+  Formlar: ClipboardList,
   Takvim: Calendar,
   Timeline: GitBranch,
   Sprintler: Zap,
@@ -78,6 +80,9 @@ export function getNavLinks({ base, role, isPro }: { base: string; role: OrgRole
       is(`${base}/calendar`, 'Takvim'),
       is(`${base}/timeline`, 'Timeline'),
       is(`${base}/sprints`, 'Sprintler'),
+      // Form oluşturma her org üyesine açık (kullanıcı kararı), bu yüzden
+      // menüde dört rolde de var.
+      is(`${base}/formlar`, 'Formlar'),
 
       izleme(`${base}/risk`, 'Operasyon Riski'),
       izleme(`${base}/raporlar`, 'Raporlar'),
@@ -108,6 +113,7 @@ export function getNavLinks({ base, role, isPro }: { base: string; role: OrgRole
 
       is(`${base}/tasks`, 'Görevler'),
       is(`${base}/timeline`, 'Timeline'),
+      is(`${base}/formlar`, 'Formlar'),
 
       kisisel(`${base}/profile`, 'Profilim'),
     ]
@@ -130,6 +136,7 @@ export function getNavLinks({ base, role, isPro }: { base: string; role: OrgRole
     // aksiyonları gizli. Kuralı `gorevListesiGorebilirMi` taşıyor.
     is(`${base}/tasks`, 'Görevler'),
     is(`${base}/kanban`, 'Kanban'),
+    is(`${base}/formlar`, 'Formlar'),
     is(`${base}/calendar`, 'Takvim'),
     is(`${base}/timeline`, 'Timeline'),
 

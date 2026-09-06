@@ -479,6 +479,8 @@ export type NotificationEvent =
   | 'member_overloaded'
   // 062 — duyuru bildirimi
   | 'announcement'
+  // 066 — form gönderildi / yanıtlandı
+  | 'form_yanitlandi'
 
 export interface AppNotification {
   id: string
