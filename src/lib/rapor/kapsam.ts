@@ -16,6 +16,7 @@ export type RaporBolumu =
   | 'gecikmeler'
   | 'yaklasan'
   | 'risk'
+  | 'trend'
   | 'ham_liste'
 
 export interface RaporKapsami {
@@ -33,7 +34,7 @@ export interface RaporKapsami {
 export function raporKapsami(rol: OrgRole | null, uyeIl: string | null): RaporKapsami {
   const hepsi: RaporBolumu[] = [
     'kpi', 'il_kirilimi', 'sorumlu_kirilimi', 'tur_kirilimi',
-    'gecikmeler', 'yaklasan', 'risk', 'ham_liste',
+    'gecikmeler', 'yaklasan', 'risk', 'trend', 'ham_liste',
   ]
 
   switch (rol) {
@@ -62,7 +63,7 @@ export function raporKapsami(rol: OrgRole | null, uyeIl: string | null): RaporKa
           // 'risk' bilinçli olarak EKLENDİ: kullanıcı kararı gereği İl
           // Sorumlusu kendi ilinin risk tablosunu görebilir. Kapsam zaten
           // ilFiltresi ile kendi iliyle sınırlı.
-          'kpi', 'il_kirilimi', 'tur_kirilimi', 'yaklasan', 'gecikmeler', 'risk', 'ham_liste',
+          'kpi', 'il_kirilimi', 'tur_kirilimi', 'yaklasan', 'gecikmeler', 'risk', 'trend', 'ham_liste',
         ]),
         kisiBazliVeri: true,
         raporAdi: uyeIl ? `${uyeIl} İl Durum Raporu` : 'Görev Durum Raporu',
@@ -73,7 +74,7 @@ export function raporKapsami(rol: OrgRole | null, uyeIl: string | null): RaporKa
         ilFiltresi: null,
         // Yönetici özeti: oranlar ve gecikmeler. Kişi kırılımı ve ham görev
         // listesi yok — bu rol karar için sayıya bakar, göreve değil.
-        bolumler: new Set<RaporBolumu>(['kpi', 'il_kirilimi', 'tur_kirilimi', 'gecikmeler', 'risk']),
+        bolumler: new Set<RaporBolumu>(['kpi', 'il_kirilimi', 'tur_kirilimi', 'gecikmeler', 'risk', 'trend']),
         kisiBazliVeri: false,
         raporAdi: 'Yönetici Özeti',
       }

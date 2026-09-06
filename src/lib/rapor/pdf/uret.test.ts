@@ -87,3 +87,76 @@ describe('raporPdfUret', () => {
     expect(sayfaSayisi).toBeGreaterThan(1)
   }, 60_000)
 })
+
+/**
+ * GRAFİKLİ PDF — @react-pdf Svg riskinin tek gerçek kanıtı.
+ *
+ * Svg/Path primitifleri gömülü fontla birlikte bazı sürümlerde sorun
+ * çıkarabiliyor. Bu testler grafik içeren bir raporun GERÇEKTEN üretildiğini
+ * ve süre bütçesini aşmadığını doğruluyor.
+ */
+describe('raporPdfUret — grafikler', () => {
+  function trendli(): ReturnType<typeof veri> {
+    const v = veri('owner')
+    const noktalar = Array.from({ length: 30 }, (_, i) => ({
+      etiket: `${i + 1} Eyl`,
+      acik: 10 + (i % 7),
+      geciken: i % 5,
+      olusturulan: i % 3,
+      tamamlanan: (i + 1) % 4,
+      bloke: i < 20 ? null : i % 3,          // türetilmiş bölgede null
+      atanmamis: i < 20 ? null : i % 2,
+      turetilmis: i < 20,                     // ilk 20 gün kesikli çizilecek
+    }))
+    return {
+      ...v,
+      trend: { noktalar, tamamenTuretilmis: false, karsilastirma: null },
+      risk: {
+        skor: 55, seviye: 'medium', baslik: '2 acil konu var. En kritik: Ankara.',
+        sinyaller: [{ baslik: 'Gecikme birikmesi', detay: '3 görev termini aştı', seviye: 'high', eylem: 'Ankara ile görüşün' }],
+        iller: [
+          { il: 'Ankara', skor: 70, seviye: 'high', acik: 8, geciken: 3 },
+          { il: 'İzmir',  skor: 30, seviye: 'medium', acik: 5, geciken: 1 },
+        ],
+      },
+    }
+  }
+
+  it('grafik içeren rapor geçerli PDF üretir', async () => {
+    const buf = await raporPdfUret(trendli())
+    expect(pdfMi(buf)).toBe(true)
+    expect(buf.length).toBeGreaterThan(3000)
+  }, 60_000)
+
+  it('vektör çizim komutları PDF içine gerçekten yazılıyor', async () => {
+    const duz = await raporPdfUret(veri('owner'))
+    const grafikli = await raporPdfUret(trendli())
+    // Grafikli sürüm belirgin şekilde daha büyük olmalı; değilse Svg
+    // sessizce hiçbir şey çizmemiş demektir.
+    expect(grafikli.length).toBeGreaterThan(duz.length)
+  }, 60_000)
+
+  it('90 noktalı seride makul sürede biter', async () => {
+    const v = trendli()
+    const uzun = {
+      ...v,
+      trend: {
+        ...v.trend!,
+        noktalar: Array.from({ length: 90 }, (_, i) => ({
+          etiket: `g${i}`, acik: i % 20, geciken: i % 7,
+          olusturulan: i % 3, tamamlanan: i % 4,
+          bloke: null, atanmamis: null, turetilmis: true,
+        })),
+      },
+    }
+    const t0 = Date.now()
+    const buf = await raporPdfUret(uzun)
+    expect(pdfMi(buf)).toBe(true)
+    expect(Date.now() - t0).toBeLessThan(20_000)
+  }, 60_000)
+
+  it('trend null iken de üretilir (ölçüm altyapısı yokken)', async () => {
+    const buf = await raporPdfUret({ ...veri('owner'), trend: null, risk: null })
+    expect(pdfMi(buf)).toBe(true)
+  }, 30_000)
+})

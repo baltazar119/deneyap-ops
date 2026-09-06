@@ -86,6 +86,41 @@ export interface RaporVerisi {
    * doldurur. Kapsamda 'risk' yoksa null kalır.
    */
   risk: RaporRiskOzeti | null
+  /**
+   * Zaman serisi. Saf hesaplayıcı DB'ye bakmadığı için burada üretilmez;
+   * sunucu katmanı (rapor/veri.ts) doldurur. Kapsamda 'trend' yoksa null.
+   */
+  trend: RaporTrend | null
+}
+
+export interface RaporTrend {
+  noktalar: {
+    etiket: string
+    acik: number
+    geciken: number
+    olusturulan: number
+    tamamlanan: number
+    bloke: number | null
+    atanmamis: number | null
+    turetilmis: boolean
+  }[]
+  /** Serinin tamamı görev tarihlerinden mi türetildi (hiç ölçüm yok) */
+  tamamenTuretilmis: boolean
+  karsilastirma: {
+    acik: TrendKarsilastirma
+    geciken: TrendKarsilastirma
+    tamamlanan: TrendKarsilastirma
+  } | null
+}
+
+export interface TrendKarsilastirma {
+  bu: number
+  onceki: number
+  fark: number
+  yuzde: number | null
+  yon: 'artis' | 'azalis' | 'sabit'
+  guvenilir: boolean
+  metin: string
 }
 
 export interface RaporRiskOzeti {
@@ -299,5 +334,6 @@ export function raporHesapla(g: HesapGirdisi): RaporVerisi {
     hamListe,
     // Sunucu katmanı doldurur (rapor/veri.ts) — saf hesaplayıcı DB'ye bakmaz
     risk: null,
+    trend: null,
   }
 }

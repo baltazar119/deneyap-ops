@@ -8,7 +8,9 @@ import { supabase } from '@/lib/supabase/client'
 import { useOrg } from '@/lib/supabase/orgContext'
 import { rolAdi } from '@/lib/roller'
 import { raporUretebilirMi } from '@/lib/rapor/kapsam'
-import type { RaporVerisi } from '@/lib/rapor/hesapla'
+import type { RaporVerisi, TrendKarsilastirma } from '@/lib/rapor/hesapla'
+import Cizgi from '@/components/grafik/Cizgi'
+import { YatayBar, YiginBar } from '@/components/grafik/Bar'
 import type { DonemAnahtari } from '@/lib/rapor/donem'
 
 /**
@@ -183,6 +185,80 @@ export default function RaporlarPage() {
               </div>
             </div>
 
+            {b('trend') && veri.trend && veri.trend.noktalar.length > 1 && (
+              <div className="card">
+                <h2 className="font-semibold mb-1" style={{ color: '#0d1a2a' }}>Eğilim</h2>
+                <p className="text-xs mb-3" style={{ color: '#94a3b8' }}>
+                  Son 90 gün. Dönem seçiminden bağımsızdır — eğilim görmek için
+                  daha uzun bir pencere gerekir.
+                </p>
+
+                {veri.trend.karsilastirma && (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4">
+                    <Kiyas etiket="Açık görev"  k={veri.trend.karsilastirma.acik}       tersIyi />
+                    <Kiyas etiket="Geciken"     k={veri.trend.karsilastirma.geciken}    tersIyi />
+                    <Kiyas etiket="Tamamlanan"  k={veri.trend.karsilastirma.tamamlanan} />
+                  </div>
+                )}
+
+                <Cizgi
+                  etiketler={veri.trend.noktalar.map(n => n.etiket)}
+                  turetilmis={veri.trend.noktalar.map(n => n.turetilmis)}
+                  seriler={[
+                    { ad: 'Açık',       renk: '#2288c9', degerler: veri.trend.noktalar.map(n => n.acik) },
+                    { ad: 'Geciken',    renk: '#dc2626', degerler: veri.trend.noktalar.map(n => n.geciken) },
+                    { ad: 'Tamamlanan', renk: '#059669', degerler: veri.trend.noktalar.map(n => n.tamamlanan) },
+                  ]}
+                  turetilmisNotu={
+                    veri.trend.tamamenTuretilmis
+                      ? 'Kesikli çizgi: bu döneme ait günlük ölçüm yok, seri mevcut görev tarihlerinden geriye dönük hesaplandı. Ölçüm biriktikçe grafik gerçek veriye geçer.'
+                      : 'Kesikli bölümler ölçüm öncesine ait; görev tarihlerinden hesaplandı.'
+                  }
+                />
+
+                {veri.trend.noktalar.some(n => n.bloke !== null) && (
+                  <div className="mt-4">
+                    <Cizgi
+                      baslik="Bloke ve atanmamış görevler"
+                      etiketler={veri.trend.noktalar.map(n => n.etiket)}
+                      turetilmis={veri.trend.noktalar.map(n => n.turetilmis)}
+                      seriler={[
+                        { ad: 'Bloke',      renk: '#b45309', degerler: veri.trend.noktalar.map(n => n.bloke) },
+                        { ad: 'Atanmamış',  renk: '#7c3aed', degerler: veri.trend.noktalar.map(n => n.atanmamis) },
+                      ]}
+                      turetilmisNotu="Bu iki seri yalnızca ölçüm yapılan günlerde çizilir; geçmişe dönük hesaplanamaz."
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {b('il_kirilimi') && veri.ilKirilimi.length > 1 && (
+              <div className="card">
+                <h2 className="font-semibold mb-1" style={{ color: '#0d1a2a' }}>İl Karşılaştırması</h2>
+                <p className="text-xs mb-3" style={{ color: '#94a3b8' }}>Tamamlanma oranı (%).</p>
+                <YatayBar
+                  ogeler={veri.ilKirilimi.slice(0, 10).map(r => ({
+                    etiket: r.il,
+                    deger: r.oran,
+                    renk: r.oran >= 70 ? '#059669' : r.oran >= 40 ? '#b45309' : '#dc2626',
+                  }))}
+                />
+              </div>
+            )}
+
+            {b('kpi') && veri.kpi.toplam > 0 && (
+              <div className="card">
+                <h2 className="font-semibold mb-3" style={{ color: '#0d1a2a' }}>Durum Dağılımı</h2>
+                <YiginBar dilimler={[
+                  { ad: 'Tamamlanan', deger: veri.kpi.tamamlanan, renk: '#059669' },
+                  { ad: 'Devam eden', deger: veri.kpi.devamEden,  renk: '#2288c9' },
+                  { ad: 'Bekleyen',   deger: veri.kpi.bekleyen,   renk: '#94a3b8' },
+                  { ad: 'Bloke',      deger: veri.kpi.bloke,      renk: '#b45309' },
+                ]} />
+              </div>
+            )}
+
             {b('il_kirilimi') && veri.ilKirilimi.length > 0 && (
               <div className="card">
                 <h2 className="font-semibold mb-1" style={{ color: '#0d1a2a' }}>İl Kırılımı</h2>
@@ -269,6 +345,39 @@ function Kpi({ deger, etiket, renk = '#0d1a2a' }: { deger: number; etiket: strin
     <div className="rounded-xl px-3 py-2.5" style={{ background: '#fff', border: '1px solid #e5e7eb' }}>
       <div className="text-xl font-black" style={{ color: renk }}>{deger}</div>
       <div className="text-xs" style={{ color: '#64748b' }}>{etiket}</div>
+    </div>
+  )
+}
+
+/**
+ * Dönem karşılaştırma kartı.
+ *
+ * `tersIyi`: bazı metriklerde ARTIŞ kötüdür (geciken, açık görev). Renk
+ * yönü buna göre çevrilir; yoksa "geciken %40 arttı" yeşil görünürdü.
+ *
+ * Yüzde YALNIZCA `guvenilir` iken gösterilir — küçük sayılarda
+ * (`lib/ozet/karsilastir.ts`) yüzde hiç üretilmez ve metin mutlak farkı
+ * söyler.
+ */
+function Kiyas({ etiket, k, tersIyi = false }: {
+  etiket: string
+  k: TrendKarsilastirma
+  tersIyi?: boolean
+}) {
+  const iyi = k.yon === 'sabit' ? null : tersIyi ? k.yon === 'azalis' : k.yon === 'artis'
+  const renk = iyi === null ? '#64748b' : iyi ? '#059669' : '#dc2626'
+  const ok = k.yon === 'artis' ? '▲' : k.yon === 'azalis' ? '▼' : '–'
+
+  return (
+    <div className="rounded-xl px-3 py-2" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+      <div className="text-xs mb-0.5" style={{ color: '#64748b' }}>{etiket}</div>
+      <div className="flex items-baseline gap-2">
+        <span className="text-lg font-bold" style={{ color: '#0d1a2a' }}>{k.bu}</span>
+        <span className="text-xs font-semibold" style={{ color: renk }}>
+          {ok} {k.guvenilir && k.yuzde !== null ? `%${Math.abs(k.yuzde)}` : Math.abs(k.fark)}
+        </span>
+      </div>
+      <div className="text-xs mt-0.5" style={{ color: '#94a3b8' }}>{k.metin}</div>
     </div>
   )
 }

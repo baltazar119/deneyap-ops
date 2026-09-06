@@ -2,8 +2,11 @@ import 'server-only'
 import { tumGorevleriGetir } from '@/lib/server/taskQuery'
 import { rolAdi } from '@/lib/roller'
 import { raporKapsami } from './kapsam'
-import { raporHesapla, type RaporVerisi, type Donem } from './hesapla'
+import { raporHesapla, type RaporVerisi, type Donem, type RaporTrend, type TrendKarsilastirma } from './hesapla'
 import { yerelGun } from './donem'
+import { seriUret, gunEkle, type OlcumSatiri } from '@/lib/ozet/seri'
+import { karsilastir, karsilastirmaMetni, oncekiDonem } from '@/lib/ozet/karsilastir'
+import type { Task } from '@/types/database'
 import { computeRisk } from '@/lib/operationRisk'
 import { riskGirdisiSunucu } from '@/lib/risk/sunucuVeri'
 import type { OrgYetki } from '@/lib/server/apiAuth'
@@ -66,13 +69,16 @@ export async function raporVerisi(
    * Risk DÖNEME TABİ DEĞİL — anlık durumu anlatır. "Geçen ay" seçildiğinde
    * "şu an neyin riskli olduğu" değişmemeli.
    */
-  if (!kapsam.bolumler.has('risk')) return temel
+  const trend = await trendUret(yetki, kapsam, gorevler, donem)
+
+  if (!kapsam.bolumler.has('risk')) return { ...temel, trend }
 
   try {
     const girdi = await riskGirdisiSunucu(yetki)
     const r = computeRisk(girdi)
     return {
       ...temel,
+      trend,
       risk: {
         skor: r.score,
         seviye: r.level,
@@ -91,6 +97,82 @@ export async function raporVerisi(
   } catch (err) {
     // Risk hesabı raporun tamamını düşürmemeli — bölüm boş kalır.
     console.error('[rapor/veri] risk hesaplanamadı:', err)
-    return temel
+    return { ...temel, trend }
+  }
+}
+
+/* ── Trend serisi ────────────────────────────────────────────────────────
+ *
+ * `gunluk_ozet` tablosu YOKSA (migration 064 uygulanmamış) veya boşsa seri
+ * görev tarihlerinden türetilir. Bu yüzden hata yakalanıp yutuluyor:
+ * ölçüm altyapısının olmaması raporu düşürmemeli.
+ */
+async function trendUret(
+  yetki: OrgYetki,
+  kapsam: ReturnType<typeof raporKapsami>,
+  gorevler: Task[],
+  donem: Donem,
+): Promise<RaporTrend | null> {
+  if (!kapsam.bolumler.has('trend')) return null
+
+  // Trend penceresi dönemden BAĞIMSIZ olarak son 90 gün: tek haftalık bir
+  // dönem seçildiğinde 7 noktalı bir grafik "eğilim" göstermez.
+  const bugun = yerelGun(new Date())
+  const baslangic = gunEkle(bugun, -89)
+
+  let olcumler: OlcumSatiri[] = []
+  try {
+    let q = yetki.admin
+      .from('gunluk_ozet')
+      .select('gun, acik, geciken, yeni_olusturulan, gun_icinde_tamamlanan, bloke, atanmamis')
+      .eq('organization_id', yetki.org.id)
+      .gte('gun', baslangic)
+      .order('gun')
+
+    // İl Sorumlusu kendi ilinin serisini görür, ülke genelini değil.
+    const tekIl = kapsam.ilFiltresi?.length === 1 ? kapsam.ilFiltresi[0] : null
+    q = tekIl ? q.eq('kirilim', 'il').eq('il', tekIl) : q.eq('kirilim', 'org')
+
+    const { data, error } = await q
+    if (!error && data) olcumler = data as OlcumSatiri[]
+  } catch {
+    // Tablo yok / erişilemedi → türetmeye düşülür
+  }
+
+  const noktalar = seriUret({ gorevler, olcumler, baslangic, bitis: bugun })
+  if (!noktalar.length) return null
+
+  // Dönem karşılaştırması: seçili dönem ile hemen öncesi
+  const onceki = oncekiDonem(donem.baslangic, donem.bitis)
+  const pencere = (b: string, s: string) => noktalar.filter(n => n.gun >= b && n.gun <= s)
+  const buP = pencere(donem.baslangic, donem.bitis)
+  const onP = pencere(onceki.baslangic, onceki.bitis)
+
+  const sonDeger = (dizi: typeof noktalar, alan: 'acik' | 'geciken') =>
+    dizi.length ? dizi[dizi.length - 1][alan] : 0
+  const toplam = (dizi: typeof noktalar, alan: 'tamamlanan') =>
+    dizi.reduce((s, n) => s + n[alan], 0)
+
+  const paketle = (k: ReturnType<typeof karsilastir>): TrendKarsilastirma => ({
+    bu: k.bu, onceki: k.onceki, fark: k.fark, yuzde: k.yuzde,
+    yon: k.yon, guvenilir: k.guvenilir, metin: karsilastirmaMetni(k),
+  })
+
+  const karsilastirmaVar = buP.length > 0 && onP.length > 0
+
+  return {
+    noktalar: noktalar.map(n => ({
+      etiket: n.etiket,
+      acik: n.acik, geciken: n.geciken,
+      olusturulan: n.olusturulan, tamamlanan: n.tamamlanan,
+      bloke: n.bloke, atanmamis: n.atanmamis,
+      turetilmis: n.kaynak === 'turetilmis',
+    })),
+    tamamenTuretilmis: noktalar.every(n => n.kaynak === 'turetilmis'),
+    karsilastirma: karsilastirmaVar ? {
+      acik:       paketle(karsilastir(sonDeger(buP, 'acik'),    sonDeger(onP, 'acik'))),
+      geciken:    paketle(karsilastir(sonDeger(buP, 'geciken'), sonDeger(onP, 'geciken'))),
+      tamamlanan: paketle(karsilastir(toplam(buP, 'tamamlanan'), toplam(onP, 'tamamlanan'))),
+    } : null,
   }
 }

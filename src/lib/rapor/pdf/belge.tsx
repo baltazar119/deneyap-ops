@@ -1,6 +1,7 @@
 import 'server-only'
 import React from 'react'
 import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer'
+import { PdfCizgi, PdfYatayBar, PdfYiginBar } from './grafikler'
 import path from 'path'
 import { existsSync } from 'fs'
 import { T, gecikmeRengi, oranRengi } from './tema'
@@ -235,6 +236,73 @@ export function RaporBelgesi({ v }: { v: RaporVerisi }) {
               }]} />
             </View>
           </View>
+
+          {/* Eğilim — son 90 gün, dönemden bağımsız */}
+          {b('trend') && v.trend && v.trend.noktalar.length > 1 && (
+            <View style={s.bolum}>
+              <Text style={s.bolumBaslik}>Eğilim (Son 90 Gün)</Text>
+              <Text style={s.bolumNot}>
+                {v.trend.tamamenTuretilmis
+                  ? 'Kesikli çizgi: günlük ölçüm bulunmadığı için seri mevcut görev tarihlerinden geriye dönük hesaplandı.'
+                  : 'Kesikli bölümler ölçüm öncesine ait; görev tarihlerinden hesaplandı.'}
+              </Text>
+              <PdfCizgi
+                etiketler={v.trend.noktalar.map(n => n.etiket)}
+                turetilmis={v.trend.noktalar.map(n => n.turetilmis)}
+                seriler={[
+                  { ad: 'Açık',       renk: T.birincil, degerler: v.trend.noktalar.map(n => n.acik) },
+                  { ad: 'Geciken',    renk: T.kirmizi,  degerler: v.trend.noktalar.map(n => n.geciken) },
+                  { ad: 'Tamamlanan', renk: T.yesil,    degerler: v.trend.noktalar.map(n => n.tamamlanan) },
+                ]}
+              />
+              {v.trend.karsilastirma && (
+                <Text style={{ fontSize: 8, color: T.gri }}>
+                  Açık görev {v.trend.karsilastirma.acik.metin}.
+                  {'  '}Geciken {v.trend.karsilastirma.geciken.metin}.
+                </Text>
+              )}
+            </View>
+          )}
+
+          {/* Durum dağılımı */}
+          {v.kpi.toplam > 0 && (
+            <View style={s.bolum}>
+              <Text style={s.bolumBaslik}>Durum Dağılımı</Text>
+              <PdfYiginBar dilimler={[
+                { ad: 'Tamamlanan', deger: v.kpi.tamamlanan, renk: T.yesil },
+                { ad: 'Devam eden', deger: v.kpi.devamEden,  renk: T.birincil },
+                { ad: 'Bekleyen',   deger: v.kpi.bekleyen,   renk: T.gri },
+                { ad: 'Bloke',      deger: v.kpi.bloke,      renk: '#b45309' },
+              ]} />
+            </View>
+          )}
+
+          {/* Operasyon riski */}
+          {b('risk') && v.risk && (
+            <View style={s.bolum} break>
+              <Text style={s.bolumBaslik}>Operasyon Riski</Text>
+              <Text style={s.bolumNot}>{v.risk.baslik}</Text>
+
+              {v.risk.iller.length > 0 && (
+                <PdfYatayBar
+                  baslik="İl bazlı risk skoru"
+                  ogeler={v.risk.iller.slice(0, 10).map(x => ({
+                    etiket: x.il,
+                    deger: x.skor,
+                    renk: x.seviye === 'high' ? T.kirmizi : x.seviye === 'medium' ? '#b45309' : T.yesil,
+                  }))}
+                />
+              )}
+
+              {v.risk.sinyaller.length > 0 && v.risk.sinyaller.slice(0, 8).map((sg, i) => (
+                <View key={i} style={{ marginBottom: 5 }}>
+                  <Text style={{ fontSize: 8.5, fontWeight: 'bold', color: T.koyu }}>{sg.baslik}</Text>
+                  <Text style={{ fontSize: 8, color: T.gri }}>{sg.detay}</Text>
+                  <Text style={{ fontSize: 8, color: T.birincil }}>Yapılacak: {sg.eylem}</Text>
+                </View>
+              ))}
+            </View>
+          )}
 
           {/* İl kırılımı */}
           {b('il_kirilimi') && (
