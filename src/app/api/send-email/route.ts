@@ -5,6 +5,7 @@ import { sendEmail } from '@/lib/email'
 import { renderInstantEmail } from '@/lib/emailTemplates'
 import type { NotificationEvent, OrgRole } from '@/types/database'
 import { rateLimit, getClientIp } from '@/lib/rateLimit'
+import { onbelleksizFetch } from '@/lib/server/supabaseFetch'
 
 const sendEmailSchema = z.object({
   user_id:     z.string().uuid('Geçersiz kullanıcı ID'),
@@ -86,9 +87,10 @@ export async function POST(req: NextRequest) {
 
     /* ── Service role client ─────────────────────────────────────────────── */
     const admin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    )
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { global: { fetch: onbelleksizFetch } },
+  )
 
     /* ── Token doğrulama (dahili çağrılar atlar) ─────────────────────────── */
     if (!isInternal) {

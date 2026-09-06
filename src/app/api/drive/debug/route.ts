@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { onbelleksizFetch } from '@/lib/server/supabaseFetch'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,7 +28,7 @@ export async function GET() {
   let tableError: any = null
 
   try {
-    const supabase = createClient(url!, serviceKey || anonKey!)
+    const supabase = createClient(url!, serviceKey || anonKey!, { global: { fetch: onbelleksizFetch } })
     const { data, error, count } = await (supabase as any)
       .from('drive_tokens')
       .select('user_id, expiry, updated_at', { count: 'exact' })

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { onbelleksizFetch } from '@/lib/server/supabaseFetch'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,7 +11,8 @@ const REDIRECT_URI  = process.env.GOOGLE_GCAL_REDIRECT_URI!
 function getSupabaseAdmin() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { global: { fetch: onbelleksizFetch } },
   )
 }
 

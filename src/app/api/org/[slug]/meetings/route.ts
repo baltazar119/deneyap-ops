@@ -3,13 +3,15 @@ import { createClient } from '@supabase/supabase-js'
 import { getGcalToken, createCalendarEvent } from '@/lib/googleCalendar'
 import { sendEmail } from '@/lib/email'
 import { renderInstantEmail } from '@/lib/emailTemplates'
+import { onbelleksizFetch } from '@/lib/server/supabaseFetch'
 
 export const dynamic = 'force-dynamic'
 
 function getSupabaseAdmin() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { global: { fetch: onbelleksizFetch } },
   )
 }
 

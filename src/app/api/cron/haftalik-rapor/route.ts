@@ -11,6 +11,7 @@ import { toSlug } from '@/lib/turkce'
 import type { RaporVerisi } from '@/lib/rapor/hesapla'
 import type { OrgYetki } from '@/lib/server/apiAuth'
 import type { OrgRole, PlanType } from '@/types/database'
+import { onbelleksizFetch } from '@/lib/server/supabaseFetch'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -33,7 +34,10 @@ function admin(): SupabaseClient {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } },
+    {
+      auth: { autoRefreshToken: false, persistSession: false },
+      global: { fetch: onbelleksizFetch },
+    },
   )
 }
 

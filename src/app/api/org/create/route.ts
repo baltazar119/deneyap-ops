@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 import { rateLimit, getClientIp } from '@/lib/rateLimit'
 import { writeAuditLog } from '@/lib/audit'
+import { onbelleksizFetch } from '@/lib/server/supabaseFetch'
 
 const createOrgSchema = z.object({
   name: z.string().min(1, 'Workspace adı gerekli').max(60, 'Ad en fazla 60 karakter olabilir').trim(),
@@ -13,7 +14,8 @@ const createOrgSchema = z.object({
 function getServiceClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { global: { fetch: onbelleksizFetch } },
   )
 }
 

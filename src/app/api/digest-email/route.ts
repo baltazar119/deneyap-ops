@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 import { sendEmailBatch, type TopluMesaj } from '@/lib/email'
 import { renderDigestEmail } from '@/lib/emailTemplates'
 import type { AppNotification } from '@/types/database'
+import { onbelleksizFetch } from '@/lib/server/supabaseFetch'
 
 // Seri gönderim Hobby'de 10 sn'ye takılıyordu; havuzlu gönderim + bütçe ile
 // kaldığı yerden devam edebilir hâle getirildi.
@@ -25,6 +26,7 @@ export async function GET(req: NextRequest) {
   const admin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { global: { fetch: onbelleksizFetch } },
   )
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://deneyap-ops.vercel.app'

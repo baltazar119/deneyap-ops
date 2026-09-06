@@ -5,6 +5,7 @@ import { eylemTokenUret } from '@/lib/eylemToken'
 import { createClient } from '@supabase/supabase-js'
 import { sendEmail } from '@/lib/email'
 import { renderInstantEmail } from '@/lib/emailTemplates'
+import { onbelleksizFetch } from '@/lib/server/supabaseFetch'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60  // Vercel Pro: 60s, Hobby: 10s (en azından açık olsun)
@@ -13,6 +14,7 @@ function getAdmin() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { global: { fetch: onbelleksizFetch } },
   )
 }
 

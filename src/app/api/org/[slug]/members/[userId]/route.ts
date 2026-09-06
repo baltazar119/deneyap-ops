@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { z } from 'zod'
+import { onbelleksizFetch } from '@/lib/server/supabaseFetch'
 
 const patchRoleSchema = z.object({
   role: z.enum(['admin', 'member', 'viewer', 'consultant']),
@@ -9,7 +10,8 @@ const patchRoleSchema = z.object({
 function getAdminClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { global: { fetch: onbelleksizFetch } },
   )
 }
 

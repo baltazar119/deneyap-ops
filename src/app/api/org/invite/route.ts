@@ -5,11 +5,13 @@ import { sendEmail } from '@/lib/email'
 import { FREE_LIMITS } from '@/lib/featureGate'
 import { rateLimit, getClientIp } from '@/lib/rateLimit'
 import { writeAuditLog } from '@/lib/audit'
+import { onbelleksizFetch } from '@/lib/server/supabaseFetch'
 
 function getAdminClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { global: { fetch: onbelleksizFetch } },
   )
 }
 
