@@ -12,7 +12,15 @@
 
 Trend geçmişini yeniden üretmek gerekirse:
 
+```bash
+npm run seed:ozet
+```
 
+Silmek için (yalnızca demo satırları, gerçek ölçümlere dokunmaz):
+
+```bash
+npm run seed:ozet -- --temizle
+```
 
 ---
 
