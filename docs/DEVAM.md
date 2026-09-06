@@ -8,7 +8,7 @@ Ayrıntılı 14 fazlık plan: **[docs/YOL-HARITASI.md](YOL-HARITASI.md)**
 ## Yeni oturumda ilk mesaj olarak şunu yaz
 
 > Proje: `C:\Users\Abdulgazi\Desktop\DENEYAP-Ops`
-> `docs/DEVAM.md` ve `docs/YOL-HARITASI.md` dosyalarını oku, Faz 4'ten devam et.
+> `docs/DEVAM.md` ve `docs/YOL-HARITASI.md` dosyalarını oku, Faz 5'ten devam et.
 >
 > ÖNEMLİ KURAL: `C:\Users\Abdulgazi\Desktop\Tarlis-uygulama-main` klasörüne
 > HİÇBİR değişiklik yapma — o ayrı bir proje, sadece bu klasörle çalış.
@@ -37,8 +37,9 @@ Workspace slug: `deneyap-demo`
 
 ## Şu anki durum
 
-Son commit: `b55c010`. Çalışma ağacı temiz, GitHub ile senkron.
-`npx tsc --noEmit` temiz · **296 test yeşil** · `npx next build` başarılı.
+Son commit: `bcd395e`. Çalışma ağacı temiz, GitHub ile senkron.
+`npx tsc --noEmit` temiz · **307 test yeşil** · `npx next build` başarılı.
+**Migration 060 + 061 UYGULANDI** ve canlı DB'de davranışsal olarak doğrulandı.
 
 ### Faz 0 — TAMAMLANDI (3 commit)
 
@@ -152,49 +153,82 @@ uygulama anında listeyi **yeniden hesaplıyor**, istemciden gelene güvenmiyor.
 2. **PostgREST'te "tablo yok" kodu `PGRST205`**, Postgres'in `42P01`'i değil
    (ölçüldü). Yalnızca 42P01'e bakan kontrol hiç tetiklenmiyordu.
 
-### Sırada: Faz 4 — DENEYAP'ın arayüze bağlanması
+### Faz 4 — TAMAMLANDI (commit `bcd395e`)
 
-YOL-HARITASI.md Faz 4. **Migration gerekmez** — Faz 3'ünkiler yeterli.
+| Ne | Nerede |
+|---|---|
+| Görev formunda `DeneyapSecici` + **il alanı kilidi** | `_components/GorevFormModal.tsx` |
+| Filtre panelinde DENEYAP grubu (il gruplu, sayaçlı) | `_components/GorevFiltrePaneli.tsx` |
+| `?deneyap=` (il ile aynı üç anlamlı desen) | `lib/useGorevFiltreleri.ts` |
+| **"DENEYAP'ım"** görünümü | `lib/gorevGorunumleri.ts` |
+| Satırda il yerine DENEYAP adı, il tooltip'te | `_components/GorevSatiri.tsx` |
+| Aramaya DENEYAP adı | `lib/gorevArama.ts` |
+| Üye ↔ DENEYAP bağı | `scripts/demo-seed.mjs` |
 
-Yapılacaklar:
-- Görev formuna `DeneyapSecici` (bileşen hazır, sadece bağlanacak).
-  DENEYAP seçilince `İl / Birim` alanı `disabled` olup DENEYAP'ın ilinden
-  dolmalı + "İl, seçilen DENEYAP'tan alınır" notu — **DB trigger'ının
-  kullanıcıya görünen aynası.**
-- Filtre paneline DENEYAP grubu + `?deneyap=` URL parametresi.
-- **"DENEYAP'ım" görünümü** — `GORUNUMLER` dizisine tek kayıt
-  (`userDeneyapId` `orgContext`'te hazır).
-- `GorevSatiri`'nda il rozeti yerine DENEYAP adı (varsa).
-- `aranabilirMetin`'e DENEYAP adı eklenecek.
+**İl kilidi** DB trigger'ının kullanıcıya görünen aynası: alan açık bırakılsaydı
+kullanıcı başka bir il seçer, kaydeder ve kaydettiğinden farklı sonuç görürdü.
+"DENEYAP yok" seçilince alan tekrar açılıyor.
 
-Faz 2'nin bıraktığı bağlantı noktaları (hepsi tek dosyada):
-görünüm → `lib/gorevGorunumleri.ts` · filtre → `GorevFiltreDegerleri` +
-`gorevleriSuz` + `urlSorgusuKur` + panel grubu · arama → `lib/gorevArama.ts`.
+Canlı veriyle doğrulandı: Çankaya filtresi 2 görev getiriyor, **aynı ildeki**
+Keçiören'in görevi dışarıda kalıyor — projenin belirleyici gereksinimi çalışıyor.
+
+#### Faz 4'ün bıraktığı bilinen boşluk
+
+**"DENEYAP'ım" görünümü demoda görünmüyor.** Görünüm yalnızca bir DENEYAP'a
+bağlı üyede çıkıyor; demoda bağlı olanlar İl Sorumluları ve `/tasks` sayfası
+`raporGorebilirMi` ile korunduğu için **member oraya hiç giremiyor**
+(`/me`'ye yönleniyor). Mantık doğru çalışıyor (5 birim testi + geçici bir
+üye-DENEYAP bağıyla tarayıcıda doğrulandı, bağ geri alındı), ama sunumda
+gösterilemiyor.
+
+Karar gerekiyor: Görevler sayfası İl Sorumlusuna açılsın mı? Faz 2'de
+"`member` → varsayılan görünüm *Bana atananlar*" kuralı zaten bu beklentiyle
+yazılmıştı. Açılırsa "*İl* görevleri" görünümü de canlanır. **Kullanıcıya
+sorulmalı, sessizce açılmamalı** — yetki genişletmesi.
+
+### Sırada: Faz 5 — Duyurular
+
+YOL-HARITASI.md Faz 5. **Migration 062** — `duyurular` + `duyuru_okundu`
+(`(duyuru_id, user_id)` PK). `notifications.event_type` CHECK'i `announcement`
+için genişletilecek (kodla kısıt arasındaki mevcut 6 tiplik uyumsuzluk da
+giderilecek).
+
+- `GET /api/org/[slug]/duyurular/aktif` — **hedefleme sunucuda uygulanır**;
+  client-side filtre yetmez, hedeflenmemiş kullanıcı veriyi çekebilirdi.
+- `POST .../[id]/okundu` · `/org/[slug]/duyurular` sayfası (owner/admin CRUD)
+- `DuyuruPopup.tsx` — `ResponsiveModal` üstüne, `navigation.ts`'teki
+  `anaEkran()` ile **rolün ana ekranında**. Birden fazla okunmamışsa önem
+  sırasına göre, "1/3" göstergesiyle.
+- Duyuru bildirimi için **org kapsamlı yeni sunucu fonksiyonu** — mevcut
+  `createNotificationForAll` org filtresiz, kullanılmayacak.
+
+Hedefleme: rol + il + DENEYAP (üçü de artık hazır: `orgRole`, `userIl`,
+`userDeneyapId`).
 
 ---
 
-## SENİN YAPMAN GEREKEN — migration 060 + 061
+## SENİN YAPMAN GEREKEN — şu an bir şey yok
 
-`supabase/uygula/faz3_deneyap.sql` **henüz uygulanmadı.**
-Supabase → SQL Editor → dosyanın tamamını yapıştır → çalıştır.
-(060 ve 061 sırayla; tekrar çalıştırmak güvenli.)
+Tüm migration'lar uygulandı: **059, 060, 061.** Demo veri güncel
+(5 DENEYAP, Ankara ve İzmir'de ikişer tane; İl Sorumluları birer DENEYAP'a
+bağlı).
 
-Bunsuz DENEYAP ekranı "tablo yok" uyarısı gösterir; **uygulamanın geri kalanı
-etkilenmez.** Uygulandıktan sonra:
+Faz 5'te **migration 062** gelecek; yazıldığında yine SQL editöründen
+çalıştırman istenecek.
+
+Yararlı komutlar:
 
 ```bash
-node scripts/tr-fold-ikiz.mjs   # SQL/TS ikiz doğrulaması
-npm run seed:demo               # demo veriye 5 DENEYAP ekler
+node scripts/tr-fold-ikiz.mjs   # SQL/TS trFold ikiz doğrulaması
+npm run seed:demo               # demo veriyi yeniden kur
 ```
-
-Demo veri Ankara ve İzmir'e **ikişer** DENEYAP kuruyor — "bir ilde birden
-fazla DENEYAP" sunumda görünür olsun diye.
-
-> `migration 059` (`tasks.completed_at`) **uygulandı** — `completed_at`
-> sütununun varlığı REST sorgusuyla doğrulandı.
 
 > Supabase CLI kurulu ama **bağlı değil** (bağlamak DB şifresi ister — şifreyi
 > sohbete yazma, migration'ları SQL editöründen çalıştır).
+
+> **Migration'ları REST ile doğrulama yöntemi** (bu oturumda işe yaradı):
+> `select=<kolon>` sorgusu 200 dönüyorsa kolon var, 400 + `42703` dönüyorsa
+> yok. Tablo yoksa PostgREST `PGRST205` döner.
 
 ---
 
