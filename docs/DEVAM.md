@@ -8,7 +8,7 @@ Ayrıntılı 14 fazlık plan: **[docs/YOL-HARITASI.md](YOL-HARITASI.md)**
 ## Yeni oturumda ilk mesaj olarak şunu yaz
 
 > Proje: `C:\Users\Abdulgazi\Desktop\DENEYAP-Ops`
-> `docs/DEVAM.md` ve `docs/YOL-HARITASI.md` dosyalarını oku, Faz 7'den devam et.
+> `docs/DEVAM.md` ve `docs/YOL-HARITASI.md` dosyalarını oku, Faz 8'den devam et.
 >
 > ÖNEMLİ KURAL: `C:\Users\Abdulgazi\Desktop\Tarlis-uygulama-main` klasörüne
 > HİÇBİR değişiklik yapma — o ayrı bir proje, sadece bu klasörle çalış.
@@ -37,9 +37,10 @@ Workspace slug: `deneyap-demo`
 
 ## Şu anki durum
 
-Son commit: `da40b19`. Çalışma ağacı temiz, GitHub ile senkron.
-`npx tsc --noEmit` temiz · **348 test yeşil** · `npx next build` başarılı.
-**Migration 059, 060, 061, 062 — HEPSİ UYGULANDI** ve doğrulandı.
+Son commit: `35dd984`. Çalışma ağacı temiz, GitHub ile senkron.
+`npx tsc --noEmit` temiz · **381 test yeşil** · `npx next build` başarılı.
+**Migration 059, 060, 061, 062 uygulandı. 063 HENÜZ UYGULANMADI** (kod
+onsuz da çalışıyor — aşağıya bak).
 
 ### Faz 0 — TAMAMLANDI (3 commit)
 
@@ -260,37 +261,80 @@ route'lara uygulandı** (44 dosya, commit `fd335eb`).
 > `{ global: { fetch: onbelleksizFetch } }` vermeyi UNUTMA.** Tarayıcı
 > istemcisi (`lib/supabase/client.ts`) etkilenmiyor.
 
-### Sırada: Faz 7 — Excel'de DENEYAP (EN RİSKLİ FAZ)
+### Faz 7 — TAMAMLANDI (commit `35dd984`)
 
-YOL-HARITASI.md Faz 7. **Migration 063** (RPC'ye `deneyap_id`; `undo` da geri
-yazmalı).
+Excel'e DENEYAP sütunu geldi. Fazın tamamı **fingerprint kayması riski**
+etrafında döndü: "Atölye" başlıklı sütun eskiden `il` alanına eşleniyordu ve
+eşleştirme anahtarı `il` üzerinden hesaplanıyor.
 
-**Bu fazın tamamı fingerprint kayması riski etrafında dönüyor.** Kritik kurallar:
-- `fingerprint.ts`'e **tek karakter dokunulmaz.** `fingerprint.test.ts`
-  altın değerlerle kilitli — test kırılırsa "beklenen değeri güncelle"
-  YANLIŞ tepkidir.
-- `columnMap.ts`: yeni `deneyap` hedefi; `atolye` alias'ı `il`'den çıkarılır,
-  **`birim` `il`'de KALIR** (kullanıcı kararı).
-- **`import_column_presets` hafızası migrate EDİLMEZ** — daha önce
-  "Atölye"→`il` eşlemiş bir org aynı eşlemeyi almaya devam eder, fingerprint'i
-  hiç değişmez. Kasıtlı koruma, kod comment'i olarak yazılmalı.
-- `satirIsle.ts` **"etkin il"**: DENEYAP çözüldüyse onun ili → yoksa il sütunu
-  → *DENEYAP sütunu var ama çözülmedi ve il sütunu YOK ise* `normIl(deneyapHücresi)`'ye
-  düş. Bu tek satır alias ayrıştırmasını fingerprint açısından nötr yapar.
-- DENEYAP/il çelişkisi → **hata değil uyarı** (satır düşürülmez).
-- Önizlemede "Tanınmayan DENEYAP'lar" paneli: Oluştur / Eşleştir / Yok say.
-  Onay sonrası satırlar `ham` jsonb'den **yeniden normalize** edilir.
-- Zorunlu test: DENEYAP sütunu il adı içeriyor + il sütunu yok →
-  **fingerprint eski sürümle birebir aynı.**
+| Ne | Nerede |
+|---|---|
+| Yeni `deneyap` hedefi; `atolye` alias'ı il'den çıktı, **`birim` ve `merkez` il'de KALDI** | `import/columnMap.ts` |
+| `normDeneyap` — kod > ad > ad+il bağlamı > yakın yazım(≤2) > yeni | `import/normalize.ts` |
+| **"Etkin il"** + `deneyap_id` + `yeniDeneyapAdi` | `import/satirIsle.ts` |
+| DENEYAP sütunu; kolon harfleri artık **başlıktan hesaplanıyor** | `import/sablon.ts` |
+| DENEYAP listesi satirIsle'ye; tanınmayanlar önerilen ille dönüyor | `import/onizleme/route.ts` |
+| Şablona org'un gerçek DENEYAP'ları | `import/sablon/route.ts` |
+| "Tanınmayan DENEYAP'lar" paneli (Oluştur / Hepsini oluştur) | `tasks/import/page.tsx` |
+| RPC'ye `deneyap_id` (apply + **revert**) | `migrations/063_import_deneyap.sql` |
+
+**Üç katmanlı fingerprint koruması:**
+1. `fingerprint.ts`'e tek karakter dokunulmadı.
+2. **"Etkin il" geri düşmesi:** DENEYAP çözüldüyse onun ili → yoksa il sütunu
+   → *DENEYAP sütunu var, çözülmedi ve İL SÜTUNU YOKSA* `normIl(DENEYAP hücresi)`.
+   Bu tek dal, içinde "Ankara" yazan eski dosyaların önceki sürümle **birebir
+   aynı** anahtarı üretmesini sağlar.
+3. `import_column_presets` hafızası **migrate edilmedi** — eski eşleme aynen
+   korunuyor. Kasıtlı; koda gerekçe yazıldı.
+
+**Yol boyunca bulunan tasarım kusuru:** ilk sürümde eski format bir dosya
+*"Ankara adında DENEYAP oluştur"* öneriyor ve çelişkili iki uyarı basıyordu.
+Geri düşme başarılıysa değer bir **il adıdır**; öneri artık bastırılıyor.
+
+**Gerçek API + gerçek DB ile doğrulandı:**
+- Eski format dosya → il=Ankara, 0 hata, sahte DENEYAP önerisi yok
+- Yeni format → Çankaya ve Keçiören **ayrı** çözülüyor, ikisi de Ankara
+  (bir ilde birden fazla DENEYAP — projenin çekirdek gereksinimi)
+- **Aynı dosya iki kez yüklendi: eşleşen=1, yeni=0 → KOPYA YOK**
+- DB'deki `import_fingerprint` beklenen değerle birebir aynı
+- Test verisi temizlendi, demo 11 göreve döndü
+
+**Migration 063 uygulanmadan da kod çalışıyor** — eski RPC `normalize_veri`
+içindeki fazla `deneyap_id` anahtarını yok sayıyor (gerçek içe aktarmayla
+ölçüldü). Faz 3'te öğrenilen "kod migration'dan önce yayına çıkabilir" kuralı
+korundu.
+
+### Sırada: Faz 8 — Risk ayrımı + trend altyapısı
+
+YOL-HARITASI.md Faz 8. İki parça:
+
+1. **`operationRisk.ts` bölünmesi.** Şu an `@/lib/supabase/client` (tarayıcı
+   istemcisi) import ediyor → sunucuda kullanılamıyor. Saf `computeRisk` kalır;
+   `risk/istemciVeri.ts` ve `risk/sunucuVeri.ts` ayrılır. Sunucu yolu
+   **mutlaka `tumGorevleriGetir(yetki)` üzerinden** olmalı — sunucuda RLS yok,
+   kapsam `taskScope` ile uygulanmazsa sızıntı olur. Böylece `kapsam.ts`'teki
+   ölü `'risk'` bölümü gerçekten üretilir ve PDF'e girer.
+2. **Migration 064 — `gunluk_ozet`** + cron adımı + `scripts/ozet-demo.mjs`
+   (90 günlük geçmiş) + `seri.ts` / `karsilastir.ts`.
+   `kaynak ∈ (cron|turetilmis|demo)` sütunu demo verisinin gerçekle
+   karışmasını yapısal olarak engeller.
+   Seri kaynağı **gün başına** seçilir: o gün snapshot varsa ölçüm, yoksa
+   türetme. **Bloke / risk skoru / atanmamış türetilemez** (durum geçmişi yok) —
+   türetilmiş bölgede çizilmez.
+   `karsilastir`'da `guvenilir` bayrağı: önceki dönem n<5 ise yüzde üretilmez.
 
 ---
 
-## SENİN YAPMAN GEREKEN — şu an bir şey yok
+## SENİN YAPMAN GEREKEN — migration 063
 
-**Tüm migration'lar uygulandı: 059, 060, 061, 062.** Demo veri güncel.
+`supabase/migrations/063_import_deneyap.sql` → Supabase SQL Editor'de çalıştır.
 
-Faz 7'de **migration 063** gelecek; yazıldığında SQL editöründen çalıştırman
-istenecek.
+İçe aktarma RPC'sine `deneyap_id` ekliyor. **Acil değil:** kod onsuz da
+sorunsuz çalışıyor (ölçüldü), yalnızca Excel'den gelen DENEYAP bağı göreve
+yazılmıyor. Uygulanınca içe aktarılan görevler doğrudan DENEYAP'a bağlanır.
+
+Dosya, 056'nın birebir kopyası + 4 satır; satır satır karşılaştırılarak
+doğrulandı.
 
 Demo veride bir örnek duyuru duruyor ("Ankara saha ziyareti — 12 Eylül",
 Ankara hedefli, Ankara Sorumlusu okumuş). Sunumda popup'ı yeniden göstermek
