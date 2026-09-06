@@ -110,3 +110,29 @@ export function haritaSirala(veri: IlHaritaVerisi[]): IlHaritaVerisi[] {
     return a.il.localeCompare(b.il, 'tr')
   })
 }
+
+/**
+ * Bir path'in sınır kutusu. Tek il gösterilirken viewBox'ı o ilin etrafına
+ * daraltmak için gerekir: aksi halde tek bir il, Türkiye'nin tamamı için
+ * ölçeklenmiş 1000x430 çerçevenin ortasında minik bir leke olarak kalır.
+ */
+export function sinirKutusu(d: string, pay = 12): { x: number; y: number; w: number; h: number } | null {
+  const sayilar = d.match(/-?\d+(?:\.\d+)?/g)
+  if (!sayilar || sayilar.length < 4) return null
+
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
+  for (let i = 0; i + 1 < sayilar.length; i += 2) {
+    const x = Number(sayilar[i]), y = Number(sayilar[i + 1])
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue
+    if (x < minX) minX = x; if (x > maxX) maxX = x
+    if (y < minY) minY = y; if (y > maxY) maxY = y
+  }
+  if (!Number.isFinite(minX) || maxX <= minX || maxY <= minY) return null
+
+  return {
+    x: minX - pay,
+    y: minY - pay,
+    w: (maxX - minX) + pay * 2,
+    h: (maxY - minY) + pay * 2,
+  }
+}

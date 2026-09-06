@@ -199,10 +199,24 @@ export async function orgYetkiCoz(
 export async function aiYetkiCoz(
   req: NextRequest,
   orgId: string | null | undefined,
-): Promise<{ ok: true; userId: string; orgId: string; admin: SupabaseClient } | { ok: false; res: NextResponse }> {
+  secenekler: { gerekli?: 'yazma' | 'uye' } = {},
+): Promise<{ ok: true; userId: string; orgId: string; yetki: OrgYetki; admin: SupabaseClient } | { ok: false; res: NextResponse }> {
   if (!orgId) return reddet('orgId gerekli.', 400)
 
-  const sonuc = await orgYetkiCoz(req, { orgId, gerekli: 'yazma', proGerekli: true })
+  /**
+   * `gerekli` varsayılanı 'yazma' — mevcut tüm AI uçları görev ÜRETİYOR ve
+   * salt okunur roller onları çalıştırmamalı.
+   *
+   * Rapor yorumu farklı: hiçbir şey yazmıyor, yalnızca zaten görebildiği
+   * veriyi yorumluyor. Yetkili Yönetici ve İl Sorumlusu da kullanabilmeli.
+   * Bu BİLİNÇLİ bir yetki genişletmesi olduğu için parametre olarak
+   * geçiliyor — sessizce varsayılan değiştirilmedi.
+   */
+  const sonuc = await orgYetkiCoz(req, {
+    orgId,
+    gerekli: secenekler.gerekli ?? 'yazma',
+    proGerekli: true,
+  })
   if (!sonuc.ok) return sonuc
 
   const { data: profile } = await sonuc.yetki.admin
@@ -218,5 +232,11 @@ export async function aiYetkiCoz(
     )
   }
 
-  return { ok: true, userId: sonuc.yetki.user.id, orgId: sonuc.yetki.org.id, admin: sonuc.yetki.admin }
+  return {
+    ok: true,
+    userId: sonuc.yetki.user.id,
+    orgId: sonuc.yetki.org.id,
+    yetki: sonuc.yetki,
+    admin: sonuc.yetki.admin,
+  }
 }

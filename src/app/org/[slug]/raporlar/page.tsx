@@ -40,7 +40,7 @@ export default function RaporlarPage() {
   const router = useRouter()
   const params = useParams()
   const slug = params.slug as string
-  const { orgRole, userIl, loading: orgLoading } = useOrg()
+  const { org, orgRole, userIl, hasAiAddon, loading: orgLoading } = useOrg()
 
   // API varsayılanıyla aynı olmalı (rapor/route.ts). Dönem artık gerçekten
   // filtre uyguluyor; ekran 'tumu', indirilen dosya 'bu-ay' gösterirse
@@ -50,6 +50,37 @@ export default function RaporlarPage() {
   const [yukleniyor, setYukleniyor] = useState(true)
   const [indiriliyor, setIndiriliyor] = useState<string | null>(null)
   const [hata, setHata] = useState<string | null>(null)
+
+  const [aiYorum, setAiYorum] = useState<string[]>([])
+  const [aiYukleniyor, setAiYukleniyor] = useState(false)
+  const [aiHata, setAiHata] = useState<string | null>(null)
+
+  /**
+   * AI derinleştirme. Kural tabanlı yorumlar zaten ekranda olduğu için
+   * buradaki her hata SESSİZ kalabilir: tek satır uyarı gösterilir, sayfa
+   * bozulmaz. Sunumda internet/kota sorunu olsa bile ekran dolu kalır.
+   */
+  async function aiDerinlestir() {
+    if (!org) return
+    setAiYukleniyor(true); setAiHata(null)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) { setAiHata('Oturum bulunamadı.'); return }
+      const res = await fetch(`/api/org/${slug}/rapor/yorum-ai`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orgId: org.id, donem }),
+      })
+      const j = await res.json()
+      if (!res.ok) { setAiHata(j.error ?? 'AI yorumu alınamadı.'); return }
+      setAiYorum(Array.isArray(j.maddeler) ? j.maddeler : [])
+    } catch {
+      setAiHata('AI yorumu alınamadı.')
+    } finally {
+      setAiYukleniyor(false)
+    }
+  }
+
 
   const tokenAl = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession()
@@ -207,6 +238,44 @@ export default function RaporlarPage() {
                         </div>
                       )
                     })}
+                  </div>
+                )}
+                {/* AI derinleştirme — İSTEĞE BAĞLI.
+                    Kural tabanlı yorumlar yukarıda zaten duruyor; bu düğme
+                    yalnızca üstüne bağlam ekler. AI eklentisi yoksa düğme
+                    HİÇ render edilmez — sunumda ölü buton görünmesin. */}
+                {hasAiAddon && (
+                  <div className="mt-3 pt-3" style={{ borderTop: '1px solid #f1f5f9' }}>
+                    {aiYorum.length > 0 ? (
+                      <div className="rounded-xl px-3 py-2.5" style={{ background: '#f5f3ff', border: '1px solid #ddd6fe' }}>
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="text-xs font-bold px-1.5 py-0.5 rounded"
+                                style={{ background: '#fff', color: '#6d28d9', border: '1px solid #ddd6fe' }}>
+                            YAPAY ZEKÂ
+                          </span>
+                          <span className="text-xs" style={{ color: '#7c3aed' }}>
+                            Doğrulanmadı — yukarıdaki kural tabanlı yorumlar esastır
+                          </span>
+                        </div>
+                        <ul className="space-y-1">
+                          {aiYorum.map((m, i) => (
+                            <li key={i} className="text-sm" style={{ color: '#334155' }}>· {m}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={aiDerinlestir}
+                        disabled={aiYukleniyor}
+                        className="text-xs font-semibold px-3 py-1.5 rounded-lg disabled:opacity-50"
+                        style={{ background: '#fff', color: '#6d28d9', border: '1px solid #ddd6fe' }}
+                      >
+                        {aiYukleniyor ? 'Yorumlanıyor…' : 'AI ile derinleştir'}
+                      </button>
+                    )}
+                    {aiHata && (
+                      <p className="text-xs mt-1.5" style={{ color: '#94a3b8' }}>{aiHata}</p>
+                    )}
                   </div>
                 )}
               </div>

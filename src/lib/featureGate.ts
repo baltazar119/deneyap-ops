@@ -57,4 +57,5 @@ export const AI_DAILY_LIMITS = {
   generateRevise: 20,   // generate + revise birlikte
   reviseTask: 50,       // tek görev revizyonu
   analyze: 10,          // sprint analizi, rapor, tahmin vb.
+  raporYorum: 15,       // rapor yorumunu AI ile derinlestirme
 } as const

@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { HARITA_GENISLIK, HARITA_YUKSEKLIK } from '@/lib/harita/turkiyeIller'
-import { HARITA_RENK, LEJANT_SIRASI, haritaSirala, type IlHaritaVerisi } from '@/lib/harita/ilDurumu'
+import { HARITA_RENK, LEJANT_SIRASI, haritaSirala, sinirKutusu, type IlHaritaVerisi } from '@/lib/harita/ilDurumu'
 import { useIsMobile } from '@/lib/useIsMobile'
 import ResponsiveModal from '@/components/responsive/ResponsiveModal'
 
@@ -33,6 +33,16 @@ export default function TurkiyeHaritasi({ veri, tekIl = null, ilLinki }: Props) 
   const kapsayici = useRef<HTMLDivElement>(null)
 
   const gosterilecek = tekIl ? veri.filter(v => v.il === tekIl) : veri
+
+  /**
+   * Tek il gösteriliyorsa viewBox o ilin etrafına daraltılır — "kendi ili
+   * büyütülmüş" demek bu. Ülke ölçeğindeki çerçevede tek bir il ortada minik
+   * bir leke olarak kalır ve DENEYAP'ları tıklamak zorlaşır.
+   */
+  const kutu = tekIl && gosterilecek[0] ? sinirKutusu(gosterilecek[0].d) : null
+  const viewBox = kutu
+    ? `${kutu.x} ${kutu.y} ${kutu.w} ${kutu.h}`
+    : `0 0 ${HARITA_GENISLIK} ${HARITA_YUKSEKLIK}`
   const sirali = haritaSirala(gosterilecek)
   const veriliSayi = gosterilecek.filter(v => v.veriVarMi).length
 
@@ -68,7 +78,7 @@ export default function TurkiyeHaritasi({ veri, tekIl = null, ilLinki }: Props) 
       {haritaGorunur && (
         <div ref={kapsayici} className="relative mb-3">
           <svg
-            viewBox={`0 0 ${HARITA_GENISLIK} ${HARITA_YUKSEKLIK}`}
+            viewBox={viewBox}
             width="100%"
             style={{ display: 'block', background: '#f8fafc', borderRadius: 12 }}
             role="img"
@@ -90,7 +100,7 @@ export default function TurkiyeHaritasi({ veri, tekIl = null, ilLinki }: Props) 
                     d={v.d}
                     fill={renk.dolgu}
                     stroke={vurgu?.il === v.il ? '#0d1a2a' : renk.kenar}
-                    strokeWidth={vurgu?.il === v.il ? 2 : 0.7}
+                    strokeWidth={(vurgu?.il === v.il ? 2 : 0.7) * (kutu ? kutu.w / HARITA_GENISLIK : 1)}
                     tabIndex={etkin ? 0 : -1}
                     role={etkin ? 'button' : undefined}
                     aria-label={
@@ -118,8 +128,12 @@ export default function TurkiyeHaritasi({ veri, tekIl = null, ilLinki }: Props) 
             <div
               className="absolute pointer-events-none rounded-xl px-3 py-2 shadow-lg"
               style={{
-                left: `${(vurgu.merkez[0] / HARITA_GENISLIK) * 100}%`,
-                top: `${(vurgu.merkez[1] / HARITA_YUKSEKLIK) * 100}%`,
+                left: kutu
+                  ? `${((vurgu.merkez[0] - kutu.x) / kutu.w) * 100}%`
+                  : `${(vurgu.merkez[0] / HARITA_GENISLIK) * 100}%`,
+                top: kutu
+                  ? `${((vurgu.merkez[1] - kutu.y) / kutu.h) * 100}%`
+                  : `${(vurgu.merkez[1] / HARITA_YUKSEKLIK) * 100}%`,
                 transform: 'translate(-50%, -115%)',
                 background: '#0d1a2a', color: '#fff', minWidth: 150, zIndex: 10,
               }}

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { TURKIYE_ILLERI, HARITA_GENISLIK, HARITA_YUKSEKLIK } from './turkiyeIller'
-import { haritaVerisiKur, haritaSirala, seviyeSec, HARITA_RENK, LEJANT_SIRASI } from './ilDurumu'
+import { haritaVerisiKur, haritaSirala, seviyeSec, sinirKutusu, HARITA_RENK, LEJANT_SIRASI } from './ilDurumu'
 import { ILLER, IL_PLAKA } from '@/lib/iller'
 import type { ProvinceRisk } from '@/lib/operationRisk'
 
@@ -147,5 +147,39 @@ describe('haritaSirala', () => {
     expect(s[0].il).toBe('Ankara')
     expect(s[1].il).toBe('İzmir')
     expect(s[2].veriVarMi).toBe(false)
+  })
+})
+
+describe('sinirKutusu — tek il yakınlaştırma', () => {
+  it('path sınırlarını doğru bulur', () => {
+    const k = sinirKutusu('M10 20L110 20L110 120L10 120Z', 0)
+    expect(k).toEqual({ x: 10, y: 20, w: 100, h: 100 })
+  })
+
+  it('pay ekler', () => {
+    const k = sinirKutusu('M10 20L110 20L110 120L10 120Z', 5)!
+    expect(k.x).toBe(5)
+    expect(k.w).toBe(110)
+  })
+
+  it('gerçek il verisinde makul bir kutu üretir', () => {
+    const ankara = TURKIYE_ILLERI.find(x => x.ad === 'Ankara')!
+    const k = sinirKutusu(ankara.d)!
+    expect(k.w).toBeGreaterThan(0)
+    expect(k.h).toBeGreaterThan(0)
+    // Tek il ülkenin tamamından belirgin şekilde küçük olmalı,
+    // yoksa "yakınlaştırma" hiçbir işe yaramaz.
+    expect(k.w).toBeLessThan(HARITA_GENISLIK / 2)
+  })
+
+  it('bozuk girdide null döner, çökmez', () => {
+    expect(sinirKutusu('')).toBeNull()
+    expect(sinirKutusu('M')).toBeNull()
+    expect(sinirKutusu('M10 10')).toBeNull()   // tek nokta, alan yok
+  })
+
+  it('her ilin kutusu üretilebiliyor', () => {
+    const basarisiz = TURKIYE_ILLERI.filter(x => sinirKutusu(x.d) === null).map(x => x.ad)
+    expect(basarisiz).toEqual([])
   })
 })
