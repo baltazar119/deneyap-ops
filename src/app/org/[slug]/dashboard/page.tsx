@@ -12,8 +12,13 @@ import { useOrg } from '@/lib/supabase/orgContext'
 import { useIsMobile } from '@/lib/useIsMobile'
 import { isCurrentlyIn, isOverdue } from '@/lib/utils'
 import { getCachedData, setCachedData } from '@/lib/pageDataCache'
+import { useDeneyaplar } from '@/lib/useDeneyaplar'
+import {
+  YaklasanTerminlerBloku, KritikVeGecikmisBloku, IlDeneyapBloku,
+  SonHareketlerBloku, ToplantilarBloku,
+} from './_components/PanelBloklari'
 import { Users, CheckCircle2, Clock, Building2, ArrowRight, Columns2, ListTodo, CheckSquare, ChevronRight, X, AlertCircle } from 'lucide-react'
-import type { Profile, Task, Checkin, Sprint, OrgRole } from '@/types/database'
+import type { Profile, Task, Checkin, Sprint, OrgRole, Meeting } from '@/types/database'
 
 interface OrgUyelik {
   user_id: string
@@ -27,6 +32,7 @@ type DashCache = {
   checkins: Checkin[]
   tasks: Task[]
   activeSprint: Sprint | null
+  toplantilar?: Meeting[]
 }
 
 export default function DashboardPage() {
@@ -51,6 +57,8 @@ export default function DashboardPage() {
   const [checkins, setCheckins]         = useState<Checkin[]>(_initCache?.checkins ?? [])
   const [tasks, setTasks]               = useState<Task[]>(_initCache?.tasks ?? [])
   const [activeSprint, setActiveSprint] = useState<Sprint | null>(_initCache?.activeSprint ?? null)
+  const [toplantilar, setToplantilar]   = useState<Meeting[]>(_initCache?.toplantilar ?? [])
+  const { deneyaplar } = useDeneyaplar(org?.id)
   const [loading, setLoading]           = useState(_initCache === null)
 
   const loadData = useCallback(async (background = false) => {
@@ -67,12 +75,16 @@ export default function DashboardPage() {
       // Not: `schedules` sorgusu buradan kaldırıldı — çekiliyor ama panelde
       // hiçbir yerde kullanılmıyordu (setter'ı bile `const [, setSchedules]`
       // şeklindeydi). Her panel açılışında boşuna bir sorgu maliyeti.
-      const [profilesRes, checkinsRes, tasksRes, sprintRes] = await Promise.all([
+      const [profilesRes, checkinsRes, tasksRes, sprintRes, meetingsRes] = await Promise.all([
         supabase.from('profiles').select('*').in('id', memberIds).order('created_at', { ascending: true }),
         supabase.from('checkins').select('*').eq('organization_id', org.id)
           .gte('timestamp', rangeStart.toISOString()).lte('timestamp', rangeEnd.toISOString()),
         supabase.from('tasks').select('*').eq('organization_id', org.id),
         supabase.from('sprints').select('*').eq('organization_id', org.id).eq('is_active', true).maybeSingle(),
+        // Yaklaşan toplantılar bloğu için. Geçmiş toplantılar panelde
+        // gösterilmiyor, o yüzden sorgu da bugünden ileriye bakıyor.
+        supabase.from('meetings').select('*').eq('organization_id', org.id)
+          .gte('start_time', now.toISOString()).order('start_time').limit(20),
       ])
 
       const allProfiles = profilesRes.data ?? []
@@ -85,13 +97,16 @@ export default function DashboardPage() {
       const newTasks    = tasksRes.data ?? []
       const newCheckins = checkinsRes.data ?? []
       const newSprint   = sprintRes.data ?? null
+      // `meetings` tablosu yoksa ya da erişilemezse panel çökmemeli.
+      const newToplantilar = (meetingsRes.data ?? []) as Meeting[]
+      setToplantilar(newToplantilar)
 
       setProfiles(allProfiles)
       setCheckins(newCheckins)
       setTasks(newTasks)
       setActiveSprint(newSprint)
 
-      setCachedData<DashCache>(cacheKey, { profiles: allProfiles, uyelikler, checkins: newCheckins, tasks: newTasks, activeSprint: newSprint })
+      setCachedData<DashCache>(cacheKey, { profiles: allProfiles, uyelikler, checkins: newCheckins, tasks: newTasks, activeSprint: newSprint , toplantilar: newToplantilar })
     } catch (err) {
       console.error('[Dashboard] loadData error:', err)
     } finally {
@@ -164,16 +179,18 @@ export default function DashboardPage() {
     overdue:  { title: 'Gecikmiş Görevler',  items: tasks.filter(t => t.status !== 'done' && isOverdue(t.due_date)).map(t => ({ id: t.id, name: t.title || 'Görev', sub: `${profileMap[t.assignee_id ?? '']?.full_name || 'Atanmamış'}${t.due_date ? ' · ' + new Date(t.due_date).toLocaleDateString('tr-TR', { day:'numeric', month:'short' }) : ''}`, avatar: null, warn: true })) },
   }
 
+  // Karşılama iki layout'ta da kullanılıyor; önceden yalnız mobildeydi.
+  const greeting = (() => {
+    const h = new Date().getHours()
+    if (h >= 5 && h < 11) return 'Günaydın'
+    if (h >= 11 && h < 19) return 'İyi günler'
+    return 'İyi akşamlar'
+  })()
+  const displayName = userEmail?.split('@')[0] ?? ''
+
   // ── MOBİL LAYOUT ─────────────────────────────────────────────────────────
   if (isMobile) {
     const today = new Date().toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' })
-    const greeting = (() => {
-      const h = new Date().getHours()
-      if (h >= 5 && h < 11) return 'Günaydın'
-      if (h >= 11 && h < 19) return 'İyi günler'
-      return 'İyi akşamlar'
-    })()
-    const displayName = userEmail?.split('@')[0] ?? ''
 
     return (
       <div style={{ minHeight: '100%', background: '#f0f4f8', paddingBottom: 24 }}>
@@ -335,8 +352,13 @@ export default function DashboardPage() {
 
   // ── MASAÜSTÜ LAYOUT ───────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col overflow-hidden" style={{ height: '100vh', background: '#f5f7fa' }}>
-      <main className="flex flex-col flex-1 min-h-0 px-6 py-5 gap-4">
+    /*
+      Panel eskiden `height:100vh; overflow-hidden` idi: ekrana sığmayan her
+      şey görünmez oluyordu ve bu yüzden panele blok EKLENEMİYORDU. Faz 6'da
+      kaydırmaya açıldı; artık içerik uzadıkça sayfa uzuyor.
+    */
+    <div className="min-h-screen" style={{ background: '#f5f7fa' }}>
+      <main className="flex flex-col px-6 py-5 gap-4">
 
         {/* ── Başlık ── */}
         <div className="flex items-center justify-between shrink-0">
@@ -344,17 +366,34 @@ export default function DashboardPage() {
             <h1 className="text-xl font-bold" style={{ color: '#111827', letterSpacing: '-0.02em' }}>
               {org?.name}
             </h1>
-            <p className="text-sm mt-0.5" style={{ color: '#9ca3af' }}>Operasyon paneli</p>
+            {/* Karşılama masaüstünde de var artık; önceden yalnız mobildeydi. */}
+            <p className="text-sm mt-0.5" style={{ color: '#9ca3af' }}>
+              {greeting}{displayName ? `, ${displayName}` : ''} · Operasyon paneli
+            </p>
           </div>
-          <Link
-            href={`/org/${org?.slug}/tasks`}
-            className="flex items-center gap-1.5 text-sm font-medium px-4 py-2 rounded-xl transition-colors"
-            style={{ background: '#2288c9', color: '#fff' }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#1d78b8' }}
-            onMouseLeave={e => { e.currentTarget.style.background = '#2288c9' }}
-          >
-            Görevler <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
+          {/* Hızlı linkler — mobilde vardı, masaüstünde yalnız tek bir
+              "Görevler" düğmesi vardı. */}
+          <div className="flex items-center gap-2 shrink-0">
+            {[
+              { href: `/org/${org?.slug}/kanban`, etiket: 'Kanban' },
+              { href: `/org/${org?.slug}/raporlar`, etiket: 'Raporlar' },
+            ].map(l => (
+              <Link key={l.href} href={l.href}
+                className="text-sm font-medium px-3 py-2 rounded-xl transition-colors"
+                style={{ background: '#fff', color: '#475569', border: '1px solid #e5e7eb', textDecoration: 'none' }}>
+                {l.etiket}
+              </Link>
+            ))}
+            <Link
+              href={`/org/${org?.slug}/tasks`}
+              className="flex items-center gap-1.5 text-sm font-medium px-4 py-2 rounded-xl transition-colors"
+              style={{ background: '#2288c9', color: '#fff' }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#1d78b8' }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#2288c9' }}
+            >
+              Görevler <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
         </div>
 
         {/* ── KPI Kartları ── */}
@@ -428,8 +467,19 @@ export default function DashboardPage() {
           </div>
         ) : null}
 
-        {/* ── Ekip — kalan tüm alanı doldurur ── */}
-        <div className="flex-1 min-h-0 flex flex-col rounded-2xl overflow-hidden" style={{ background: '#fff', border: '1px solid #e5e7eb' }}>
+        {/* ── Operasyon blokları (Faz 6) ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <KritikVeGecikmisBloku gorevler={tasks} slug={org?.slug ?? ''} />
+          <YaklasanTerminlerBloku gorevler={tasks} slug={org?.slug ?? ''} />
+          <IlDeneyapBloku gorevler={tasks} deneyaplar={deneyaplar} slug={org?.slug ?? ''} />
+          <div className="flex flex-col gap-4">
+            <ToplantilarBloku toplantilar={toplantilar} slug={org?.slug ?? ''} />
+            <SonHareketlerBloku gorevler={tasks} slug={org?.slug ?? ''} />
+          </div>
+        </div>
+
+        {/* ── Ekip ── */}
+        <div className="flex flex-col rounded-2xl overflow-hidden" style={{ background: '#fff', border: '1px solid #e5e7eb' }}>
           <div className="shrink-0 px-5 py-3.5 flex items-center justify-between" style={{ borderBottom: '1px solid #f3f4f6' }}>
             <h2 className="text-sm font-semibold" style={{ color: '#111827' }}>
               Ekip <span className="ml-1.5 text-xs font-normal" style={{ color: '#9ca3af' }}>{memberCount} üye</span>
