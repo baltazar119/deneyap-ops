@@ -8,7 +8,7 @@ Ayrıntılı 14 fazlık plan: **[docs/YOL-HARITASI.md](YOL-HARITASI.md)**
 ## Yeni oturumda ilk mesaj olarak şunu yaz
 
 > Proje: `C:\Users\Abdulgazi\Desktop\DENEYAP-Ops`
-> `docs/DEVAM.md` ve `docs/YOL-HARITASI.md` dosyalarını oku, Faz 6'dan devam et.
+> `docs/DEVAM.md` ve `docs/YOL-HARITASI.md` dosyalarını oku, Faz 7'den devam et.
 >
 > ÖNEMLİ KURAL: `C:\Users\Abdulgazi\Desktop\Tarlis-uygulama-main` klasörüne
 > HİÇBİR değişiklik yapma — o ayrı bir proje, sadece bu klasörle çalış.
@@ -37,9 +37,9 @@ Workspace slug: `deneyap-demo`
 
 ## Şu anki durum
 
-Son commit: `062e32e`. Çalışma ağacı temiz, GitHub ile senkron.
-`npx tsc --noEmit` temiz · **331 test yeşil** · `npx next build` başarılı.
-**Migration 059, 060, 061 uygulandı. 062 BEKLİYOR** (aşağıya bak).
+Son commit: `da40b19`. Çalışma ağacı temiz, GitHub ile senkron.
+`npx tsc --noEmit` temiz · **348 test yeşil** · `npx next build` başarılı.
+**Migration 059, 060, 061, 062 — HEPSİ UYGULANDI** ve doğrulandı.
 
 ### Faz 0 — TAMAMLANDI (3 commit)
 
@@ -221,33 +221,80 @@ kapatılamaz · içerik düz metin (HTML render edilmiyor).
 `createNotificationForAll` **kullanılmadı** — org filtresiz olduğu için duyuru
 tüm çalışma alanlarına giderdi. Yerine org kapsamlı yeni fonksiyon.
 
-### Sırada: Faz 6 — Panel
+### Faz 6 — TAMAMLANDI (commit `da40b19`)
 
-YOL-HARITASI.md Faz 6. **Migration gerekmez.**
+Masaüstü panel `height:100vh; overflow-hidden` idi — ekrana sığmayan her şey
+görünmez oluyordu ve **panele blok eklenemiyordu.** Kaydırmaya açıldı.
+(Sidebar zaten `fixed`, etkilenmedi — ölçüldü.)
 
-- Masaüstü panel bugün `height:100vh; overflow-hidden` — **kaydırmaya açılacak.**
-- Eklenecek dört blok: yaklaşan terminler (7 gün) · il/DENEYAP durum tablosu ·
-  kritik ve gecikmiş görevler (`priority` panelde hiç kullanılmıyor) · son
-  hareketler + yaklaşan toplantılar.
-- Masaüstüne de karşılama + hızlı linkler (bugün yalnız mobilde).
-- KPI'lar için limitsiz `tasks` yerine `count` sorgusu.
+| Blok | Kural |
+|---|---|
+| Kritik ve gecikmiş | önce öncelik, sonra termin |
+| Yaklaşan terminler (7 gün) | gecikmişler **girmiyor** (ayrı blokları var) |
+| İl / DENEYAP durumu | DENEYAP'lılar DENEYAP satırında, DENEYAP'sızlar il altında |
+| Yaklaşan toplantılar + son dokunulan işler | — |
 
-Hazır bağlantı noktaları: `lib/gorevTermin.ts` (`gecikmisMi`/`yaklasanMi`),
-`lib/deneyap.ts` (`deneyaplariIleGoreGrupla`), `lib/useDeneyaplar.ts`.
+Hepsi `lib/panelOzet.ts`'teki saf fonksiyonlardan besleniyor (17 test).
+Masaüstüne karşılama + hızlı linkler geldi.
+
+**"Son hareketler" değil "son dokunulan işler"** denildi: gerçek denetim kaydı
+yok, elimizdeki sinyal `updated_at`. Başlık iddiadan fazlasını söylememeli.
+
+### ⚠ Faz 5'te bulunan SINIFSAL hata — bilmen gereken
+
+**Next.js, route handler içindeki `fetch`'i önbelleğe alıyor; supabase-js de
+fetch kullandığı için veri tabanı OKUMALARI önbelleğe giriyordu.**
+
+Belirti sinsiydi: duyuru "Anladım" ile okundu işaretleniyor, kayıt DB'ye
+yazılıyor, ama `duyuru_okundu` sorgusu POST'tan önceki **boş** yanıtı
+döndürmeye devam ediyor ve popup her girişte tekrar çıkıyordu. İstek 200,
+RLS doğru, kayıt yerinde — sadece içerik bayat. İz: 12-20ms yanıt süreleri.
+
+`export const dynamic = 'force-dynamic'` bunu **engellemiyor** (ölçüldü).
+
+Çözüm: `src/lib/server/supabaseFetch.ts` → `onbelleksizFetch`
+(`cache: 'no-store'`). **`src/app/api` altında `createClient` çağıran TÜM
+route'lara uygulandı** (44 dosya, commit `fd335eb`).
+
+> **KURAL: sunucuda yeni bir Supabase istemcisi kurarken
+> `{ global: { fetch: onbelleksizFetch } }` vermeyi UNUTMA.** Tarayıcı
+> istemcisi (`lib/supabase/client.ts`) etkilenmiyor.
+
+### Sırada: Faz 7 — Excel'de DENEYAP (EN RİSKLİ FAZ)
+
+YOL-HARITASI.md Faz 7. **Migration 063** (RPC'ye `deneyap_id`; `undo` da geri
+yazmalı).
+
+**Bu fazın tamamı fingerprint kayması riski etrafında dönüyor.** Kritik kurallar:
+- `fingerprint.ts`'e **tek karakter dokunulmaz.** `fingerprint.test.ts`
+  altın değerlerle kilitli — test kırılırsa "beklenen değeri güncelle"
+  YANLIŞ tepkidir.
+- `columnMap.ts`: yeni `deneyap` hedefi; `atolye` alias'ı `il`'den çıkarılır,
+  **`birim` `il`'de KALIR** (kullanıcı kararı).
+- **`import_column_presets` hafızası migrate EDİLMEZ** — daha önce
+  "Atölye"→`il` eşlemiş bir org aynı eşlemeyi almaya devam eder, fingerprint'i
+  hiç değişmez. Kasıtlı koruma, kod comment'i olarak yazılmalı.
+- `satirIsle.ts` **"etkin il"**: DENEYAP çözüldüyse onun ili → yoksa il sütunu
+  → *DENEYAP sütunu var ama çözülmedi ve il sütunu YOK ise* `normIl(deneyapHücresi)`'ye
+  düş. Bu tek satır alias ayrıştırmasını fingerprint açısından nötr yapar.
+- DENEYAP/il çelişkisi → **hata değil uyarı** (satır düşürülmez).
+- Önizlemede "Tanınmayan DENEYAP'lar" paneli: Oluştur / Eşleştir / Yok say.
+  Onay sonrası satırlar `ham` jsonb'den **yeniden normalize** edilir.
+- Zorunlu test: DENEYAP sütunu il adı içeriyor + il sütunu yok →
+  **fingerprint eski sürümle birebir aynı.**
 
 ---
 
-## SENİN YAPMAN GEREKEN — migration 062
+## SENİN YAPMAN GEREKEN — şu an bir şey yok
 
-`supabase/uygula/faz5_duyurular.sql` **henüz uygulanmadı.**
-Supabase → SQL Editor → dosyanın tamamını yapıştır → çalıştır.
+**Tüm migration'lar uygulandı: 059, 060, 061, 062.** Demo veri güncel.
 
-Bunsuz duyuru ekranı "tablo yok" uyarısı gösterir, popup hiç açılmaz;
-**uygulamanın geri kalanı etkilenmez.** Uygulandıktan sonra Faz 5 uçtan uca
-doğrulanmalı (dört rolle: duyuru oluştur → hedeflenen kişiyle gir → popup →
-"Anladım" → çık/gir → bir daha çıkmamalı).
+Faz 7'de **migration 063** gelecek; yazıldığında SQL editöründen çalıştırman
+istenecek.
 
-Uygulanmış migration'lar: **059, 060, 061.**
+Demo veride bir örnek duyuru duruyor ("Ankara saha ziyareti — 12 Eylül",
+Ankara hedefli, Ankara Sorumlusu okumuş). Sunumda popup'ı yeniden göstermek
+istersen Duyurular ekranından silip yeniden oluşturman yeterli.
 
 Yararlı komutlar:
 
@@ -259,9 +306,10 @@ npm run seed:demo               # demo veriyi yeniden kur
 > **`next build`'i `next dev` çalışırken KOŞTURMA** — bu oturumda iki kez
 > `.next`'i bozdu. Bozulursa: dev'i durdur, `rm -rf .next`, yeniden başlat.
 
-> **Migration'ları REST ile doğrulama** (bu oturumda işe yaradı):
-> `select=<kolon>` 200 dönüyorsa kolon var, 400 + `42703` dönüyorsa yok.
-> Tablo yoksa PostgREST `PGRST205` döner.
+> **Migration'ları REST ile doğrulama:** `select=<kolon>` 200 dönüyorsa kolon
+> var, 400 + `42703` dönüyorsa yok. Tablo yoksa PostgREST `PGRST205` döner.
+> Trigger'ları davranışsal test etmek için service-role ile gerçek
+> INSERT/UPDATE denemesi en güvenilir yol (Faz 3'te 8 kontrol böyle yapıldı).
 
 ---
 
