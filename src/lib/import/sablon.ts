@@ -23,6 +23,8 @@ export interface SablonSecenekleri {
   orgAd: string
   anaRenk?: string
   uyeler: SablonUyesi[]
+  /** Org'un aktif DENEYAP adları — açılır liste ve "Listeler" sayfası için */
+  deneyaplar?: string[]
 }
 
 const DURUMLAR   = ['Beklemede', 'Yapılıyor', 'Test', 'Bloke', 'Tamamlandı']
@@ -44,6 +46,7 @@ export async function sablonUret(opts: SablonSecenekleri): Promise<Uint8Array> {
     { baslik: 'Görev Başlığı*',       genislik: 42 },
     { baslik: 'Açıklama',             genislik: 46 },
     { baslik: 'İl / Birim',           genislik: 18 },
+    { baslik: 'DENEYAP',              genislik: 28 },
     { baslik: 'Sorumlu (E-posta)',    genislik: 30 },
     { baslik: 'Durum',                genislik: 14 },
     { baslik: 'Öncelik',              genislik: 12 },
@@ -60,7 +63,22 @@ export async function sablonUret(opts: SablonSecenekleri): Promise<Uint8Array> {
     .sort()
 
   const aralik = (kolon: string, adet: number) =>
-    adet > 0 ? [`Listeler!$${kolon}$2:$${kolon}$${adet + 1}`] : undefined
+    adet > 0 ? [`Listeler!${kolon}$2:${kolon}${adet + 1}`] : undefined
+
+  /**
+   * Başlıktan Excel kolon harfini türetir.
+   *
+   * Harfler bilerek SABİT YAZILMIYOR: araya bir sütun eklendiğinde (Faz 7'de
+   * DENEYAP eklendi) tüm doğrulamalar sessizce yanlış kolona kayar ve şablon
+   * bozulur. Başlık bulunamazsa erken patlar — testte yakalanır.
+   */
+  const K = (baslik: string): string => {
+    const i = sutunlar.findIndex(x => x.baslik === baslik)
+    if (i < 0) throw new Error(`Şablon sütunu bulunamadı: ${baslik}`)
+    return String.fromCharCode(65 + i)
+  }
+
+  const deneyapAdlari = (opts.deneyaplar ?? []).slice().sort((a, b) => a.localeCompare(b, 'tr'))
 
   /* ── Görevler sayfası ────────────────────────────────────────────────── */
   const ws = wb.addWorksheet('Görevler', {
@@ -90,19 +108,21 @@ export async function sablonUret(opts: SablonSecenekleri): Promise<Uint8Array> {
     }
   }
 
-  dv('C', aralik('A', IL_SECENEKLERI.length), 'Geçersiz il',
+  dv(K('İl / Birim'), aralik('A', IL_SECENEKLERI.length), 'Geçersiz il',
      'Listeden bir il seçin. Yine de yazabilirsiniz; yükleme sırasında eşleştirmeye çalışılır.')
-  dv('D', aralik('E', epostalar.length), 'Geçersiz sorumlu',
+  dv(K('DENEYAP'), aralik('F', deneyapAdlari.length), 'Tanınmayan DENEYAP',
+     'Listeden bir DENEYAP seçin. Listede yoksa yazabilirsiniz; yükleme önizlemesinde oluşturmayı önereceğiz. DENEYAP seçerseniz il ondan alınır.')
+  dv(K('Sorumlu (E-posta)'), aralik('E', epostalar.length), 'Geçersiz sorumlu',
      'Ekipteki bir e-posta seçin. Ekipte olmayan biri yazarsanız görev atanmamış olarak eklenir.')
-  dv('E', aralik('B', DURUMLAR.length), 'Geçersiz durum',
+  dv(K('Durum'), aralik('B', DURUMLAR.length), 'Geçersiz durum',
      'Beklemede / Yapılıyor / Test / Bloke / Tamamlandı. "Gecikti" bir durum değildir — termin tarihinden hesaplanır.')
-  dv('F', aralik('C', ONCELIKLER.length), 'Geçersiz öncelik', 'Kritik / Yüksek / Normal / Düşük.')
-  dv('G', aralik('D', TASK_TYPES.length), 'Geçersiz kategori', 'Listeden bir kategori seçin.')
+  dv(K('Öncelik'), aralik('C', ONCELIKLER.length), 'Geçersiz öncelik', 'Kritik / Yüksek / Normal / Düşük.')
+  dv(K('Kategori'), aralik('D', TASK_TYPES.length), 'Geçersiz kategori', 'Listeden bir kategori seçin.')
 
   for (let r = 2; r <= SON; r++) {
-    ws.getCell(`H${r}`).numFmt = 'dd.mm.yyyy'
-    ws.getCell(`I${r}`).numFmt = 'dd.mm.yyyy'
-    ws.getCell(`J${r}`).numFmt = '0.0'
+    ws.getCell(`${K('Başlangıç Tarihi')}${r}`).numFmt = 'dd.mm.yyyy'
+    ws.getCell(`${K('Termin Tarihi')}${r}`).numFmt = 'dd.mm.yyyy'
+    ws.getCell(`${K('Tahmini Süre (saat)')}${r}`).numFmt = '0.0'
   }
 
   /* ── Örnek sayfası ───────────────────────────────────────────────────── */
@@ -112,12 +132,14 @@ export async function sablonUret(opts: SablonSecenekleri): Promise<Uint8Array> {
   ornek.columns = sutunlar.map(s => ({ header: s.baslik, width: s.genislik }))
   ornek.getRow(1).font = { bold: true }
   const ornekEposta = epostalar[0] ?? 'sorumlu@ornek.com'
+  const ornekDeneyap = deneyapAdlari[0] ?? ''
   ornek.addRow(['Atölye açılış etkinliği', 'Davetli listesi ve basın duyurusu', 'Ankara',
-    ornekEposta, 'Yapılıyor', 'Yüksek', 'Etkinlik', new Date(), new Date(), 8, 'GRV-001'])
+    ornekDeneyap, ornekEposta, 'Yapılıyor', 'Yüksek', 'Etkinlik', new Date(), new Date(), 8, 'GRV-001'])
   ornek.addRow(['3D yazıcı bakımı', 'Yedek parça bekleniyor', 'İzmir',
-    ornekEposta, 'Bloke', 'Yüksek', 'Mekanik', null, new Date(), 4, 'GRV-002'])
+    '', ornekEposta, 'Bloke', 'Yüksek', 'Mekanik', null, new Date(), 4, 'GRV-002'])
+  // DENEYAP'sız satır: "Genel Merkez" gibi birime bağlı olmayan işler
   ornek.addRow(['Dönem raporu hazırlığı', '', 'Genel Merkez',
-    '', 'Beklemede', 'Normal', 'Raporlama', null, null, null, 'GRV-003'])
+    '', '', 'Beklemede', 'Normal', 'Raporlama', null, null, null, 'GRV-003'])
 
   /* ── Yardım sayfası ──────────────────────────────────────────────────── */
   const yardim = wb.addWorksheet('Nasıl Kullanılır')
@@ -127,12 +149,17 @@ export async function sablonUret(opts: SablonSecenekleri): Promise<Uint8Array> {
     ['', false],
     ['1. Görevlerinizi "Görevler" sayfasına yazın. Örnek satırlar "Örnek" sayfasındadır.', false],
     ['2. Yalnızca "Görev Başlığı" zorunludur. Diğer sütunlar boş bırakılabilir.', false],
-    ['3. İl, Durum, Öncelik, Kategori ve Sorumlu sütunlarında açılır listeden seçim yapın.', false],
+    ['3. İl, DENEYAP, Durum, Öncelik, Kategori ve Sorumlu sütunlarında açılır listeden seçim yapın.', false],
     ['4. Tarihleri gün.ay.yıl olarak yazın: 03.04.2026 = 3 Nisan 2026.', false],
     ['', false],
     ['"Gecikti" bir durum değildir', true],
     ['Bir görevin gecikmiş sayılması termin tarihinin geçmiş olmasına bağlıdır.', false],
     ['Durum sütununa "Gecikti" yazarsanız görev "Yapılıyor" olarak alınır ve size uyarı gösterilir.', false],
+    ['', false],
+    ['DENEYAP sütunu', true],
+    ['Bir ilde birden fazla DENEYAP olabilir. DENEYAP seçerseniz "İl / Birim" sütunu dikkate ALINMAZ;', false],
+    ['il, seçtiğiniz DENEYAP’tan otomatik alınır. Listede olmayan bir ad yazarsanız yükleme', false],
+    ['önizlemesinde onu oluşturmayı önereceğiz — satır bu yüzden reddedilmez.', false],
     ['', false],
     ['Aynı dosyayı ikinci kez yüklerseniz', true],
     ['Var olan görevler GÜNCELLENİR, kopya oluşmaz. Eşleştirme "Kod / Referans" sütununa,', false],
@@ -159,6 +186,7 @@ export async function sablonUret(opts: SablonSecenekleri): Promise<Uint8Array> {
   listeler.getColumn(3).values = ['Öncelikler', ...ONCELIKLER]
   listeler.getColumn(4).values = ['Kategoriler', ...TASK_TYPES.map(t => t.label)]
   listeler.getColumn(5).values = ['Sorumlular', ...epostalar]
+  listeler.getColumn(6).values = ['DENEYAPlar', ...deneyapAdlari]
   // Kullanıcı yanlışlıkla bozmasın; "veryHidden" sekmeden de gizler
   listeler.state = 'veryHidden'
 

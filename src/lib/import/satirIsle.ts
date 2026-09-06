@@ -1,5 +1,6 @@
 import { trFold } from '@/lib/turkce'
-import { normDurum, normOncelik, normKategori, normIl, normTarih, normSaat } from './normalize'
+import { normDurum, normOncelik, normKategori, normIl, normTarih, normSaat, normDeneyap } from './normalize'
+import type { DeneyapAdayi } from './normalize'
 import { disAnahtarTemizle, eslestirmeAnahtari } from './fingerprint'
 import type { AlanAnahtari, Esleme } from './columnMap'
 import type { TaskStatus, TaskPriority, TaskType } from '@/types/database'
@@ -26,6 +27,8 @@ export interface IsleSecenekleri {
   birEnYuksek?: boolean
   /** Sorumlu eşleşmezse ne yapılsın */
   sorumluPolitikasi?: 'bos_birak' | 'atla' | 'reddet'
+  /** Org'un DENEYAP kayıtları — DENEYAP sütunu eşlenmişse gerekli */
+  deneyaplar?: DeneyapAdayi[]
 }
 
 export interface SatirHatasi {
@@ -37,6 +40,7 @@ export interface NormalizeSatir {
   title: string
   description: string | null
   il: string | null
+  deneyap_id: string | null
   status: TaskStatus
   priority: TaskPriority
   task_type: TaskType
@@ -59,6 +63,8 @@ export interface IslenmisSatir {
   belirsizSorumlu: UyeOzeti[] | null
   /** Kullanıcı bu satırda "Gecikti" yazmıştı */
   gecikmeIsareti: boolean
+  /** DENEYAP hücresi hiçbir kayda uymadı — önizlemede oluşturma önerilir */
+  yeniDeneyapAdi: string | null
 }
 
 /** Eşlemeye göre ilgili sütunun ham değerini bulur */
@@ -110,14 +116,67 @@ export function satirIsle(
     hatalar.push({ alan: 'title', mesaj: 'Görev başlığı 200 karakteri aşamaz.' })
   }
 
-  /* ── İl ── */
+  /* ── İl ve DENEYAP → "etkin il" ──────────────────────────────────────────
+   *
+   * BU BLOK FINGERPRINT'İ KORUYAN YERDİR. Eşleştirme anahtarı
+   * `parmakIzi(baslik, il)` ve o `il` buradan çıkıyor. Kayarsa aynı Excel
+   * ikinci kez yüklendiğinde eski kayıtla eşleşmez ve KOPYA GÖREV oluşur.
+   *
+   * Öncelik sırası:
+   *   1. DENEYAP çözüldüyse → DENEYAP'ın ili (DB trigger'ı da aynısını yapar)
+   *   2. İl sütunu eşlenmişse → onun değeri (059 öncesi davranışın aynısı)
+   *   3. DENEYAP sütunu var, çözülmedi ve İL SÜTUNU YOK → normIl(DENEYAP hücresi)
+   *
+   * 3. madde geriye dönük uyumun tamamı: "Atölye" başlıklı sütun eskiden
+   * `il` alanına eşleniyordu. Faz 7 onu `deneyap`a taşıdı. İçinde "Ankara"
+   * yazan eski bir dosya bu geri düşme sayesinde önceki sürümle BİREBİR AYNI
+   * anahtarı üretir.
+   */
+  const ilSutunuEslenmis = Object.values(esleme).includes('il')
   const ilHam = metin(deger(ham, esleme, 'il'))
   const ilSonuc = normIl(ilHam)
-  if (ilHam && !ilSonuc.value) {
-    // Dolu ama tanınmadı → sessizce null'lamak yanlış olur, il PRD'de bir eksen
-    hatalar.push({ alan: 'il', mesaj: ilSonuc.uyari ?? `İl tanınmadı: "${ilHam}".` })
-  } else if (ilSonuc.uyari) {
-    uyarilar.push(ilSonuc.uyari)
+
+  const deneyapHam = metin(deger(ham, esleme, 'deneyap'))
+  const deneyapSonuc = normDeneyap(deneyapHam, opts.deneyaplar ?? [], ilSonuc.value)
+
+  // DENEYAP uyarısı, geri düşmenin sonucu belli OLDUKTAN sonra basılır:
+  // hücre aslında bir il adıysa "yeni DENEYAP oluşturun" demek yanıltıcı olur.
+  let deneyapOnerilsin = !!deneyapSonuc.yeniAd
+
+  let etkinIl: string | null = null
+  if (deneyapSonuc.il) {
+    etkinIl = deneyapSonuc.il
+    // Çelişki HATA değil uyarı: satırı düşürmek kullanıcıyı Excel'e geri iter.
+    if (ilSonuc.value && ilSonuc.value !== deneyapSonuc.il) {
+      uyarilar.push(
+        `İl olarak "${ilSonuc.value}" yazılmış ama DENEYAP "${deneyapSonuc.il}" ilinde — ` +
+        `DENEYAP'ın ili kullanıldı.`,
+      )
+    }
+  } else if (ilSutunuEslenmis) {
+    etkinIl = ilSonuc.value
+    if (ilHam && !ilSonuc.value) {
+      // Dolu ama tanınmadı → sessizce null'lamak yanlış olur, il PRD'de bir eksen
+      hatalar.push({ alan: 'il', mesaj: ilSonuc.uyari ?? `İl tanınmadı: "${ilHam}".` })
+    } else if (ilSonuc.uyari) {
+      uyarilar.push(ilSonuc.uyari)
+    }
+  } else if (deneyapHam) {
+    const geriDusme = normIl(deneyapHam)
+    etkinIl = geriDusme.value
+    if (geriDusme.value) {
+      // Hücrenin içeriği aslında bir İL adıydı (eski "Atölye" sütunlu
+      // dosyalar). Bu bir DENEYAP adı değil; oluşturma ÖNERİLMEZ, yoksa
+      // önizlemedeki panel il adlarıyla dolar ve kullanıcı "Ankara" adında
+      // sahte bir DENEYAP oluşturur.
+      deneyapOnerilsin = false
+      uyarilar.push(`"${deneyapHam}" bir DENEYAP değil, il adı olarak yorumlandı.`)
+    }
+  }
+
+  // Sıra önemli: geri düşme kararı verildikten SONRA.
+  if (deneyapSonuc.uyari && (deneyapSonuc.value || deneyapOnerilsin || deneyapSonuc.oneriler?.length)) {
+    uyarilar.push(deneyapSonuc.uyari)
   }
 
   /* ── Durum / öncelik / kategori ── */
@@ -188,7 +247,7 @@ export function satirIsle(
 
   /* ── Eşleştirme anahtarı ── */
   const disAnahtar = disAnahtarTemizle(deger(ham, esleme, 'external_key'))
-  const { anahtar, yontem } = eslestirmeAnahtari(title, ilSonuc.value, disAnahtar)
+  const { anahtar, yontem } = eslestirmeAnahtari(title, etkinIl, disAnahtar)
 
   const aciklama = metin(deger(ham, esleme, 'description'))
 
@@ -196,7 +255,8 @@ export function satirIsle(
     normalize: hatalar.length ? null : {
       title,
       description: aciklama || null,
-      il: ilSonuc.value,
+      il: etkinIl,
+      deneyap_id: deneyapSonuc.value,
       status: durum.value ?? 'backlog',
       priority: oncelik.value ?? 'normal',
       task_type: kategori.value ?? 'other',
@@ -213,6 +273,7 @@ export function satirIsle(
     eslesmeyenSorumlu,
     belirsizSorumlu,
     gecikmeIsareti: !!durum.gecikmeIsareti,
+    yeniDeneyapAdi: deneyapOnerilsin ? deneyapSonuc.yeniAd : null,
   }
 }
 

@@ -12,8 +12,13 @@ const UYELER = [
   { adSoyad: 'Adsız',               email: null },
 ]
 
+const DENEYAPLAR = ['Çankaya DENEYAP', 'Keçiören DENEYAP', 'Bornova DENEYAP']
+
 async function sablon() {
-  return sablonUret({ orgAd: 'DENEYAP Demo', anaRenk: '#2288c9', uyeler: UYELER })
+  return sablonUret({
+    orgAd: 'DENEYAP Demo', anaRenk: '#2288c9',
+    uyeler: UYELER, deneyaplar: DENEYAPLAR,
+  })
 }
 
 async function kitap(buf: Uint8Array) {
@@ -63,21 +68,42 @@ describe('sablonUret', () => {
     expect(sorumlular).not.toContain('Adsız')
   })
 
+  /**
+   * Kolon harfi BAŞLIKTAN türetilir, sabit yazılmaz.
+   *
+   * Faz 7'de araya "DENEYAP" sütunu eklendi ve sabit harfler kaydı: "Durum"
+   * doğrulaması E'den F'ye geçti. Sabit harfli testler böyle bir eklemede
+   * yanlış hücreyi ölçer; başlıktan bulmak testi kalıcı kılar.
+   */
+  function kolon(ws: import('exceljs').Worksheet, baslik: string): string {
+    const basliklar = (ws.getRow(1).values as unknown[]).slice(1).map(v => String(v ?? ''))
+    const i = basliklar.indexOf(baslik)
+    if (i < 0) throw new Error(`Şablonda "${baslik}" sütunu yok. Başlıklar: ${basliklar.join(' | ')}`)
+    return String.fromCharCode(65 + i)
+  }
+
   it('açılır liste doğrulaması ekler', async () => {
     const ws = (await kitap(await sablon())).getWorksheet('Görevler')!
-    expect(ws.getCell('C2').dataValidation?.type).toBe('list')   // İl
-    expect(ws.getCell('E2').dataValidation?.type).toBe('list')   // Durum
-    expect(ws.getCell('G2').dataValidation?.type).toBe('list')   // Kategori
+    for (const b of ['İl / Birim', 'DENEYAP', 'Durum', 'Öncelik', 'Kategori']) {
+      expect(ws.getCell(`${kolon(ws, b)}2`).dataValidation?.type, b).toBe('list')
+    }
   })
 
   it('durum uyarısında "Gecikti"nin durum olmadığını açıklar', async () => {
     const ws = (await kitap(await sablon())).getWorksheet('Görevler')!
-    expect(ws.getCell('E2').dataValidation?.error).toContain('Gecikti')
+    expect(ws.getCell(`${kolon(ws, 'Durum')}2`).dataValidation?.error).toContain('Gecikti')
+  })
+
+  it('DENEYAP doğrulaması ilin ondan alınacağını söyler', async () => {
+    const ws = (await kitap(await sablon())).getWorksheet('Görevler')!
+    const hata = ws.getCell(`${kolon(ws, 'DENEYAP')}2`).dataValidation?.error ?? ''
+    expect(hata).toContain('il ondan alınır')
   })
 
   it('tarih sütunlarına gün.ay.yıl biçimi verir', async () => {
     const ws = (await kitap(await sablon())).getWorksheet('Görevler')!
-    expect(ws.getCell('I2').numFmt).toBe('dd.mm.yyyy')
+    expect(ws.getCell(`${kolon(ws, 'Termin Tarihi')}2`).numFmt).toBe('dd.mm.yyyy')
+    expect(ws.getCell(`${kolon(ws, 'Başlangıç Tarihi')}2`).numFmt).toBe('dd.mm.yyyy')
   })
 
   it('örnek satırları ayrı sayfada tutar — yanlışlıkla içe aktarılmasın', async () => {
@@ -86,11 +112,32 @@ describe('sablonUret', () => {
     expect(wb.getWorksheet('Örnek')!.actualRowCount).toBeGreaterThan(1)
   })
 
+  it('DENEYAP listesi "Listeler" sayfasına yazılır', async () => {
+    const ws = (await kitap(await sablon())).getWorksheet('Listeler')!
+    const adlar = (ws.getColumn(6).values as unknown[]).slice(2).map(String)
+    expect(adlar).toContain('Çankaya DENEYAP')
+    expect(adlar).toContain('Bornova DENEYAP')
+  })
+
+  it('DENEYAP yoksa açılır liste kurulmaz ama şablon yine üretilir', async () => {
+    // Henüz DENEYAP tanımlamamış bir org şablonu indirebilmeli.
+    const buf = await sablonUret({ orgAd: 'Yeni Org', uyeler: UYELER })
+    const ws = (await kitap(buf)).getWorksheet('Görevler')!
+    const basliklar = (ws.getRow(1).values as unknown[]).slice(1).map(v => String(v ?? ''))
+    expect(basliklar).toContain('DENEYAP')
+    const harf = String.fromCharCode(65 + basliklar.indexOf('DENEYAP'))
+    expect(ws.getCell(`${harf}2`).dataValidation).toBeUndefined()
+  })
+
   it('üye yoksa da çöker değil, geçerli bir dosya üretir', async () => {
     const buf = await sablonUret({ orgAd: 'Boş Org', uyeler: [] })
     const wb = await kitap(buf)
     expect(wb.getWorksheet('Görevler')).toBeTruthy()
-    expect(wb.getWorksheet('Görevler')!.getCell('D2').dataValidation).toBeUndefined()
+    // Üye yoksa "Sorumlu" açılır listesi hiç kurulmaz (aralık undefined).
+    const ws = wb.getWorksheet('Görevler')!
+    const basliklar = (ws.getRow(1).values as unknown[]).slice(1).map(v => String(v ?? ''))
+    const harf = String.fromCharCode(65 + basliklar.indexOf('Sorumlu (E-posta)'))
+    expect(ws.getCell(`${harf}2`).dataValidation).toBeUndefined()
   })
 })
 

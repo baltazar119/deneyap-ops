@@ -78,3 +78,56 @@ describe('eksikZorunluAlanlar', () => {
     expect(eksikZorunluAlanlar({ 'Görev': 'title' })).toHaveLength(0)
   })
 })
+
+/**
+ * DENEYAP alanının ayrıştırılması (Faz 7).
+ *
+ * "Atölye" başlıklı sütun eskiden `il`'e eşleniyordu. Artık `deneyap`'a
+ * eşleniyor ama bu ayrıştırma iki koruma altında yapıldı:
+ *   1. `birim` ve `merkez` `il`'de KALDI (alanın etiketi zaten "İl / Birim")
+ *   2. Preset hafızası migrate edilmedi — eski eşleme aynen korunuyor
+ */
+describe('DENEYAP sütunu ayrıştırması', () => {
+  const alan = (basliklar: string[], sutun: string) =>
+    otomatikEsle(basliklar).find(o => o.sutun === sutun)?.alan
+
+  it('"Atölye" artık il değil DENEYAP alanına eşlenir', () => {
+    expect(alan(['Atölye'], 'Atölye')).toBe('deneyap')
+  })
+
+  it('"DENEYAP" ve türevleri DENEYAP alanına eşlenir', () => {
+    expect(alan(['DENEYAP'], 'DENEYAP')).toBe('deneyap')
+    expect(alan(['Deneyap Adı'], 'Deneyap Adı')).toBe('deneyap')
+    expect(alan(['Atölye Adı'], 'Atölye Adı')).toBe('deneyap')
+  })
+
+  it('"Birim" ve "Merkez" il alanında KALIR', () => {
+    // Taşınsalardı "Birim" başlıklı sütunu olan mevcut dosyaların il
+    // verisi kopardı.
+    expect(alan(['Birim'], 'Birim')).toBe('il')
+    expect(alan(['Merkez'], 'Merkez')).toBe('il')
+  })
+
+  it('İl ve Atölye sütunları bir arada FARKLI alanlara düşer', () => {
+    const b = ['Görev', 'İl', 'Atölye']
+    expect(alan(b, 'İl')).toBe('il')
+    expect(alan(b, 'Atölye')).toBe('deneyap')
+  })
+
+  it('GERİYE DÖNÜK: preset "Atölye"→il diyorsa o eşleme korunur', () => {
+    // Bu org daha önce "Atölye" sütununu il olarak aktarmış. Eşleme
+    // değişirse fingerprint kayar ve aynı dosya kopya görev üretir.
+    const onceki = { 'Atölye': 'il' as const }
+    const o = otomatikEsle(['Atölye'], onceki).find(x => x.sutun === 'Atölye')
+    expect(o?.alan).toBe('il')
+    expect(o?.guven).toBe(100)
+  })
+
+  it('preset yalnızca o sütunu bağlar, diğerleri normal eşlenir', () => {
+    const onceki = { 'Atölye': 'il' as const }
+    const oneriler = otomatikEsle(['Görev', 'Atölye', 'Termin'], onceki)
+    expect(oneriler.find(o => o.sutun === 'Atölye')?.alan).toBe('il')
+    expect(oneriler.find(o => o.sutun === 'Görev')?.alan).toBe('title')
+    expect(oneriler.find(o => o.sutun === 'Termin')?.alan).toBe('due_date')
+  })
+})

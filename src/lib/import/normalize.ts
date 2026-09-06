@@ -239,6 +239,101 @@ export function normIl(raw: unknown): NormSonuc<string> {
   }
 }
 
+/* ── DENEYAP ───────────────────────────────────────────────────────────── */
+
+/** normDeneyap'ın ihtiyaç duyduğu asgari DENEYAP alanları */
+export interface DeneyapAdayi {
+  id: string
+  ad: string
+  il: string
+  kod: string | null
+  aktif: boolean
+}
+
+export interface DeneyapSonuc extends NormSonuc<string> {
+  /** Çözülen DENEYAP'ın ili — "etkin il" hesabı bunu kullanır */
+  il: string | null
+  /** Hiç eşleşmedi; kullanıcıya "oluştur" önerilecek ham ad */
+  yeniAd: string | null
+}
+
+/**
+ * Excel'deki DENEYAP hücresini mevcut DENEYAP kayıtlarıyla eşleştirir.
+ *
+ * Eşleşme sırası bilinçli olarak güvenilirlikten belirsizliğe doğru:
+ *   1. kod birebir      — kullanıcının kendi kimliği, en güvenilir
+ *   2. ad birebir       — trFold ile ("çankaya" = "ÇANKAYA")
+ *   3. ad + il bağlamı  — aynı ad birden fazlaysa satırdaki il ile daralt
+ *   4. yakın yazım (≤2) — TEK aday varsa tahmin, birden fazlaysa kullanıcıya sor
+ *   5. hiçbiri          — yeniAd dolu döner, önizlemede "oluştur" önerilir
+ *
+ * normIl gibi belirsizlikte otomatik kabul ETMEZ, kullanıcıya sorar.
+ * Kapatılmış (aktif=false) DENEYAP yalnızca kod veya ad BİREBİR eşleşirse
+ * kabul edilir — yakın yazımla kapalı bir birime düşmek istemeyiz.
+ */
+export function normDeneyap(
+  raw: unknown,
+  deneyaplar: DeneyapAdayi[],
+  ilBaglami?: string | null,
+): DeneyapSonuc {
+  const yok = (ek: Partial<DeneyapSonuc> = {}): DeneyapSonuc =>
+    ({ value: null, guven: 'yok', il: null, yeniAd: null, ...ek })
+
+  if (bos(raw)) return yok()
+  const ham = String(raw).trim()
+  const k = trFold(ham)
+
+  const bulundu = (d: DeneyapAdayi, ek: Partial<DeneyapSonuc> = {}): DeneyapSonuc =>
+    ({ value: d.id, guven: 'kesin', il: d.il, yeniAd: null, ...ek })
+
+  // 1) Kod birebir
+  const kodla = deneyaplar.filter(d => d.kod && trFold(d.kod) === k)
+  if (kodla.length === 1) return bulundu(kodla[0])
+
+  // 2) Ad birebir
+  const adla = deneyaplar.filter(d => trFold(d.ad) === k)
+  if (adla.length === 1) return bulundu(adla[0])
+
+  // 3) Aynı ad birden fazla ilde olabilir → il bağlamıyla daralt
+  if (adla.length > 1) {
+    if (ilBaglami) {
+      const ilde = adla.filter(d => trFold(d.il) === trFold(ilBaglami))
+      if (ilde.length === 1) return bulundu(ilde[0])
+    }
+    return yok({
+      uyari: '"' + ham + '" birden fazla DENEYAP ile eşleşiyor — seçim yapın.',
+      oneriler: adla.slice(0, 4).map(d => d.ad + ' (' + d.il + ')'),
+    })
+  }
+
+  // 4) Yakın yazım — yalnızca AÇIK birimler arasında
+  const yakinlar = deneyaplar
+    .filter(d => d.aktif)
+    .map(d => ({ d, m: mesafe(k, trFold(d.ad)) }))
+    .filter(x => x.m <= 2)
+    .sort((a, b) => a.m - b.m)
+
+  if (yakinlar.length === 1) {
+    return bulundu(yakinlar[0].d, {
+      guven: 'tahmin',
+      uyari: '"' + ham + '" → "' + yakinlar[0].d.ad + '" olarak yorumlandı.',
+      oneriler: [yakinlar[0].d.ad],
+    })
+  }
+  if (yakinlar.length > 1) {
+    return yok({
+      uyari: '"' + ham + '" birden fazla DENEYAP\'a benziyor — seçim yapın.',
+      oneriler: yakinlar.slice(0, 4).map(x => x.d.ad + ' (' + x.d.il + ')'),
+    })
+  }
+
+  // 5) Tanınmadı — HATA DEĞİL. Önizlemede "oluştur / eşleştir / yok say".
+  return yok({
+    yeniAd: ham,
+    uyari: '"' + ham + '" tanınmadı — yeni DENEYAP olarak oluşturabilirsiniz.',
+  })
+}
+
 /* ── Tarih ─────────────────────────────────────────────────────────────── */
 
 const TR_AYLAR: Record<string, number> = Object.fromEntries(

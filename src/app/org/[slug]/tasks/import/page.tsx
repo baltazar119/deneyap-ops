@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic'
 import { useState, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter, useParams } from 'next/navigation'
+import { IL_SECENEKLERI } from '@/lib/iller'
 import { supabase } from '@/lib/supabase/client'
 import { useOrg } from '@/lib/supabase/orgContext'
 import { yazabilirMi } from '@/lib/roller'
@@ -42,6 +43,7 @@ interface Onizleme {
   oncekiYukleme: { tarih: string; batchId: string } | null
   ozet: { toplam: number; gecerli: number; hatali: number; uyarili: number; eslesen: number; yeni: number; dosyaIciTekrar: number }
   eslesmeyenSorumlular: { ham: string; adet: number }[]
+  taninmayanDeneyaplar: { ad: string; adet: number; onerilenIl: string | null }[]
   satirlar: OnizlemeSatir[]
   satirKirpildi: boolean
 }
@@ -69,6 +71,8 @@ export default function ImportPage() {
   const [yukleniyor, setYukleniyor] = useState(false)
   const [hata, setHata] = useState<string | null>(null)
   const [suzgec, setSuzgec] = useState<'tumu' | 'hatali' | 'uyarili'>('tumu')
+  const [deneyapIlleri, setDeneyapIlleri] = useState<Record<string, string>>({})
+  const [deneyapOlusuyor, setDeneyapOlusuyor] = useState(false)
   const [geriAliniyor, setGeriAliniyor] = useState(false)
   const [geriSonuc, setGeriSonuc] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -125,6 +129,38 @@ export default function ImportPage() {
       }
     }
     onizlemeAl(dosya, yeni)
+  }
+
+  /* ── Tanınmayan DENEYAP'ları oluştur ──────────────────────────────────
+   *
+   * Oluşturduktan sonra AYRI bir "yeniden çöz" ucu çağırmak yerine önizlemeyi
+   * baştan çalıştırıyoruz. Dosya zaten tarayıcıda duruyor ve bu yol
+   * önizleme ile uygulamanın bit bit aynı kodtan geçmesini TANIM GEREĞİ
+   * garanti eder — iki ayrı normalize yolu tutmak sessiz ayrışma riski
+   * doğururdu. Sütun eşlemesi değiştiğinde de zaten aynı şey yapılıyor.
+   */
+  async function deneyaplariOlustur(hedefler: { ad: string; il: string }[]) {
+    if (!dosya || !hedefler.length) return
+    setDeneyapOlusuyor(true); setHata(null)
+    try {
+      const t = await token()
+      for (const h of hedefler) {
+        const res = await fetch(`/api/org/${slug}/deneyaplar`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ad: h.ad, il: h.il }),
+        })
+        if (!res.ok) {
+          const j = await res.json().catch(() => ({}))
+          setHata(j.error ?? `"${h.ad}" oluşturulamadı.`)
+          setDeneyapOlusuyor(false)
+          return
+        }
+      }
+      await onizlemeAl(dosya, onizleme?.esleme)
+    } finally {
+      setDeneyapOlusuyor(false)
+    }
   }
 
   /* ── Uygula ── */
@@ -290,6 +326,60 @@ export default function ImportPage() {
               {onizleme.eksikZorunlu.length > 0 && (
                 <div className="rounded-xl px-4 py-3 text-sm mb-4" style={{ background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5' }}>
                   Zorunlu alan eşlenmedi: <strong>{onizleme.eksikZorunlu.join(', ')}</strong>. Aşağıdan eşleştirin.
+                </div>
+              )}
+
+              {onizleme.taninmayanDeneyaplar.length > 0 && (
+                <div className="rounded-xl px-4 py-3 mb-4" style={{ background: '#eff6ff', border: '1px solid #93c5fd' }}>
+                  <div className="text-sm font-semibold mb-1" style={{ color: '#1e40af' }}>
+                    Tanınmayan DENEYAP&apos;lar ({onizleme.taninmayanDeneyaplar.length})
+                  </div>
+                  <p className="text-xs mb-3" style={{ color: '#1e3a8a' }}>
+                    Bu satırlar <strong>reddedilmedi</strong> — DENEYAP bağı olmadan aktarılacak.
+                    Oluşturursanız görevler doğrudan o DENEYAP&apos;a bağlanır ve il ondan alınır.
+                  </p>
+                  <div className="space-y-2">
+                    {onizleme.taninmayanDeneyaplar.map(d => {
+                      const secili = deneyapIlleri[d.ad] ?? d.onerilenIl ?? ''
+                      return (
+                        <div key={d.ad} className="flex flex-wrap items-center gap-2">
+                          <span className="text-xs font-medium flex-1 min-w-[140px]" style={{ color: '#1e40af' }}>
+                            {d.ad} <span style={{ color: '#64748b' }}>({d.adet} satır)</span>
+                          </span>
+                          <select
+                            value={secili}
+                            onChange={e => setDeneyapIlleri(v => ({ ...v, [d.ad]: e.target.value }))}
+                            className="text-xs px-2 py-1 rounded-lg"
+                            style={{ border: '1px solid #93c5fd', background: '#fff', color: '#1e3a8a' }}
+                          >
+                            <option value="">İl seçin…</option>
+                            {IL_SECENEKLERI.map(il => <option key={il} value={il}>{il}</option>)}
+                          </select>
+                          <button
+                            onClick={() => deneyaplariOlustur([{ ad: d.ad, il: secili }])}
+                            disabled={!secili || deneyapOlusuyor || yukleniyor}
+                            className="text-xs font-semibold px-3 py-1 rounded-lg disabled:opacity-40"
+                            style={{ background: '#2288c9', color: '#fff', border: 'none' }}
+                          >
+                            {deneyapOlusuyor ? 'Oluşturuluyor…' : 'Oluştur'}
+                          </button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  {onizleme.taninmayanDeneyaplar.every(d => (deneyapIlleri[d.ad] ?? d.onerilenIl)) &&
+                   onizleme.taninmayanDeneyaplar.length > 1 && (
+                    <button
+                      onClick={() => deneyaplariOlustur(onizleme.taninmayanDeneyaplar.map(d => ({
+                        ad: d.ad, il: deneyapIlleri[d.ad] ?? d.onerilenIl ?? '',
+                      })))}
+                      disabled={deneyapOlusuyor || yukleniyor}
+                      className="mt-3 text-xs font-semibold px-3 py-1.5 rounded-lg disabled:opacity-40"
+                      style={{ background: '#fff', color: '#1e40af', border: '1px solid #93c5fd' }}
+                    >
+                      Hepsini oluştur ({onizleme.taninmayanDeneyaplar.length})
+                    </button>
+                  )}
                 </div>
               )}
 

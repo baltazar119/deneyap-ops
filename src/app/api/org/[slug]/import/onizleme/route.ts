@@ -5,6 +5,7 @@ import { rateLimit } from '@/lib/rateLimit'
 import { tabloOku, TabloHatasi, LIMITLER } from '@/lib/import/tabloOku'
 import { otomatikEsle, eksikZorunluAlanlar, type Esleme } from '@/lib/import/columnMap'
 import { satirIsle, type UyeOzeti, type IsleSecenekleri } from '@/lib/import/satirIsle'
+import type { DeneyapAdayi } from '@/lib/import/normalize'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -82,8 +83,14 @@ export async function POST(req: NextRequest, { params }: { params: { slug: strin
   /* ── Üyeler (sorumlu eşleme için) ─────────────────────────────────────── */
   const uyeler = await uyeleriGetir(yetki)
 
+  /* ── DENEYAP'lar (birim eşleme için) ──────────────────────────────────── */
+  // Kapatılmışlar da çekilir: geçmiş veri aktarılırken kapalı bir birimin
+  // adı BİREBİR yazılmışsa normDeneyap onu kabul eder (yakın yazımla değil).
+  const deneyaplar = await deneyaplariGetir(yetki)
+
   /* ── Satırları işle ───────────────────────────────────────────────────── */
-  const islenmis = tablo.satirlar.map(ham => satirIsle(ham, esleme, uyeler, secenekler))
+  const islenmis = tablo.satirlar.map(ham =>
+    satirIsle(ham, esleme, uyeler, { ...secenekler, deneyaplar }))
 
   // Dosya içinde aynı anahtarın tekrarı — ikincisi birincisini ezerdi
   const gorulen = new Set<string>()
@@ -173,6 +180,24 @@ export async function POST(req: NextRequest, { params }: { params: { slug: strin
   /* ── Yanıt ────────────────────────────────────────────────────────────── */
   const eslesen = islenmis.filter(r => !r.hatalar.length && mevcutAnahtarlar.has(r.eslestirmeAnahtari)).length
 
+  // Tanınmayan DENEYAP adları — önizlemede "Oluştur / Eşleştir / Yok say"
+  // paneline kaynaklık eder. Satırlar bu yüzden REDDEDİLMEZ.
+  // Ada karşılık: kaç satırda geçtiği + o satırlardan çıkan il önerisi.
+  // İl önerisi olmadan kullanıcı her DENEYAP için ili elle seçmek zorunda
+  // kalır; dosyada il sütunu varsa cevap zaten elimizde.
+  const taninmayanDeneyaplar = new Map<string, { adet: number; onerilenIl: string | null }>()
+  islenmis.forEach(r => {
+    if (!r.yeniDeneyapAdi) return
+    const mevcut = taninmayanDeneyaplar.get(r.yeniDeneyapAdi)
+    const ilAdayi = r.normalize?.il ?? null
+    if (mevcut) {
+      mevcut.adet += 1
+      if (!mevcut.onerilenIl && ilAdayi) mevcut.onerilenIl = ilAdayi
+    } else {
+      taninmayanDeneyaplar.set(r.yeniDeneyapAdi, { adet: 1, onerilenIl: ilAdayi })
+    }
+  })
+
   const eslesmeyenSorumlular = new Map<string, number>()
   islenmis.forEach(r => {
     if (r.eslesmeyenSorumlu) {
@@ -214,6 +239,9 @@ export async function POST(req: NextRequest, { params }: { params: { slug: strin
       dosyaIciTekrar: dosyaIciTekrar.length,
     },
     eslesmeyenSorumlular: [...eslesmeyenSorumlular.entries()].map(([ham, adet]) => ({ ham, adet })),
+    taninmayanDeneyaplar: [...taninmayanDeneyaplar.entries()]
+      .map(([ad, v]) => ({ ad, adet: v.adet, onerilenIl: v.onerilenIl }))
+      .sort((a, b) => b.adet - a.adet),
     satirlar: islenmis.slice(0, ONIZLEME_SATIR_SINIRI).map((r, i) => ({
       satirNo: tablo.satirNolari[i],
       ham: tablo.satirlar[i],
@@ -232,6 +260,15 @@ export async function POST(req: NextRequest, { params }: { params: { slug: strin
 function jsonCoz<T>(v: FormDataEntryValue | null): T | undefined {
   if (typeof v !== 'string' || !v.trim()) return undefined
   try { return JSON.parse(v) as T } catch { return undefined }
+}
+
+async function deneyaplariGetir(yetki: OrgYetki): Promise<DeneyapAdayi[]> {
+  const { data } = await yetki.admin
+    .from('deneyaplar')
+    .select('id, ad, il, kod, aktif')
+    .eq('organization_id', yetki.org.id)
+
+  return (data ?? []) as DeneyapAdayi[]
 }
 
 async function uyeleriGetir(yetki: OrgYetki): Promise<UyeOzeti[]> {

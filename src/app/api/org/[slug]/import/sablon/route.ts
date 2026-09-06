@@ -21,8 +21,18 @@ export async function GET(req: NextRequest, { params }: { params: { slug: string
     ? await yetki.admin.from('profiles').select('full_name, email').in('id', ids)
     : { data: [] }
 
+  // Aktif DENEYAP adları — şablondaki açılır liste bunlarla dolar.
+  // Kullanıcı listeden seçerse eşleşme oranı ~%100 olur; şablonun asıl
+  // değeri bu (üye e-postalarında olduğu gibi).
+  const { data: deneyaplar } = await yetki.admin
+    .from('deneyaplar')
+    .select('ad')
+    .eq('organization_id', yetki.org.id)
+    .eq('aktif', true)
+
   const buf = await sablonUret({
     orgAd: yetki.org.name,
+    deneyaplar: (deneyaplar ?? []).map((d: { ad: string }) => d.ad),
     uyeler: (profiller ?? []).map((p: { full_name: string | null; email: string | null }) => ({
       adSoyad: p.full_name, email: p.email,
     })),

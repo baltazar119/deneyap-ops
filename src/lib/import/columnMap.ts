@@ -9,7 +9,7 @@ import { trFold } from '@/lib/turkce'
  */
 
 export type AlanAnahtari =
-  | 'title' | 'description' | 'il' | 'assignee' | 'status' | 'priority'
+  | 'title' | 'description' | 'il' | 'deneyap' | 'assignee' | 'status' | 'priority'
   | 'task_type' | 'start_date' | 'due_date' | 'estimated_hours' | 'external_key'
 
 export interface HedefAlan {
@@ -28,7 +28,15 @@ export const HEDEF_ALANLAR: HedefAlan[] = [
     'aciklama', 'detay', 'not', 'notlar', 'description', 'ayrinti', 'icerik' ] },
   { key: 'il', label: 'İl / Birim', zorunlu: false, aliases: [
     'il', 'sehir', 'il birim', 'il/birim', 'lokasyon', 'bolge', 'merkez',
-    'atolye', 'il adi', 'birim' ] },
+    'il adi', 'birim' ] },
+  // 'atolye' bu listeden ÇIKARILDI, artık 'deneyap' alanına ait.
+  // 'birim' ve 'merkez' bilerek BURADA KALDI: alanın etiketi zaten
+  // "İl / Birim" ve 'merkez' "Genel Merkez" takma adını taşıyor. İkisini
+  // taşımak, "Birim" başlıklı sütunu olan mevcut dosyaların il verisini
+  // koparırdı.
+  { key: 'deneyap', label: 'DENEYAP', zorunlu: false, aliases: [
+    'deneyap', 'deneyap adi', 'deneyap atolyesi', 'deneyap birimi',
+    'atolye', 'atolye adi', 'atolyesi', 'atolye/merkez' ] },
   { key: 'assignee', label: 'Sorumlu', zorunlu: false, aliases: [
     'sorumlu', 'atanan', 'gorevli', 'kisi', 'personel', 'sorumlu kisi',
     'e-posta', 'eposta', 'mail', 'email', 'sorumlu eposta', 'ilgili kisi' ] },
@@ -82,7 +90,15 @@ function enIyiAday(baslik: string, onceki?: Esleme): Aday | null {
   const k = trFold(baslik).replace(/[*:()]/g, '').trim()
   if (!k) return null
 
-  // Kullanıcı daha önce bu sütunu elle eşlediyse ona güven
+  // Kullanıcı daha önce bu sütunu elle eşlediyse ona güven.
+  //
+  // GERİYE DÖNÜK KORUMA — bu satır kasıtlı olarak alias kontrolünden ÖNCE:
+  // "Atölye" başlıklı sütun eskiden 'il' alanına eşleniyordu, artık
+  // 'deneyap'a eşleniyor. Daha önce içe aktarma yapmış bir org'un
+  // `import_column_presets` hafızası "Atölye" → 'il' diyorsa o eşleme
+  // AYNEN korunur; o org'un eşleştirme anahtarı (fingerprint) hiç değişmez
+  // ve aynı dosya ikinci kez yüklendiğinde kopya görev oluşmaz.
+  // Preset'leri yeni alana MIGRATE ETMEYİN.
   const gecmis = onceki?.[baslik]
   if (gecmis) return { alan: gecmis, guven: 100, sebep: 'Önceki içe aktarmada bu şekilde eşlenmişti' }
 

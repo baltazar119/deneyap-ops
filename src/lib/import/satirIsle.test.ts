@@ -197,3 +197,148 @@ describe('eşleştirme anahtarı', () => {
       .toBe(eslestirmeAnahtari('İSTANBUL İŞİ', 'İSTANBUL', null).anahtar)
   })
 })
+
+/**
+ * FAZ 7 — DENEYAP sütunu ve "etkin il".
+ *
+ * Bu bloğun asıl işi bir REGRESYONU önlemek: "Atölye" başlıklı sütun eskiden
+ * `il` alanına eşleniyordu, artık `deneyap`a eşleniyor. Eşleştirme anahtarı
+ * (fingerprint) `il` üzerinden hesaplandığı için bu ayrıştırma yanlış
+ * yapılırsa aynı Excel ikinci kez yüklendiğinde KOPYA GÖREV oluşur — sessizce.
+ */
+describe('satirIsle — DENEYAP ve etkin il', () => {
+  const DENEYAPLAR = [
+    { id: 'd1', ad: 'Çankaya DENEYAP',  il: 'Ankara', kod: 'ANK-01', aktif: true },
+    { id: 'd2', ad: 'Keçiören DENEYAP', il: 'Ankara', kod: null,     aktif: true },
+    { id: 'd3', ad: 'Bornova DENEYAP',  il: 'İzmir',  kod: null,     aktif: true },
+  ]
+
+  /** İl sütunu OLMAYAN, yalnızca Atölye sütunu olan eski dosya düzeni */
+  const ESLEME_ATOLYE: Esleme = { 'Görev': 'title', 'Atölye': 'deneyap' }
+  /** Hem İl hem DENEYAP sütunu olan yeni düzen */
+  const ESLEME_IKISI: Esleme = { 'Görev': 'title', 'İl': 'il', 'DENEYAP': 'deneyap' }
+
+  it('KRİTİK REGRESYON: Atölye sütununda il adı + İl sütunu yok → fingerprint DEĞİŞMEZ', () => {
+    // Eski sürümde "Atölye" → il alanıydı; anahtar parmakIzi(baslik, 'Ankara').
+    // Yeni sürümde "Atölye" → deneyap alanı ve çözülemiyor; geri düşme
+    // normIl('Ankara') ile aynı anahtarı üretmek ZORUNDA.
+    const r = satirIsle(
+      { 'Görev': 'Dönem raporu', 'Atölye': 'Ankara' },
+      ESLEME_ATOLYE, UYELER, { deneyaplar: DENEYAPLAR },
+    )
+    expect(r.eslestirmeAnahtari).toBe(parmakIzi('Dönem raporu', 'Ankara'))
+    expect(r.normalize?.il).toBe('Ankara')
+    expect(r.hatalar).toHaveLength(0)   // satır düşmemeli
+  })
+
+  it('geri düşme yalnızca İL SÜTUNU YOKKEN devreye girer', () => {
+    // İl sütunu eşlenmişse DENEYAP hücresi ile oynamayız.
+    const r = satirIsle(
+      { 'Görev': 'Dönem işi', 'İl': 'İzmir', 'DENEYAP': 'Ankara' },
+      ESLEME_IKISI, UYELER, { deneyaplar: DENEYAPLAR },
+    )
+    expect(r.normalize?.il).toBe('İzmir')
+    expect(r.eslestirmeAnahtari).toBe(parmakIzi('Dönem işi', 'İzmir'))
+  })
+
+  it('DENEYAP çözülünce il ONDAN gelir ve anahtar ona göre kurulur', () => {
+    const r = satirIsle(
+      { 'Görev': 'Kit sayımı', 'Atölye': 'Çankaya DENEYAP' },
+      ESLEME_ATOLYE, UYELER, { deneyaplar: DENEYAPLAR },
+    )
+    expect(r.normalize?.deneyap_id).toBe('d1')
+    expect(r.normalize?.il).toBe('Ankara')
+    expect(r.eslestirmeAnahtari).toBe(parmakIzi('Kit sayımı', 'Ankara'))
+  })
+
+  it('aynı ildeki iki DENEYAP ayrı ayrı çözülür', () => {
+    const a = satirIsle({ 'Görev': 'Görev A', 'Atölye': 'Çankaya DENEYAP' },  ESLEME_ATOLYE, UYELER, { deneyaplar: DENEYAPLAR })
+    const b = satirIsle({ 'Görev': 'Görev B', 'Atölye': 'Keçiören DENEYAP' }, ESLEME_ATOLYE, UYELER, { deneyaplar: DENEYAPLAR })
+    expect(a.normalize?.deneyap_id).toBe('d1')
+    expect(b.normalize?.deneyap_id).toBe('d2')
+    expect(a.normalize?.il).toBe('Ankara')
+    expect(b.normalize?.il).toBe('Ankara')   // ikisi de Ankara — projenin çekirdek senaryosu
+  })
+
+  it('DENEYAP ile İl çelişirse HATA değil UYARI, DENEYAP kazanır', () => {
+    const r = satirIsle(
+      { 'Görev': 'Dönem işi', 'İl': 'İzmir', 'DENEYAP': 'Çankaya DENEYAP' },
+      ESLEME_IKISI, UYELER, { deneyaplar: DENEYAPLAR },
+    )
+    expect(r.hatalar).toHaveLength(0)
+    expect(r.normalize?.il).toBe('Ankara')
+    expect(r.uyarilar.some(u => u.includes('DENEYAP') && u.includes('İzmir'))).toBe(true)
+  })
+
+  it('tanınmayan DENEYAP satırı DÜŞÜRMEZ, oluşturma adayı bırakır', () => {
+    const r = satirIsle(
+      { 'Görev': 'Dönem işi', 'İl': 'Ankara', 'DENEYAP': 'Sincan DENEYAP' },
+      ESLEME_IKISI, UYELER, { deneyaplar: DENEYAPLAR },
+    )
+    expect(r.hatalar).toHaveLength(0)
+    expect(r.yeniDeneyapAdi).toBe('Sincan DENEYAP')
+    expect(r.normalize?.deneyap_id).toBeNull()
+    expect(r.normalize?.il).toBe('Ankara')   // il sütunundan
+  })
+
+  it('DENEYAP sütunu hiç yoksa davranış eskisiyle birebir aynı', () => {
+    const r = satirIsle(satir({ 'İl': 'Ankara' }), ESLEME, UYELER)
+    expect(r.normalize?.deneyap_id).toBeNull()
+    expect(r.normalize?.il).toBe('Ankara')
+    expect(r.eslestirmeAnahtari).toBe(parmakIzi('Atölye açılışı', 'Ankara'))
+  })
+
+  it('dış anahtar varsa DENEYAP anahtarı etkilemez', () => {
+    const r = satirIsle(
+      { 'Görev': 'Dönem işi', 'Atölye': 'Çankaya DENEYAP', 'Kod': 'GRV-9' },
+      { ...ESLEME_ATOLYE, 'Kod': 'external_key' }, UYELER, { deneyaplar: DENEYAPLAR },
+    )
+    expect(r.eslestirmeAnahtari).toBe('GRV-9')
+    expect(r.anahtarYontemi).toBe('external_key')
+    expect(r.normalize?.deneyap_id).toBe('d1')
+  })
+
+  it('DENEYAP listesi verilmezse çökmez, ad il olarak yorumlanır', () => {
+    const r = satirIsle({ 'Görev': 'Dönem işi', 'Atölye': 'Ankara' }, ESLEME_ATOLYE, UYELER)
+    expect(r.normalize?.il).toBe('Ankara')
+    expect(r.normalize?.deneyap_id).toBeNull()
+  })
+})
+
+describe('satirIsle — il adı DENEYAP sanılmamalı', () => {
+  const DENEYAPLAR = [
+    { id: 'd1', ad: 'Çankaya DENEYAP', il: 'Ankara', kod: null, aktif: true },
+  ]
+  const ESLEME_ATOLYE: Esleme = { 'Görev': 'title', 'Atölye': 'deneyap' }
+
+  it('geri düşme başarılıysa DENEYAP oluşturma ÖNERİLMEZ', () => {
+    // Eski "Atölye" sütunlu dosyalarda hücre il adı taşır. Öneri
+    // bastırılmazsa önizleme paneli il adlarıyla dolar ve kullanıcı
+    // "Ankara" adında sahte bir DENEYAP oluşturur.
+    const r = satirIsle(
+      { 'Görev': 'Dönem raporu', 'Atölye': 'Ankara' },
+      ESLEME_ATOLYE, UYELER, { deneyaplar: DENEYAPLAR },
+    )
+    expect(r.yeniDeneyapAdi).toBeNull()
+    expect(r.normalize?.il).toBe('Ankara')
+  })
+
+  it('çelişkili iki uyarı basmaz', () => {
+    const r = satirIsle(
+      { 'Görev': 'Dönem raporu', 'Atölye': 'Ankara' },
+      ESLEME_ATOLYE, UYELER, { deneyaplar: DENEYAPLAR },
+    )
+    expect(r.uyarilar.some(u => u.includes('oluşturabilirsiniz'))).toBe(false)
+    expect(r.uyarilar.some(u => u.includes('il adı olarak yorumlandı'))).toBe(true)
+  })
+
+  it('gerçekten tanınmayan bir ad ise öneri KORUNUR', () => {
+    // "Sincan DENEYAP" bir il adı değil → oluşturma önerisi doğru davranış.
+    const r = satirIsle(
+      { 'Görev': 'Dönem raporu', 'Atölye': 'Sincan DENEYAP' },
+      ESLEME_ATOLYE, UYELER, { deneyaplar: DENEYAPLAR },
+    )
+    expect(r.yeniDeneyapAdi).toBe('Sincan DENEYAP')
+    expect(r.uyarilar.some(u => u.includes('oluşturabilirsiniz'))).toBe(true)
+  })
+})

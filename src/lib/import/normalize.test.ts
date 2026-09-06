@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { normDurum, normOncelik, normKategori, normIl, normTarih, normSaat } from './normalize'
+import { normDurum, normOncelik, normKategori, normIl, normTarih, normSaat, normDeneyap, type DeneyapAdayi } from './normalize'
 
 describe('normDurum', () => {
   it('Türkçe durum adlarını eşler', () => {
@@ -192,5 +192,90 @@ describe('normSaat', () => {
     const s = normSaat('1 gün')
     expect(s.value).toBeNull()
     expect(s.uyari).toContain('saat')
+  })
+})
+
+describe('normDeneyap', () => {
+  const D = (id: string, ad: string, il: string, kod: string | null = null, aktif = true):
+    DeneyapAdayi => ({ id, ad, il, kod, aktif })
+
+  const LISTE: DeneyapAdayi[] = [
+    D('d1', 'Çankaya DENEYAP', 'Ankara', 'ANK-01'),
+    D('d2', 'Keçiören DENEYAP', 'Ankara', 'ANK-02'),
+    D('d3', 'Bornova DENEYAP', 'İzmir', 'IZM-01'),
+    D('d4', 'Merkez DENEYAP', 'Bursa'),
+    D('d5', 'Merkez DENEYAP', 'Konya'),
+    D('d6', 'Kapalı DENEYAP', 'Rize', 'RZE-01', false),
+  ]
+
+  it('boş hücrede sessiz kalır', () => {
+    expect(normDeneyap('', LISTE).value).toBeNull()
+    expect(normDeneyap(null, LISTE).uyari).toBeUndefined()
+  })
+
+  it('kod ile birebir eşleşir', () => {
+    const r = normDeneyap('ANK-02', LISTE)
+    expect(r.value).toBe('d2')
+    expect(r.guven).toBe('kesin')
+  })
+
+  it('ad ile birebir eşleşir ve İLİNİ döndürür', () => {
+    const r = normDeneyap('Bornova DENEYAP', LISTE)
+    expect(r.value).toBe('d3')
+    expect(r.il).toBe('İzmir')      // "etkin il" bunu kullanacak
+  })
+
+  it('Türkçe büyük/küçük harf farkını yutar', () => {
+    expect(normDeneyap('ÇANKAYA DENEYAP', LISTE).value).toBe('d1')
+    expect(normDeneyap('çankaya deneyap', LISTE).value).toBe('d1')
+  })
+
+  it('aynı ad iki ilde varsa il bağlamıyla ayrışır', () => {
+    expect(normDeneyap('Merkez DENEYAP', LISTE, 'Konya').value).toBe('d5')
+    expect(normDeneyap('Merkez DENEYAP', LISTE, 'Bursa').value).toBe('d4')
+  })
+
+  it('aynı ad iki ilde ve il bağlamı yoksa KULLANICIYA SORAR', () => {
+    const r = normDeneyap('Merkez DENEYAP', LISTE)
+    expect(r.value).toBeNull()
+    expect(r.oneriler).toHaveLength(2)
+    expect(r.yeniAd).toBeNull()     // yeni oluşturma önerilmemeli
+  })
+
+  it('yakın yazımı tahmin olarak kabul eder', () => {
+    const r = normDeneyap('Bornva DENEYAP', LISTE)
+    expect(r.value).toBe('d3')
+    expect(r.guven).toBe('tahmin')
+    expect(r.uyari).toContain('olarak yorumlandı')
+  })
+
+  it('kapalı DENEYAP koda göre kabul edilir', () => {
+    expect(normDeneyap('RZE-01', LISTE).value).toBe('d6')
+  })
+
+  it('kapalı DENEYAP ad BİREBİR yazılırsa kabul edilir', () => {
+    // trFold sonrası birebir: 'Kapali' ile 'Kapalı' aynı metne katlanır.
+    // Kullanıcı tam adı yazdıysa niyeti açıktır (geçmiş veri aktarımı).
+    expect(normDeneyap('Kapali DENEYAP', LISTE).value).toBe('d6')
+  })
+
+  it('kapalı DENEYAP YAKIN YAZIMLA kabul EDİLMEZ', () => {
+    // Yazım hatasıyla kapalı bir birime düşmek sessiz bir yanlışlık olurdu.
+    // 'Kapalu' → 'Kapalı' mesafesi 1, yani yakın yazım aşamasına girer.
+    const r = normDeneyap('Kapalu DENEYAP', LISTE)
+    expect(r.value).toBeNull()
+    expect(r.yeniAd).toBe('Kapalu DENEYAP')
+  })
+
+  it('tanınmayan ad HATA değil, oluşturma adayı döner', () => {
+    const r = normDeneyap('Sivas DENEYAP', LISTE)
+    expect(r.value).toBeNull()
+    expect(r.yeniAd).toBe('Sivas DENEYAP')
+    expect(r.uyari).toContain('oluşturabilirsiniz')
+  })
+
+  it('boş DENEYAP listesinde her ad oluşturma adayı olur', () => {
+    const r = normDeneyap('Çankaya DENEYAP', [])
+    expect(r.yeniAd).toBe('Çankaya DENEYAP')
   })
 })
