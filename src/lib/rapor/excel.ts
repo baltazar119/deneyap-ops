@@ -75,6 +75,87 @@ export async function raporExcelUret(v: RaporVerisi): Promise<Uint8Array> {
     r.getCell(1).font = { bold: true, color: { argb: argb(T.gri) }, size: 10 }
   })
 
+  /* ── Yorumlar ──────────────────────────────────────────────────────────
+     Excel'i açan kişi çoğu zaman PDF'i okumaz; yorumların yalnızca PDF'te
+     kalması "yorumlanmış veri" vaadini yarım bırakırdı. */
+  if (v.yorum) {
+    const ws = wb.addWorksheet('Yorumlar')
+    ws.getColumn(1).width = 12
+    ws.getColumn(2).width = 30
+    ws.getColumn(3).width = 70
+    ws.getColumn(4).width = 50
+    ws.getColumn(5).width = 40
+    ws.addRow(['Önem', 'Başlık', 'Yorum', 'Yapılacak', 'Kanıt'])
+    basliklandir(ws, 5)
+
+    const ONEM_ETIKET: Record<string, string> = {
+      kritik: 'ACİL', uyari: 'DİKKAT', bilgi: 'BİLGİ', olumlu: 'İYİ',
+    }
+
+    ws.addRow(['ÖZET', '', v.yorum.ozet, '', ''])
+    ws.getRow(2).getCell(3).alignment = { wrapText: true, vertical: 'top' }
+    ws.getRow(2).font = { bold: true }
+
+    v.yorum.maddeler.forEach(m => {
+      const r = ws.addRow([
+        ONEM_ETIKET[m.onem] ?? m.onem,
+        m.baslik,
+        m.cumle,
+        m.eylem ?? '',
+        m.kanit.map(k => `${k.etiket}: ${k.deger}`).join(' · '),
+      ])
+      r.getCell(3).alignment = { wrapText: true, vertical: 'top' }
+      r.getCell(4).alignment = { wrapText: true, vertical: 'top' }
+      if (m.onem === 'kritik') r.getCell(1).font = { bold: true, color: { argb: argb(T.kirmizi) } }
+    })
+  }
+
+  /* ── Eğilim ───────────────────────────────────────────────────────────
+     `Kaynak` sütunu bilerek var: hangi satırın gerçek ölçüm, hangisinin
+     görev tarihlerinden türetildiği Excel'de de görünmeli. Aksi halde
+     tahmin sayılar gerçek ölçüm gibi kullanılır. */
+  if (v.trend && v.trend.noktalar.length) {
+    const ws = wb.addWorksheet('Eğilim')
+    ws.getColumn(1).width = 14
+    ;[2, 3, 4, 5, 6, 7].forEach(i => { ws.getColumn(i).width = 13 })
+    ws.getColumn(8).width = 16
+    ws.addRow(['Dönem', 'Açık', 'Geciken', 'Açılan', 'Tamamlanan', 'Bloke', 'Atanmamış', 'Kaynak'])
+    basliklandir(ws, 8)
+
+    v.trend.noktalar.forEach(n => {
+      ws.addRow([
+        n.etiket, n.acik, n.geciken, n.olusturulan, n.tamamlanan,
+        // Türetilemeyen metrikler boş bırakılır; 0 yazmak "o gün hiç bloke
+        // görev yoktu" demek olurdu ve bu bir yalan.
+        n.bloke ?? '', n.atanmamis ?? '',
+        n.turetilmis ? 'türetilmiş' : 'ölçüm',
+      ])
+    })
+  }
+
+  /* ── Risk ─────────────────────────────────────────────────────────────── */
+  if (v.risk) {
+    const ws = wb.addWorksheet('Risk')
+    ws.getColumn(1).width = 24
+    ws.getColumn(2).width = 10
+    ws.getColumn(3).width = 12
+    ws.getColumn(4).width = 10
+    ws.getColumn(5).width = 12
+    ws.addRow(['İl', 'Risk', 'Seviye', 'Açık', 'Geciken'])
+    basliklandir(ws, 5)
+    v.risk.iller.forEach(x => ws.addRow([x.il, x.skor, x.seviye, x.acik, x.geciken]))
+
+    if (v.risk.sinyaller.length) {
+      ws.addRow([])
+      const b = ws.addRow(['Sinyal', 'Detay', 'Yapılacak'])
+      b.font = { bold: true }
+      v.risk.sinyaller.forEach(s => {
+        const r = ws.addRow([s.baslik, s.detay, s.eylem])
+        r.getCell(2).alignment = { wrapText: true, vertical: 'top' }
+      })
+    }
+  }
+
   /* ── İl Özeti ── */
   if (v.ilKirilimi.length) {
     const ws = wb.addWorksheet('İl Özeti')
