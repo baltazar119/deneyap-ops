@@ -4,6 +4,8 @@ import { rolAdi } from '@/lib/roller'
 import { raporKapsami } from './kapsam'
 import { raporHesapla, type RaporVerisi, type Donem } from './hesapla'
 import { yerelGun } from './donem'
+import { computeRisk } from '@/lib/operationRisk'
+import { riskGirdisiSunucu } from '@/lib/risk/sunucuVeri'
 import type { OrgYetki } from '@/lib/server/apiAuth'
 
 /**
@@ -43,7 +45,7 @@ export async function raporVerisi(
   const { data: profil } = await yetki.admin
     .from('profiles').select('full_name').eq('id', yetki.user.id).maybeSingle()
 
-  return raporHesapla({
+  const temel = raporHesapla({
     gorevler,
     kapsam,
     donem,
@@ -55,4 +57,40 @@ export async function raporVerisi(
     uretenRolAdi: rolAdi(yetki.rol),
     bugun: yerelGun(new Date()),
   })
+
+  /* ── Risk bölümü ────────────────────────────────────────────────────────
+   *
+   * 'risk' uzun süre `RaporBolumu` enum'unda TANIMLI ama hiç ÜRETİLMEYEN bir
+   * değerdi; artık gerçekten dolduruluyor ve PDF/Excel'e girebiliyor.
+   *
+   * Risk DÖNEME TABİ DEĞİL — anlık durumu anlatır. "Geçen ay" seçildiğinde
+   * "şu an neyin riskli olduğu" değişmemeli.
+   */
+  if (!kapsam.bolumler.has('risk')) return temel
+
+  try {
+    const girdi = await riskGirdisiSunucu(yetki)
+    const r = computeRisk(girdi)
+    return {
+      ...temel,
+      risk: {
+        skor: r.score,
+        seviye: r.level,
+        baslik: r.headline,
+        // Kişi bazlı veri kapalıysa (Yetkili Yönetici) sinyal metinlerinde
+        // isim geçebileceği için o bölüm hiç eklenmez.
+        sinyaller: kapsam.kisiBazliVeri
+          ? r.signals.map(x => ({ baslik: x.title, detay: x.detail, seviye: x.level, eylem: x.action }))
+          : [],
+        iller: r.provinces.map(x => ({
+          il: x.il, skor: x.score, seviye: x.level,
+          acik: x.openCount, geciken: x.overdueCount,
+        })),
+      },
+    }
+  } catch (err) {
+    // Risk hesabı raporun tamamını düşürmemeli — bölüm boş kalır.
+    console.error('[rapor/veri] risk hesaplanamadı:', err)
+    return temel
+  }
 }

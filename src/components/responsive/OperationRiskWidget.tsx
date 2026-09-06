@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useOrg } from '@/lib/supabase/orgContext'
 import { getCachedData, setCachedData } from '@/lib/pageDataCache'
-import { computeRisk, fetchRiskInput, RISK_RENK, type RiskResult } from '@/lib/operationRisk'
+import { computeRisk, RISK_RENK, type RiskResult } from '@/lib/operationRisk'
+import { fetchRiskInput } from '@/lib/risk/istemciVeri'
 
 /**
  * Sidebar'daki kompakt operasyon risk şeridi.

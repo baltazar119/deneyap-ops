@@ -48,6 +48,9 @@ export async function GET(req: NextRequest) {
   const pazartesiMi = gun === 1
 
   const isler: { ad: string; yol: string }[] = [
+    // EN BAŞTA: 50 sn bütçesi dolduğunda atlanan son iş bu OLMAMALI.
+    // Kaçırılan bir günün ölçümü geri getirilemez (durum geçmişi yok).
+    { ad: 'gunluk-operasyon-olcumu',       yol: '/api/cron/gunluk-ozet' },
     { ad: 'gecikme-ve-termin-kontrolleri', yol: '/api/cron/daily-checks' },
     { ad: 'gunluk-ozet',                   yol: '/api/digest-email?type=daily' },
   ]

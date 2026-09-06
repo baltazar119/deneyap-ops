@@ -15,7 +15,8 @@
     "seed:demo": "node scripts/demo-seed.mjs",
     "smoke:import": "node scripts/import-smoke.mjs",
     "smoke:rapor": "node scripts/rapor-smoke.mjs",
-    "deploy:kontrol": "node scripts/deploy-sonrasi.mjs"
+    "deploy:kontrol": "node scripts/deploy-sonrasi.mjs",
+    "seed:ozet": "node scripts/ozet-demo.mjs"
   },
   "dependencies": {
     "@google/genai": "^1.42.0",

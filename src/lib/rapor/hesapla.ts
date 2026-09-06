@@ -80,6 +80,20 @@ export interface RaporVerisi {
   gecikmeler: GorevSatiri[]
   yaklasan: GorevSatiri[]
   hamListe: GorevSatiri[]
+  /**
+   * Operasyon Riski özeti. `hesapla` SAF olduğu ve risk hesabı sprint+üye
+   * verisi de istediği için burada üretilmez; sunucu katmanı (rapor/veri.ts)
+   * doldurur. Kapsamda 'risk' yoksa null kalır.
+   */
+  risk: RaporRiskOzeti | null
+}
+
+export interface RaporRiskOzeti {
+  skor: number
+  seviye: 'low' | 'medium' | 'high'
+  baslik: string
+  sinyaller: { baslik: string; detay: string; seviye: string; eylem: string }[]
+  iller: { il: string; skor: number; seviye: string; acik: number; geciken: number }[]
 }
 
 export interface HesapGirdisi {
@@ -283,5 +297,7 @@ export function raporHesapla(g: HesapGirdisi): RaporVerisi {
     gecikmeler:       kapsam.bolumler.has('gecikmeler')       ? gecikmeler       : [],
     yaklasan:         kapsam.bolumler.has('yaklasan')         ? yaklasan         : [],
     hamListe,
+    // Sunucu katmanı doldurur (rapor/veri.ts) — saf hesaplayıcı DB'ye bakmaz
+    risk: null,
   }
 }

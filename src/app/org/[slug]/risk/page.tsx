@@ -3,20 +3,23 @@
 export const dynamic = 'force-dynamic'
 
 import { useEffect, useState } from 'react'
-import { raporGorebilirMi } from '@/lib/roller'
+import { riskGorebilirMi } from '@/lib/roller'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { MapPin, ShieldCheck, ChevronRight } from 'lucide-react'
 import { useOrg } from '@/lib/supabase/orgContext'
 import { getCachedData, setCachedData } from '@/lib/pageDataCache'
-import { computeRisk, fetchRiskInput, RISK_RENK, type RiskResult } from '@/lib/operationRisk'
+import { computeRisk, RISK_RENK, type RiskResult } from '@/lib/operationRisk'
+import { fetchRiskInput } from '@/lib/risk/istemciVeri'
 import ResponsivePageHeader from '@/components/responsive/ResponsivePageHeader'
 
 export default function OperasyonRiskPage() {
   const router = useRouter()
-  const { org, orgRole, userId, isAdmin, loading: orgLoading } = useOrg()
+  const { org, orgRole, userId, userIl, isAdmin, loading: orgLoading } = useOrg()
 
-  const cacheKey = org?.id ? `risk:${org.id}` : ''
+  // Rol ve il önbellek anahtarına GİRMELİ: İl Sorumlusu ile Merkez aynı
+  // anahtarı paylaşırsa biri diğerinin kapsamındaki veriyi görür.
+  const cacheKey = org?.id ? `risk:${org.id}:${orgRole ?? '-'}:${userIl ?? '-'}` : ''
   const onbellek = cacheKey ? getCachedData<RiskResult>(cacheKey) : null
 
   const [sonuc, setSonuc] = useState<RiskResult | null>(onbellek)
@@ -25,8 +28,8 @@ export default function OperasyonRiskPage() {
   useEffect(() => {
     if (orgLoading) return
     if (!org || !userId) return
-    // Yetkili Yönetici (viewer) raporları görebilir — ekran zaten salt okunur
-    if (!raporGorebilirMi(orgRole)) {
+    // İl Sorumlusu da girebilir; kapsamı aşağıda kendi iliyle sınırlanır.
+    if (!riskGorebilirMi(orgRole)) {
       router.replace(orgRole === 'consultant' ? `/org/${org.slug}/consultant` : `/org/${org.slug}/me`)
       return
     }
@@ -36,9 +39,19 @@ export default function OperasyonRiskPage() {
       try {
         const girdi = await fetchRiskInput(org!.id)
         if (iptal) return
-        const r = computeRisk(girdi)
+
+        // İl Sorumlusu kapsamı: yalnızca kendi ilinin görevleri.
+        // RLS bu sayfada org genelini döndürüyor (kapsam kuralı taskScope'ta,
+        // sorguda değil), bu yüzden daraltma burada YAPILMAK ZORUNDA —
+        // aksi halde İl Sorumlusu ülke genelini görürdü.
+        const kendiIli = orgRole === 'member' ? userIl : null
+        const kapsamli = kendiIli
+          ? { ...girdi, tasks: girdi.tasks.filter(t => t.il === kendiIli) }
+          : girdi
+
+        const r = computeRisk(kapsamli)
         setSonuc(r)
-        setCachedData(`risk:${org!.id}`, r)
+        setCachedData(cacheKey, r)
       } catch (err) {
         console.error('[Operasyon Risk] veri yüklenemedi:', err)
       } finally {

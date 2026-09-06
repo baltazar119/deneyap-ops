@@ -134,6 +134,9 @@ export function getNavLinks({ base, role, isPro }: { base: string; role: OrgRole
     is(`${base}/timeline`, 'Timeline'),
 
     izleme(`${base}/raporlar`, 'Raporlar'),
+    // Operasyon Riski İl Sorumlusuna AÇIK ama kapsamı kendi iliyle
+    // sınırlı — ulusal tablo değil. Kural: roller.ts:riskGorebilirMi
+    izleme(`${base}/risk`, 'Operasyon Riski'),
 
     ekip(`${base}/chat`, 'Sohbet'),
     ekip(`${base}/meetings`, 'Toplantılar'),

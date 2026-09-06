@@ -1,5 +1,14 @@
-import { supabase } from '@/lib/supabase/client'
 import type { Task, Sprint, Profile } from '@/types/database'
+
+/**
+ * SAF modül — veritabanına BAKMAZ.
+ *
+ * Eskiden burada `@/lib/supabase/client` (tarayıcı istemcisi) import
+ * ediliyordu; bu yüzden modül sunucuda kullanılamıyor, dolayısıyla risk
+ * bölümü rapora ve PDF'e hiç giremiyordu. Veri çekme iki ayrı dosyaya alındı:
+ *   `risk/istemciVeri.ts` — tarayıcı, RLS aktif
+ *   `risk/sunucuVeri.ts`  — sunucu, RLS YOK; kapsam taskScope ile uygulanır
+ */
 
 /**
  * Operasyon Risk hesaplama.
@@ -321,33 +330,6 @@ export function computeRisk({ tasks, sprints, members, overloadThreshold }: Risk
 }
 
 /** Risk hesaplaması için gereken veriyi tek seferde çeker */
-export async function fetchRiskInput(orgId: string): Promise<RiskInput> {
-  const [tasksRes, sprintsRes, membershipRes, settingsRes] = await Promise.all([
-    supabase.from('tasks').select('*').eq('organization_id', orgId),
-    supabase.from('sprints').select('*').eq('organization_id', orgId),
-    supabase.from('organization_members').select('user_id').eq('organization_id', orgId),
-    supabase
-      .from('automation_settings')
-      .select('overload_threshold')
-      .eq('organization_id', orgId)
-      .maybeSingle(),
-  ])
-
-  const memberIds = (membershipRes.data ?? []).map((m) => m.user_id)
-  let members: Profile[] = []
-  if (memberIds.length > 0) {
-    const { data } = await supabase.from('profiles').select('*').in('id', memberIds)
-    members = data ?? []
-  }
-
-  return {
-    tasks: (tasksRes.data ?? []) as Task[],
-    sprints: (sprintsRes.data ?? []) as Sprint[],
-    members,
-    overloadThreshold: settingsRes.data?.overload_threshold ?? 8,
-  }
-}
-
 export const RISK_RENK: Record<RiskLevel, { color: string; bg: string; border: string; label: string }> = {
   high:   { color: '#dc2626', bg: '#fee2e2', border: '#fecaca', label: 'Yüksek' },
   medium: { color: '#b45309', bg: '#fef3c7', border: '#fde68a', label: 'Orta' },

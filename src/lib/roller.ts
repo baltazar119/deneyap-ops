@@ -93,6 +93,19 @@ export function gorevListesiGorebilirMi(role: OrgRole | null | undefined): boole
   return raporGorebilirMi(role) || role === 'member'
 }
 
+/**
+ * Operasyon Riski'ni görebilen roller — İl Sorumlusu dahil.
+ *
+ * `raporGorebilirMi`'den AYRI: onu genişletmek Panel'i (`dashboard`) de
+ * sessizce açardı, orası org genelinde toplu veri gösteriyor.
+ *
+ * İl Sorumlusu risk sayfasını görür ama kapsamı `taskScope.ts` ile kendi
+ * iliyle sınırlıdır — ulusal tablo değil, kendi ilinin durumu.
+ */
+export function riskGorebilirMi(role: OrgRole | null | undefined): boolean {
+  return raporGorebilirMi(role) || role === 'member'
+}
+
 /** Salt-okunur rol — arayüzde tüm aksiyon butonları gizlenir */
 export function saltOkunurMu(role: OrgRole | null | undefined): boolean {
   return role === 'viewer'
