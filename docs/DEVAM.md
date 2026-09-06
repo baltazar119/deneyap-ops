@@ -8,7 +8,7 @@ Ayrıntılı 14 fazlık plan: **[docs/YOL-HARITASI.md](YOL-HARITASI.md)**
 ## Yeni oturumda ilk mesaj olarak şunu yaz
 
 > Proje: `C:\Users\Abdulgazi\Desktop\DENEYAP-Ops`
-> `docs/DEVAM.md` ve `docs/YOL-HARITASI.md` dosyalarını oku, Faz 5'ten devam et.
+> `docs/DEVAM.md` ve `docs/YOL-HARITASI.md` dosyalarını oku, Faz 6'dan devam et.
 >
 > ÖNEMLİ KURAL: `C:\Users\Abdulgazi\Desktop\Tarlis-uygulama-main` klasörüne
 > HİÇBİR değişiklik yapma — o ayrı bir proje, sadece bu klasörle çalış.
@@ -37,9 +37,9 @@ Workspace slug: `deneyap-demo`
 
 ## Şu anki durum
 
-Son commit: `bcd395e`. Çalışma ağacı temiz, GitHub ile senkron.
-`npx tsc --noEmit` temiz · **307 test yeşil** · `npx next build` başarılı.
-**Migration 060 + 061 UYGULANDI** ve canlı DB'de davranışsal olarak doğrulandı.
+Son commit: `062e32e`. Çalışma ağacı temiz, GitHub ile senkron.
+`npx tsc --noEmit` temiz · **331 test yeşil** · `npx next build` başarılı.
+**Migration 059, 060, 061 uygulandı. 062 BEKLİYOR** (aşağıya bak).
 
 ### Faz 0 — TAMAMLANDI (3 commit)
 
@@ -186,35 +186,68 @@ Karar gerekiyor: Görevler sayfası İl Sorumlusuna açılsın mı? Faz 2'de
 yazılmıştı. Açılırsa "*İl* görevleri" görünümü de canlanır. **Kullanıcıya
 sorulmalı, sessizce açılmamalı** — yetki genişletmesi.
 
-### Sırada: Faz 5 — Duyurular
+### Faz 4b — Görevler sayfası İl Sorumlusuna açıldı (commit `4ab2f68`)
 
-YOL-HARITASI.md Faz 5. **Migration 062** — `duyurular` + `duyuru_okundu`
-(`(duyuru_id, user_id)` PK). `notifications.event_type` CHECK'i `announcement`
-için genişletilecek (kodla kısıt arasındaki mevcut 6 tiplik uyumsuzluk da
-giderilecek).
+Faz 4'ün bıraktığı boşluk kapatıldı. **Yetki ayrı tutuldu:**
+`roller.ts:gorevListesiGorebilirMi()` — `raporGorebilirMi` genişletilmedi,
+yoksa Panel ve Operasyon Riski de sessizce açılırdı. Testler bu sınırı kilitler.
 
-- `GET /api/org/[slug]/duyurular/aktif` — **hedefleme sunucuda uygulanır**;
-  client-side filtre yetmez, hedeflenmemiş kullanıcı veriyi çekebilirdi.
-- `POST .../[id]/okundu` · `/org/[slug]/duyurular` sayfası (owner/admin CRUD)
-- `DuyuruPopup.tsx` — `ResponsiveModal` üstüne, `navigation.ts`'teki
-  `anaEkran()` ile **rolün ana ekranında**. Birden fazla okunmamışsa önem
-  sırasına göre, "1/3" göstergesiyle.
-- Duyuru bildirimi için **org kapsamlı yeni sunucu fonksiyonu** — mevcut
-  `createNotificationForAll` org filtresiz, kullanılmayacak.
+Kapsam artık **sorguda da** uygulanıyor (`applyTaskScope`): İl Sorumlusu 11
+görev yerine 4 görev çekiyor. Salt okunur rollerde Düzenle/Sil düğmeleri artık
+**hiç render edilmiyor** (önceden `display:none` idi).
 
-Hedefleme: rol + il + DENEYAP (üçü de artık hazır: `orgRole`, `userIl`,
-`userDeneyapId`).
+### Faz 5 — TAMAMLANDI (commit `062e32e`)
+
+| Ne | Nerede |
+|---|---|
+| `duyurular` + `duyuru_okundu` + event_type kısıtı | `migrations/062_duyurular.sql` |
+| Hedefleme/sıralama saf kuralları | `lib/duyuru.ts` |
+| **Hedefleme sunucuda** | `api/org/[slug]/duyurular/aktif` |
+| Okundu işaretleme | `api/.../duyurular/[id]/okundu` |
+| CRUD + **org kapsamlı** bildirim | `api/org/[slug]/duyurular` |
+| Popup (rolün ana ekranında) | `components/DuyuruPopup.tsx` |
+| Yönetim ekranı (owner/admin) | `org/[slug]/duyurular/page.tsx` |
+| 16 yeni test | `lib/duyuru.test.ts` |
+
+**Yanında giderilen sessiz hata:** `notifications.event_type` CHECK'i (017) 8
+tip tanıyordu, TS 14 üretiyordu. Aradaki 6 tip INSERT anında kısıt ihlaliyle
+düşüyordu — **o bildirimler hiç oluşmuyordu.** Kısıt 15 tipe genişletildi.
+
+**Kararlar:** okundu DB'de (cihaz bağımsız) · hedefleme üç boyut VE ile ·
+hedef varken değeri olmayan kullanıcı dışarıda · bildirim yalnızca
+taslak→yayın geçişinde · `user_id` gövdeden değil oturumdan · kritik duyuru
+kapatılamaz · içerik düz metin (HTML render edilmiyor).
+
+`createNotificationForAll` **kullanılmadı** — org filtresiz olduğu için duyuru
+tüm çalışma alanlarına giderdi. Yerine org kapsamlı yeni fonksiyon.
+
+### Sırada: Faz 6 — Panel
+
+YOL-HARITASI.md Faz 6. **Migration gerekmez.**
+
+- Masaüstü panel bugün `height:100vh; overflow-hidden` — **kaydırmaya açılacak.**
+- Eklenecek dört blok: yaklaşan terminler (7 gün) · il/DENEYAP durum tablosu ·
+  kritik ve gecikmiş görevler (`priority` panelde hiç kullanılmıyor) · son
+  hareketler + yaklaşan toplantılar.
+- Masaüstüne de karşılama + hızlı linkler (bugün yalnız mobilde).
+- KPI'lar için limitsiz `tasks` yerine `count` sorgusu.
+
+Hazır bağlantı noktaları: `lib/gorevTermin.ts` (`gecikmisMi`/`yaklasanMi`),
+`lib/deneyap.ts` (`deneyaplariIleGoreGrupla`), `lib/useDeneyaplar.ts`.
 
 ---
 
-## SENİN YAPMAN GEREKEN — şu an bir şey yok
+## SENİN YAPMAN GEREKEN — migration 062
 
-Tüm migration'lar uygulandı: **059, 060, 061.** Demo veri güncel
-(5 DENEYAP, Ankara ve İzmir'de ikişer tane; İl Sorumluları birer DENEYAP'a
-bağlı).
+`supabase/uygula/faz5_duyurular.sql` **henüz uygulanmadı.**
+Supabase → SQL Editor → dosyanın tamamını yapıştır → çalıştır.
 
-Faz 5'te **migration 062** gelecek; yazıldığında yine SQL editöründen
-çalıştırman istenecek.
+Bunsuz duyuru ekranı "tablo yok" uyarısı gösterir, popup hiç açılmaz;
+**uygulamanın geri kalanı etkilenmez.** Uygulandıktan sonra Faz 5 uçtan uca
+doğrulanmalı (dört rolle: duyuru oluştur → hedeflenen kişiyle gir → popup →
+"Anladım" → çık/gir → bir daha çıkmamalı).
+
+Uygulanmış migration'lar: **059, 060, 061.**
 
 Yararlı komutlar:
 
@@ -223,12 +256,12 @@ node scripts/tr-fold-ikiz.mjs   # SQL/TS trFold ikiz doğrulaması
 npm run seed:demo               # demo veriyi yeniden kur
 ```
 
-> Supabase CLI kurulu ama **bağlı değil** (bağlamak DB şifresi ister — şifreyi
-> sohbete yazma, migration'ları SQL editöründen çalıştır).
+> **`next build`'i `next dev` çalışırken KOŞTURMA** — bu oturumda iki kez
+> `.next`'i bozdu. Bozulursa: dev'i durdur, `rm -rf .next`, yeniden başlat.
 
-> **Migration'ları REST ile doğrulama yöntemi** (bu oturumda işe yaradı):
-> `select=<kolon>` sorgusu 200 dönüyorsa kolon var, 400 + `42703` dönüyorsa
-> yok. Tablo yoksa PostgREST `PGRST205` döner.
+> **Migration'ları REST ile doğrulama** (bu oturumda işe yaradı):
+> `select=<kolon>` 200 dönüyorsa kolon var, 400 + `42703` dönüyorsa yok.
+> Tablo yoksa PostgREST `PGRST205` döner.
 
 ---
 
