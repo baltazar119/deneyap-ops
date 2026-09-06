@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { trFold, toSlug, trCompare } from './turkce'
+import { trFold, toSlug, trCompare , bulunmaEki, yonelmeEki } from './turkce'
 
 /**
  * `turkce.ts`'in ilk testleri. `trFold` bu projede üç yerde kritik: içe
@@ -95,5 +95,39 @@ describe('trFold — SQL tr_fold() ile ikiz (migration 060)', () => {
       .map((ch, i) => ({ ch, sql: hedefChars[i], ts: trFold(ch) }))
       .filter(x => x.sql !== x.ts)
     expect(ayrisan).toEqual([])
+  })
+})
+
+describe('bulunmaEki', () => {
+  it('kalın ünlü + yumuşak ünsüz → da', () => {
+    expect(bulunmaEki('Ankara')).toBe("Ankara'da")
+    expect(bulunmaEki('Bolu')).toBe("Bolu'da")
+    expect(bulunmaEki('Adana')).toBe("Adana'da")
+  })
+  it('kalın ünlü + SERT ünsüz → ta', () => {
+    // "Uşak'da" yazan bir cümle metni anında makine üretimi gibi gösterir.
+    expect(bulunmaEki('Uşak')).toBe("Uşak'ta")
+    expect(bulunmaEki('Sinop')).toBe("Sinop'ta")
+    expect(bulunmaEki('Tokat')).toBe("Tokat'ta")
+  })
+  it('ince ünlü → de / te', () => {
+    expect(bulunmaEki('İzmir')).toBe("İzmir'de")
+    expect(bulunmaEki('Edirne')).toBe("Edirne'de")
+    expect(bulunmaEki('Kilis')).toBe("Kilis'te")
+    expect(bulunmaEki('Bilecik')).toBe("Bilecik'te")
+  })
+  it('sesli harfi olmayan girdide çökmez', () => {
+    expect(() => bulunmaEki('X')).not.toThrow()
+  })
+})
+
+describe('yonelmeEki', () => {
+  it('ünsüzle biten adlarda düz ek', () => {
+    expect(yonelmeEki('İzmir')).toBe("İzmir'e")
+    expect(yonelmeEki('Uşak')).toBe("Uşak'a")
+  })
+  it('sesliyle biten adlarda kaynaştırma y', () => {
+    expect(yonelmeEki('Ankara')).toBe("Ankara'ya")
+    expect(yonelmeEki('Bolu')).toBe("Bolu'ya")
   })
 })

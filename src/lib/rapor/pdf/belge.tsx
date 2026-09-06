@@ -212,6 +212,37 @@ export function RaporBelgesi({ v }: { v: RaporVerisi }) {
 
         <View style={s.govde}>
 
+          {/* Yorumlar — sayfanın EN BAŞINDA: yönetici önce "ne oluyor"
+              cevabını okusun, sonra sayılara insin. */}
+          {b('yorum') && v.yorum && (
+            <View style={s.bolum}>
+              <Text style={s.bolumBaslik}>Bu Rapor Ne Diyor?</Text>
+              <Text style={{ fontSize: 9, color: T.koyu, marginBottom: 6, lineHeight: 1.5 }}>
+                {v.yorum.ozet}
+              </Text>
+              {v.yorum.maddeler.map((m, i) => (
+                <View key={i} style={{
+                  marginBottom: 5, paddingLeft: 6,
+                  borderLeftWidth: 2,
+                  borderLeftColor: m.onem === 'kritik' ? T.kirmizi
+                                 : m.onem === 'uyari' ? '#b45309'
+                                 : m.onem === 'olumlu' ? T.yesil : T.gri,
+                }}>
+                  <Text style={{ fontSize: 8.5, fontWeight: 'bold', color: T.koyu }}>{m.baslik}</Text>
+                  <Text style={{ fontSize: 8, color: T.gri, lineHeight: 1.4 }}>{m.cumle}</Text>
+                  {m.kanit.length > 0 && (
+                    <Text style={{ fontSize: 7.5, color: T.gri }}>
+                      {m.kanit.map(k => `${k.etiket}: ${k.deger}`).join('   ·   ')}
+                    </Text>
+                  )}
+                  {m.eylem && (
+                    <Text style={{ fontSize: 8, color: T.birincil }}>Yapılacak: {m.eylem}</Text>
+                  )}
+                </View>
+              ))}
+            </View>
+          )}
+
           {/* KPI */}
           <View style={s.bolum}>
             <View style={s.kpiSatir}>

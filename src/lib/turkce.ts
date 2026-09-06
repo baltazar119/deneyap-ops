@@ -43,3 +43,54 @@ export function toSlug(s: string): string {
 export function trCompare(a: string, b: string): number {
   return a.localeCompare(b, 'tr')
 }
+
+/* ── Türkçe ekler ────────────────────────────────────────────────────────── */
+
+const SESLI = 'aeıioöuü'
+const KALIN = 'aıou'
+const SERT  = 'pçtkfhsş'
+
+/** Kelimenin son sesli harfi (yoksa null) */
+function sonSesli(s: string): string | null {
+  for (let i = s.length - 1; i >= 0; i--) {
+    const c = s[i].toLowerCase()
+    if (SESLI.includes(c)) return c
+  }
+  return null
+}
+
+/** Son harf (kesme işareti ve boşluk atlanır) */
+function sonHarf(s: string): string {
+  const t = s.trim().replace(/['’]/g, '')
+  return t.length ? t[t.length - 1].toLowerCase() : ''
+}
+
+/**
+ * Özel ada bulunma hâli eki: "Ankara'da", "Uşak'ta", "İzmir'de", "Bolu'da".
+ *
+ * İki kural birden: büyük ünlü uyumu (kalın → 'da', ince → 'de') ve sert
+ * ünsüz benzeşmesi (son harf sert ise 'ta'/'te').
+ *
+ * Bu yardımcı olmadan yorumlar "Uşak'da" yazıyor ve metin anında "makine
+ * üretmiş" gibi okunuyor — yorum motorunun tüm güvenilirliği bu tür küçük
+ * ayrıntılara bağlı.
+ */
+export function bulunmaEki(ad: string): string {
+  const kalin = (sonSesli(ad) ?? 'a')
+  const sert = SERT.includes(sonHarf(ad))
+  const ek = KALIN.includes(kalin)
+    ? (sert ? 'ta' : 'da')
+    : (sert ? 'te' : 'de')
+  return `${ad}'${ek}`
+}
+
+/**
+ * Özel ada yönelme hâli eki: "Ankara'ya", "İzmir'e", "Uşak'a", "Bolu'ya".
+ * Sesliyle biten adlarda kaynaştırma 'y'si girer.
+ */
+export function yonelmeEki(ad: string): string {
+  const kalin = (sonSesli(ad) ?? 'a')
+  const seslikBitis = SESLI.includes(sonHarf(ad))
+  const ek = KALIN.includes(kalin) ? 'a' : 'e'
+  return `${ad}'${seslikBitis ? 'y' : ''}${ek}`
+}

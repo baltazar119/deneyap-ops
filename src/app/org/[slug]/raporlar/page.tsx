@@ -11,6 +11,13 @@ import { raporUretebilirMi } from '@/lib/rapor/kapsam'
 import type { RaporVerisi, TrendKarsilastirma } from '@/lib/rapor/hesapla'
 import Cizgi from '@/components/grafik/Cizgi'
 import { YatayBar, YiginBar } from '@/components/grafik/Bar'
+
+const ONEM_RENK: Record<string, { bg: string; bd: string; fg: string; etiket: string }> = {
+  kritik: { bg: '#fef2f2', bd: '#fca5a5', fg: '#b91c1c', etiket: 'ACİL' },
+  uyari:  { bg: '#fffbeb', bd: '#fcd34d', fg: '#92400e', etiket: 'DİKKAT' },
+  bilgi:  { bg: '#f8fafc', bd: '#e2e8f0', fg: '#475569', etiket: 'BİLGİ' },
+  olumlu: { bg: '#f0fdf4', bd: '#86efac', fg: '#15803d', etiket: 'İYİ' },
+}
 import type { DonemAnahtari } from '@/lib/rapor/donem'
 
 /**
@@ -163,6 +170,48 @@ export default function RaporlarPage() {
           <div className="card"><div className="skeleton h-32 rounded-xl" /></div>
         ) : veri ? (
           <>
+            {b('yorum') && veri.yorum && (
+              <div className="card">
+                <h2 className="font-semibold mb-1" style={{ color: '#0d1a2a' }}>Bu Rapor Ne Diyor?</h2>
+                <p className="text-sm mb-3" style={{ color: '#334155' }}>{veri.yorum.ozet}</p>
+
+                {veri.yorum.maddeler.length > 0 && (
+                  <div className="space-y-2">
+                    {veri.yorum.maddeler.map((m, i) => {
+                      const renk = ONEM_RENK[m.onem]
+                      return (
+                        <div key={i} className="rounded-xl px-3 py-2.5"
+                             style={{ background: renk.bg, border: `1px solid ${renk.bd}` }}>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs font-bold px-1.5 py-0.5 rounded"
+                                  style={{ background: '#fff', color: renk.fg, border: `1px solid ${renk.bd}` }}>
+                              {renk.etiket}
+                            </span>
+                            <span className="text-sm font-semibold" style={{ color: '#0d1a2a' }}>{m.baslik}</span>
+                          </div>
+                          <p className="text-sm" style={{ color: '#334155' }}>{m.cumle}</p>
+                          {m.kanit.length > 0 && (
+                            <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5">
+                              {m.kanit.map((k, j) => (
+                                <span key={j} className="text-xs" style={{ color: '#64748b' }}>
+                                  {k.etiket}: <strong style={{ color: '#334155' }}>{k.deger}</strong>
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          {m.eylem && (
+                            <p className="text-xs mt-1.5 font-medium" style={{ color: renk.fg }}>
+                              Yapılacak: {m.eylem}
+                            </p>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="card">
               <h2 className="font-semibold mb-3" style={{ color: '#0d1a2a' }}>
                 Özet <span className="text-xs font-normal" style={{ color: '#94a3b8' }}>· {veri.meta.donem.etiket}</span>

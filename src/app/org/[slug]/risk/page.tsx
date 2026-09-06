@@ -12,6 +12,16 @@ import { getCachedData, setCachedData } from '@/lib/pageDataCache'
 import { computeRisk, RISK_RENK, type RiskResult } from '@/lib/operationRisk'
 import { fetchRiskInput } from '@/lib/risk/istemciVeri'
 import ResponsivePageHeader from '@/components/responsive/ResponsivePageHeader'
+import { supabase } from '@/lib/supabase/client'
+import Cizgi from '@/components/grafik/Cizgi'
+import type { RaporVerisi } from '@/lib/rapor/hesapla'
+
+const ONEM_RENK: Record<string, { bg: string; bd: string; fg: string }> = {
+  kritik: { bg: '#fef2f2', bd: '#fca5a5', fg: '#b91c1c' },
+  uyari:  { bg: '#fffbeb', bd: '#fcd34d', fg: '#92400e' },
+  bilgi:  { bg: '#f8fafc', bd: '#e2e8f0', fg: '#475569' },
+  olumlu: { bg: '#f0fdf4', bd: '#86efac', fg: '#15803d' },
+}
 
 export default function OperasyonRiskPage() {
   const router = useRouter()
@@ -24,6 +34,9 @@ export default function OperasyonRiskPage() {
 
   const [sonuc, setSonuc] = useState<RiskResult | null>(onbellek)
   const [loading, setLoading] = useState(onbellek === null)
+  // Yorum ve eğilim rapor API'sinden gelir; risk sayfası kendi hesabını
+  // yapmaz. Hata durumunda sayfa yine çalışır (blok gizlenir).
+  const [rapor, setRapor] = useState<RaporVerisi | null>(null)
 
   useEffect(() => {
     if (orgLoading) return
@@ -59,6 +72,21 @@ export default function OperasyonRiskPage() {
       }
     }
     yukle()
+
+    ;(async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session) return
+        const res = await fetch(`/api/org/${org!.slug}/rapor?format=json&donem=bu-ay`, {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        })
+        if (!res.ok || iptal) return
+        setRapor(await res.json())
+      } catch {
+        /* yorum/eğilim bloğu gizli kalır — risk sayfası yine çalışır */
+      }
+    })()
+
     return () => { iptal = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgLoading, org?.id, userId, isAdmin, orgRole])
@@ -97,6 +125,51 @@ export default function OperasyonRiskPage() {
             {sonuc.headline}
           </p>
         </div>
+
+        {/* ── Yorumlanmış veri ve eğilim ───────────────────────────────────
+            Rapor API'sinden gelir; risk sayfası için AYRI bir hesap yolu
+            açılmadı — iki yol zamanla ayrışır ve aynı ekranda iki farklı
+            "geciken" sayısı görünür. */}
+        {rapor?.yorum && rapor.yorum.maddeler.length > 0 && (
+          <div className="rounded-2xl p-4 sm:p-5 mb-5" style={{ background: '#fff', border: '1px solid #e5e7eb' }}>
+            <h2 className="font-semibold mb-1" style={{ color: '#0d1a2a' }}>Durum Yorumu</h2>
+            <p className="text-sm mb-3" style={{ color: '#334155' }}>{rapor.yorum.ozet}</p>
+            <div className="space-y-2">
+              {rapor.yorum.maddeler.slice(0, 4).map((m, i) => {
+                const r = ONEM_RENK[m.onem]
+                return (
+                  <div key={i} className="rounded-xl px-3 py-2" style={{ background: r.bg, border: `1px solid ${r.bd}` }}>
+                    <div className="text-sm font-semibold" style={{ color: '#0d1a2a' }}>{m.baslik}</div>
+                    <p className="text-sm" style={{ color: '#334155' }}>{m.cumle}</p>
+                    {m.eylem && <p className="text-xs mt-1 font-medium" style={{ color: r.fg }}>Yapılacak: {m.eylem}</p>}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {rapor?.trend && rapor.trend.noktalar.length > 1 && (
+          <div className="rounded-2xl p-4 sm:p-5 mb-5" style={{ background: '#fff', border: '1px solid #e5e7eb' }}>
+            <h2 className="font-semibold mb-1" style={{ color: '#0d1a2a' }}>Son 90 Gün</h2>
+            <p className="text-xs mb-3" style={{ color: '#94a3b8' }}>
+              Riskin nereye gittiğini tek bir fotoğraf değil, eğilim gösterir.
+            </p>
+            <Cizgi
+              etiketler={rapor.trend.noktalar.map(n => n.etiket)}
+              turetilmis={rapor.trend.noktalar.map(n => n.turetilmis)}
+              seriler={[
+                { ad: 'Geciken', renk: '#dc2626', degerler: rapor.trend.noktalar.map(n => n.geciken) },
+                { ad: 'Açık',    renk: '#2288c9', degerler: rapor.trend.noktalar.map(n => n.acik) },
+              ]}
+              turetilmisNotu={
+                rapor.trend.tamamenTuretilmis
+                  ? 'Kesikli çizgi: günlük ölçüm henüz birikmedi, seri görev tarihlerinden hesaplandı.'
+                  : 'Kesikli bölümler ölçüm öncesine ait.'
+              }
+            />
+          </div>
+        )}
 
         {sakin ? (
           <div className="rounded-2xl px-6 py-12 text-center" style={{ background: '#fff', border: '1px solid #e5e7eb' }}>

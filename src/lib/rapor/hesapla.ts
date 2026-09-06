@@ -91,6 +91,22 @@ export interface RaporVerisi {
    * sunucu katmanı (rapor/veri.ts) doldurur. Kapsamda 'trend' yoksa null.
    */
   trend: RaporTrend | null
+  /**
+   * Kural tabanlı yorumlar. Saf hesaplayıcı bunları üretmez (yorum motoru
+   * risk ve trend'e de bakıyor); sunucu katmanı doldurur.
+   */
+  yorum: RaporYorum | null
+}
+
+export interface RaporYorum {
+  ozet: string
+  maddeler: {
+    onem: 'kritik' | 'uyari' | 'bilgi' | 'olumlu'
+    baslik: string
+    cumle: string
+    eylem: string | null
+    kanit: { etiket: string; deger: string | number }[]
+  }[]
 }
 
 export interface RaporTrend {
@@ -335,5 +351,6 @@ export function raporHesapla(g: HesapGirdisi): RaporVerisi {
     // Sunucu katmanı doldurur (rapor/veri.ts) — saf hesaplayıcı DB'ye bakmaz
     risk: null,
     trend: null,
+    yorum: null,
   }
 }

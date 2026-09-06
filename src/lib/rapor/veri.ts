@@ -8,6 +8,7 @@ import { seriUret, gunEkle, type OlcumSatiri } from '@/lib/ozet/seri'
 import { karsilastir, karsilastirmaMetni, oncekiDonem } from '@/lib/ozet/karsilastir'
 import type { Task } from '@/types/database'
 import { computeRisk } from '@/lib/operationRisk'
+import { yorumUret, yorumGirdisiKur } from '@/lib/yorum/uret'
 import { riskGirdisiSunucu } from '@/lib/risk/sunucuVeri'
 import type { OrgYetki } from '@/lib/server/apiAuth'
 
@@ -71,12 +72,38 @@ export async function raporVerisi(
    */
   const trend = await trendUret(yetki, kapsam, gorevler, donem)
 
-  if (!kapsam.bolumler.has('risk')) return { ...temel, trend }
+  /**
+   * Yorumlar EN SON üretilir: motor risk ve trend'e de bakıyor, bu yüzden
+   * ikisi de hesaplandıktan sonra çalışmalı. Sıra bozulursa yorumlar
+   * "gecikme artıyor" gibi trend'e dayalı kuralları hiç göremez.
+   */
+  const yorumla = (v: RaporVerisi): RaporVerisi => {
+    if (!kapsam.bolumler.has('yorum')) return v
+    try {
+      const s = yorumUret(yorumGirdisiKur(v, yetki.rol, kapsam))
+      return {
+        ...v,
+        yorum: {
+          ozet: s.ozet,
+          maddeler: s.yorumlar.map(y => ({
+            onem: y.onem, baslik: y.baslik, cumle: y.cumle,
+            eylem: y.eylem, kanit: y.kanit,
+          })),
+        },
+      }
+    } catch (err) {
+      // Yorum motoru raporu düşürmemeli — sayılar yine de değerli.
+      console.error('[rapor/veri] yorum üretilemedi:', err)
+      return v
+    }
+  }
+
+  if (!kapsam.bolumler.has('risk')) return yorumla({ ...temel, trend })
 
   try {
     const girdi = await riskGirdisiSunucu(yetki)
     const r = computeRisk(girdi)
-    return {
+    return yorumla({
       ...temel,
       trend,
       risk: {
@@ -93,11 +120,11 @@ export async function raporVerisi(
           acik: x.openCount, geciken: x.overdueCount,
         })),
       },
-    }
+    })
   } catch (err) {
     // Risk hesabı raporun tamamını düşürmemeli — bölüm boş kalır.
     console.error('[rapor/veri] risk hesaplanamadı:', err)
-    return { ...temel, trend }
+    return yorumla({ ...temel, trend })
   }
 }
 
