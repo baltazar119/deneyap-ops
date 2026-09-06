@@ -87,7 +87,11 @@ async function main() {
   // eklemeye değmez.
   let env = {}
   try {
-    for (const satir of readFileSync('.env.local', 'utf8').split('\n')) {
+    // Satırlara CRLF'e dayanıklı bölünüyor. JS regex'inde `.` bir satır
+    // sonlandırıcı olan CR'yi EŞLEMEZ ve `$` de CR'den önce eşleşmez; bu
+    // yüzden Windows'ta yazılmış bir .env.local'de aşağıdaki `/^KEY=(.*)$/`
+    // hiçbir satırı tutmuyor, script de "anahtar yok" deyip duruyordu.
+    for (const satir of readFileSync('.env.local', 'utf8').split(/\r?\n/)) {
       const m = satir.match(/^([A-Z0-9_]+)=(.*)$/)
       if (m) env[m[1]] = m[2].trim()
     }
