@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { OrgProvider } from '@/lib/supabase/orgContext'
 import DesktopSidebar from '@/components/responsive/DesktopSidebar'
 import MobileNavigation, { MOBILE_TOPBAR_H } from '@/components/responsive/MobileNavigation'
+import DuyuruPopup from '@/components/DuyuruPopup'
 
 const COLLAPSED_KEY = 'deneyap-sidebar-collapsed'
 const SIDEBAR_W_EXPANDED = 240
@@ -27,6 +28,8 @@ export default function OrgLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <OrgProvider>
+      {/* Duyuru popup'ı — kendi içinde yalnızca rolün ana ekranında açılıyor. */}
+      <DuyuruPopup />
       {/* Masaüstü: sabit sidebar. Mobil: üst bar + drawer. Geçiş saf CSS
           breakpoint'i ile yapılır — hangi navigasyonun DOM'da olduğu
           davranışsal bir fark olduğundan (farklı bileşenler) ikisi de

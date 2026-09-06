@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, CheckSquare, Columns2, Calendar, GitBranch, FileBarChart,
   Zap, FolderOpen, Sparkles, MessageSquare, Users, User,
-  LayoutGrid, MessageCircle, ListTodo, Video, Settings, ShieldAlert,
+  LayoutGrid, MessageCircle, ListTodo, Video, Settings, ShieldAlert, Megaphone,
   type LucideIcon,
 } from 'lucide-react'
 import type { OrgRole } from '@/types/database'
@@ -22,6 +22,7 @@ export const NAV_ICONS: Record<string, LucideIcon> = {
   Kanban: Columns2,
   'Operasyon Riski': ShieldAlert,
   Raporlar: FileBarChart,
+  Duyurular: Megaphone,
   Takvim: Calendar,
   Timeline: GitBranch,
   Sprintler: Zap,
@@ -80,6 +81,8 @@ export function getNavLinks({ base, role, isPro }: { base: string; role: OrgRole
 
       izleme(`${base}/risk`, 'Operasyon Riski'),
       izleme(`${base}/raporlar`, 'Raporlar'),
+      // Duyuru yönetimi yalnızca owner/admin'de (kullanıcı kararı)
+      izleme(`${base}/duyurular`, 'Duyurular'),
 
       ekip(`${base}/members`, 'Ekip'),
       ekip(`${base}/chat`, 'Sohbet'),

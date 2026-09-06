@@ -312,6 +312,25 @@ export interface OrganizationMember {
   deneyap_id: string | null
 }
 
+/** 062 — Duyuru. Hedefleme dizileri BOŞ ise "herkes" demektir. */
+export interface Duyuru {
+  id: string
+  organization_id: string
+  baslik: string
+  icerik: string
+  onem: 'kritik' | 'onemli' | 'normal'
+  hedef_roller: string[]
+  hedef_iller: string[]
+  hedef_deneyap_ids: string[]
+  /** false = taslak. */
+  yayinda: boolean
+  baslangic_at: string | null
+  bitis_at: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
 /** 060 — DENEYAP birimi. Bir ilde birden fazla olabilir. */
 export interface Deneyap {
   id: string
@@ -458,6 +477,8 @@ export type NotificationEvent =
   | 'meeting_cancelled'
   | 'meeting_reminder'
   | 'member_overloaded'
+  // 062 — duyuru bildirimi
+  | 'announcement'
 
 export interface AppNotification {
   id: string
