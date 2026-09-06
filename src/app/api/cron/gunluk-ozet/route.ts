@@ -18,8 +18,8 @@ export const maxDuration = 60
  * (görev tarihlerinden türetilir), ama bloke / atanmamış / risk skoru
  * geçmişi YALNIZCA buradan gelebilir — onlar geriye dönük hesaplanamıyor.
  *
- * Idempotent: aynı gün iki kez çalışırsa upsert satırı günceller, kopya
- * oluşmaz (064'teki tekil index).
+ * Idempotent: aynı gün iki kez çalışırsa o günün cron satırları silinip
+ * yeniden yazılır, kopya oluşmaz.
  *
  * `gunluk` dispatcher'ının EN BAŞINA konur: 50 sn bütçe dolduğunda atlanan
  * son iş bu olmamalı, çünkü kaçırılan bir gün geri getirilemez.
@@ -88,9 +88,27 @@ export async function GET(req: NextRequest) {
         risk_seviyesi: s.kirilim === 'org' ? risk.level : null,
       }))
 
-      const { error } = await db
-        .from('gunluk_ozet')
-        .upsert(kayitlar, { onConflict: 'organization_id,gun,kirilim,il,deneyap_id' })
+      /**
+       * ÖNCE SİL, SONRA YAZ.
+       *
+       * `upsert(..., { onConflict })` KULLANILMIYOR: 064'teki benzersiz index
+       * `coalesce(il,'')` gibi İFADELER üzerine kurulu (null'ları tekilleştirmek
+       * için şart) ve PostgREST'in ON CONFLICT'i yalnızca düz KOLON listesiyle
+       * eşleşebiliyor. Eşleşmediği için upsert
+       * "no unique or exclusion constraint matching the ON CONFLICT
+       * specification" hatası veriyordu.
+       *
+       * Silme (org, gün, kaynak='cron') ile sınırlı: demo satırlarına
+       * dokunulmaz. Bu haliyle iş idempotent — aynı gün iki kez çalışsa da
+       * kopya oluşmaz.
+       */
+      await db.from('gunluk_ozet')
+        .delete()
+        .eq('organization_id', org.id)
+        .eq('gun', bugun)
+        .eq('kaynak', 'cron')
+
+      const { error } = await db.from('gunluk_ozet').insert(kayitlar)
 
       if (error) throw new Error(error.message)
       sonuc.push({ org: org.slug, satir: kayitlar.length })

@@ -4,30 +4,15 @@
 
 ---
 
-## SENİN YAPMAN GEREKEN — 3 migration + 1 komut
+## Durum: HAZIR
 
-Supabase → SQL Editor'de sırayla çalıştır:
+**Tüm migration'lar uygulandı** (059–065) ve doğrulandı. Demo trend geçmişi
+üretildi (900 ölçüm satırı). Günlük cron gerçek ölçüm yazıyor ve idempotent
+çalıştığı iki kez koşturularak doğrulandı.
 
-| # | Dosya | Ne yapar | Aciliyet |
-|---|---|---|---|
-| 063 | `063_import_deneyap.sql` | Excel içe aktarmada DENEYAP bağını göreve yazar | Orta |
-| 064 | `064_gunluk_ozet.sql` | Günlük ölçüm tablosu — trend grafiklerinin gerçek verisi | **Yüksek** |
-| 065 | `065_ai_rapor_yorum_action.sql` | AI rapor yorumu kotasının sayılmasını sağlar | Düşük |
+Trend geçmişini yeniden üretmek gerekirse:
 
-Sonra, sunumda trend grafiklerinin dolu görünmesi için:
 
-```bash
-npm run seed:ozet
-```
-
-90 günlük demo geçmişi üretir (`kaynak='demo'`, `npm run seed:ozet -- --temizle` ile silinir).
-**Bunu yapmazsan grafikler neredeyse düz çizgi çıkar** — demo görevlerin hepsi aynı
-tarihlerde oluşturuldu. Ekranda "bu döneme ait ölçüm yok, seri görev tarihlerinden
-hesaplandı" dipnotu görünür, yani yanıltıcı değil ama sunumda zayıf durur.
-
-> **Hiçbiri uygulanmadan da sistem çalışır.** Kod migration'sız çalışacak şekilde
-> yazıldı ve bu gerçek bir içe aktarmayla ölçüldü (063 için). Uygulanmayan
-> migration yalnızca ilgili özelliği sessizce devre dışı bırakır, hata vermez.
 
 ---
 

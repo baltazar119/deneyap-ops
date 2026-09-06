@@ -167,15 +167,39 @@ async function main() {
       })
     }
 
-    // 500'lük yığınlar — PostgREST tek istekte çok satırda zorlanıyor
+    /**
+     * ONCE SIL, SONRA YAZ.
+     *
+     * `upsert(..., { onConflict })` KULLANILMIYOR: 064'teki benzersiz index
+     * `coalesce(il,'')` gibi IFADELER uzerine kurulu (null'lari tekillestirmek
+     * icin sart) ve PostgREST'in ON CONFLICT'i yalnizca duz KOLON listesiyle
+     * eslesebiliyor. Ikisi eslesmedigi icin upsert
+     * "no unique or exclusion constraint matching the ON CONFLICT
+     * specification" hatasi veriyordu.
+     *
+     * Silme yalnizca kaynak='demo' satirlarini kapsar; gercek cron olcumlerine
+     * DOKUNULMAZ.
+     */
+    const { error: silHata } = await db.from('gunluk_ozet')
+      .delete().eq('organization_id', org.id).eq('kaynak', 'demo')
+    if (silHata) cik('Eski demo satirlari silinemedi: ' + silHata.message)
+
+    // Cron'un gercek olcum yazdigi gunlere demo satiri EKLENMEZ: benzersiz
+    // index catisirdi ve gercek olcumun uzerine tahmin yazmak zaten yanlis.
+    const { data: cronGunleri } = await db.from('gunluk_ozet')
+      .select('gun').eq('organization_id', org.id).eq('kaynak', 'cron')
+    const dolu = new Set((cronGunleri ?? []).map(x => x.gun))
+    const yazilacak = kayitlar.filter(k => !dolu.has(k.gun))
+
     let yazilan = 0
-    for (let i = 0; i < kayitlar.length; i += 500) {
-      const { error: e } = await db.from('gunluk_ozet')
-        .upsert(kayitlar.slice(i, i + 500), { onConflict: 'organization_id,gun,kirilim,il,deneyap_id' })
+    for (let i = 0; i < yazilacak.length; i += 500) {
+      const { error: e } = await db.from('gunluk_ozet').insert(yazilacak.slice(i, i + 500))
       if (e) cik('Yazilamadi: ' + e.message + '\n(migration 064 uygulandi mi?)')
-      yazilan += Math.min(500, kayitlar.length - i)
+      yazilan += Math.min(500, yazilacak.length - i)
     }
-    console.log(`  ${org.slug}: ${yazilan} olcum satiri (${GUN_SAYISI} gun, ${iller.length} il, ${birimler.length} DENEYAP)`)
+    const atlanan = kayitlar.length - yazilacak.length
+    console.log(`  ${org.slug}: ${yazilan} olcum satiri (${GUN_SAYISI} gun, ${iller.length} il, ${birimler.length} DENEYAP)`
+      + (atlanan ? ` — ${atlanan} satir atlandi (gercek olcum var)` : ''))
   }
 
   console.log('\nHazir. Silmek icin: node scripts/ozet-demo.mjs --temizle\n')
