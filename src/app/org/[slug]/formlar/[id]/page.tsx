@@ -27,6 +27,38 @@ export default function FormCevaplariPage() {
   const [yukleniyor, setYukleniyor] = useState(true)
   const [hata, setHata] = useState<string | null>(null)
   const [acikYanit, setAcikYanit] = useState<string | null>(null)
+  const [indiriliyor, setIndiriliyor] = useState<'xlsx' | 'csv' | null>(null)
+
+  /**
+   * Dosya indirme: uç `Authorization` başlığı istediği için düz bir <a>
+   * bağlantısı kullanılamıyor; blob'a çekip programatik indiriyoruz.
+   */
+  async function indir(bicim: 'xlsx' | 'csv') {
+    if (!org) return
+    setIndiriliyor(bicim)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) throw new Error('Oturum bulunamadı.')
+      const r = await fetch(`/api/org/${org.slug}/formlar/${params.id}/disa-aktar?format=${bicim}`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      if (!r.ok) throw new Error('İndirilemedi.')
+      const blob = await r.blob()
+      // Dosya adı sunucudan geliyor; istemcide yeniden türetmek ikisinin
+      // ayrışması demekti.
+      const ad = /filename="([^"]+)"/.exec(r.headers.get('content-disposition') ?? '')?.[1]
+        ?? `form.${bicim}`
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url; a.download = ad
+      document.body.appendChild(a); a.click(); a.remove()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      setHata(e instanceof Error ? e.message : 'İndirilemedi.')
+    } finally {
+      setIndiriliyor(null)
+    }
+  }
 
   const yukle = useCallback(async () => {
     if (!org) return
@@ -61,6 +93,7 @@ export default function FormCevaplariPage() {
   }
 
   const alanlar = (form?.alanlar ?? []) as FormAlani[]
+  const alanlarTabloVar = alanlar.some(a => a.tip === 'tablo')
   const yanitHaritasi = new Map(yanitlar.map(y => [y.gonderim_id, y]))
 
   return (
@@ -73,9 +106,32 @@ export default function FormCevaplariPage() {
         <h1 className="text-lg md:text-xl font-bold mt-1 mb-1" style={{ color: '#111827', letterSpacing: '-0.02em' }}>
           {form?.baslik ?? 'Form'}
         </h1>
-        <p className="text-xs md:text-sm mb-4" style={{ color: '#9ca3af' }}>
-          {yanitlar.length} yanıt · {gonderimler.length} gönderim
-        </p>
+        <div className="flex items-end justify-between gap-3 flex-wrap mb-4">
+          <p className="text-xs md:text-sm" style={{ color: '#64748b' }}>
+            {yanitlar.length} yanıt · {gonderimler.length} gönderim
+          </p>
+          {gonderimler.length > 0 && (
+            <div className="flex items-center gap-2">
+              <button onClick={() => indir('xlsx')} disabled={indiriliyor !== null}
+                className="text-xs px-3 py-2 rounded-xl font-semibold"
+                style={{ color: '#0f766e', background: '#f0fdfa', border: '1px solid #99f6e4' }}>
+                {indiriliyor === 'xlsx' ? 'Hazırlanıyor...' : 'Excel indir'}
+              </button>
+              <button onClick={() => indir('csv')} disabled={indiriliyor !== null}
+                className="text-xs px-3 py-2 rounded-xl font-semibold"
+                style={{ color: '#475569', background: '#f8fafc', border: '1px solid #cbd5e1' }}>
+                {indiriliyor === 'csv' ? 'Hazırlanıyor...' : 'CSV'}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Tablo soruları CSV'ye sığmaz; kullanıcı indirmeden önce bilmeli. */}
+        {alanlarTabloVar && (
+          <p className="text-[11px] mb-4 -mt-2" style={{ color: '#64748b' }}>
+            Tablo sorularının satırları yalnızca Excel&apos;de ayrı sayfa olarak yer alır.
+          </p>
+        )}
 
         {hata && (
           <div className="text-sm rounded-xl px-4 py-3 mb-4" style={{ background: '#fee2e2', color: '#dc2626' }}>{hata}</div>
